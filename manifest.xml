@@ -22,7 +22,7 @@
     <Host Name="Document"/>
   </Hosts>
   <DefaultSettings>
-    <SourceLocation DefaultValue="https://mbibawi.github.io/ExcelInvoicingAddIn/your-repository/taskpane.html"/>
+    <SourceLocation DefaultValue="https://mbibawi.github.io/ExcelInvoicingAddIn/index.html"/>
   </DefaultSettings>
   
   <Permissions>ReadWriteDocument</Permissions>

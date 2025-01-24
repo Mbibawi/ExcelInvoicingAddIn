@@ -138,7 +138,7 @@ function getTokenWithMSAL() {
       auth: {
         clientId: clientId,
         authority: `https://login.microsoftonline.com/${tenantId}`,
-        clientSecret: clientSecret,
+        //clientSecret: clientSecret,
       }
     }
   //@ts-ignore

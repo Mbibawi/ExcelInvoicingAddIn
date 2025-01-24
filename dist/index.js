@@ -202,7 +202,7 @@ function getTokenWithMSAL() {
                             auth: {
                                 clientId: clientId,
                                 authority: "https://login.microsoftonline.com/".concat(tenantId),
-                                clientSecret: clientSecret,
+                                //clientSecret: clientSecret,
                             }
                         };
                         cca = new msal.application.ConfidentialClientApplication(msalConfig);
