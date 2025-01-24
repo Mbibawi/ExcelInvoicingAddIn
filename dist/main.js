@@ -179,9 +179,12 @@ function getTokenWithMSAL() {
                         return [2 /*return*/, acquireTokenSilently(account)];
                     }
                     else {
-                        return [2 /*return*/, loginAndGetToken()];
+                        //return loginAndGetToken();
                         //openLoginWindow()
-                        //return officeToken()
+                        return [2 /*return*/, getOfficeToken()
+                            //return getTokenWithSSO('minabibawi@gmail.com')
+                            //return credentitalsToken()
+                        ];
                         //return getTokenWithSSO('minabibawi@gmail.com')
                         //return credentitalsToken()
                     }
@@ -227,23 +230,29 @@ function getTokenWithMSAL() {
             });
         });
     }
-    function officeToken() {
+    function getOfficeToken() {
         return __awaiter(this, void 0, void 0, function () {
-            var token;
+            var error_2;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, OfficeRuntime.auth.getAccessToken()];
-                    case 1:
-                        token = _a.sent();
-                        debugger;
-                        return [2 /*return*/];
+                    case 0:
+                        _a.trys.push([0, 2, , 3]);
+                        return [4 /*yield*/, OfficeRuntime.auth.getAccessToken()];
+                    case 1: 
+                    //@ts-ignore
+                    return [2 /*return*/, _a.sent()];
+                    case 2:
+                        error_2 = _a.sent();
+                        console.log("Error : ", error_2);
+                        return [3 /*break*/, 3];
+                    case 3: return [2 /*return*/];
                 }
             });
         });
     }
     function getTokenWithSSO(email) {
         return __awaiter(this, void 0, void 0, function () {
-            var msalConfig, response, error_2;
+            var msalConfig, response, error_3;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -272,8 +281,8 @@ function getTokenWithMSAL() {
                         console.log("Token acquired via SSO:", response.accessToken);
                         return [2 /*return*/, response.accessToken];
                     case 3:
-                        error_2 = _a.sent();
-                        console.error("SSO silent authentication failed:", error_2);
+                        error_3 = _a.sent();
+                        console.error("SSO silent authentication failed:", error_3);
                         return [2 /*return*/, null];
                     case 4: return [2 /*return*/];
                 }
@@ -294,7 +303,7 @@ function getTokenWithMSAL() {
             // Function to handle redirect response
             function handleRedirectResponse() {
                 return __awaiter(this, void 0, void 0, function () {
-                    var authResult, error_4;
+                    var authResult, error_5;
                     return __generator(this, function (_a) {
                         switch (_a.label) {
                             case 0:
@@ -308,15 +317,15 @@ function getTokenWithMSAL() {
                                 }
                                 return [3 /*break*/, 3];
                             case 2:
-                                error_4 = _a.sent();
-                                console.error("Redirect handling error:", error_4);
+                                error_5 = _a.sent();
+                                console.error("Redirect handling error:", error_5);
                                 return [3 /*break*/, 3];
                             case 3: return [2 /*return*/, undefined];
                         }
                     });
                 });
             }
-            var loginRequest, error_3;
+            var loginRequest, error_4;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -329,8 +338,8 @@ function getTokenWithMSAL() {
                         _a.sent();
                         return [2 /*return*/, handleRedirectResponse()];
                     case 2:
-                        error_3 = _a.sent();
-                        console.error("Login error:", error_3);
+                        error_4 = _a.sent();
+                        console.error("Login error:", error_4);
                         return [2 /*return*/, undefined];
                     case 3: return [2 /*return*/];
                 }
@@ -340,7 +349,7 @@ function getTokenWithMSAL() {
     // Function to get access token silently
     function acquireTokenSilently(account) {
         return __awaiter(this, void 0, void 0, function () {
-            var tokenRequest, tokenResponse, error_5;
+            var tokenRequest, tokenResponse, error_6;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -358,8 +367,8 @@ function getTokenWithMSAL() {
                         }
                         return [3 /*break*/, 3];
                     case 2:
-                        error_5 = _a.sent();
-                        console.error("Token acquisition error:", error_5);
+                        error_6 = _a.sent();
+                        console.error("Token acquisition error:", error_6);
                         return [2 /*return*/, loginAndGetToken()];
                     case 3: return [2 /*return*/, undefined];
                 }

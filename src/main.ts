@@ -106,7 +106,7 @@ async function createWordDocument(filtered: any[][]) {
 // Get filtered data from the Excel table
 
 function getTokenWithMSAL() {
-        //const clientId = "f670878d-ed8e-4020-bb82-21ba582d0d9c"; the old one
+      //const clientId = "f670878d-ed8e-4020-bb82-21ba582d0d9c"; the old one
       const clientId = "157dd297-447d-4592-b2d3-76b643b97132"; //the new one
       const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
     //const redirectUri = "https://script-lab.public.cdn.office.net";
@@ -124,15 +124,15 @@ function getTokenWithMSAL() {
   return checkExistingAuthContext();
 
   // Function to check existing authentication context
-  async function checkExistingAuthContext(): Promise<string | undefined> {
+  async function checkExistingAuthContext(): Promise<string | undefined|void> {
     try {
       const account = msalInstance.getAllAccounts()[0];
       if (account) {
         return acquireTokenSilently(account);
       } else {
-          return loginAndGetToken();
+          //return loginAndGetToken();
         //openLoginWindow()
-        //return officeToken()
+          return getOfficeToken()
         //return getTokenWithSSO('minabibawi@gmail.com')
           //return credentitalsToken()
       }
@@ -167,11 +167,17 @@ function getTokenWithMSAL() {
     }
 
   }
-  async function officeToken() {
-    //@ts-ignore
-    const token = await OfficeRuntime.auth.getAccessToken();
-    debugger
 
+  async function getOfficeToken() {
+    try {
+    //@ts-ignore
+    return await OfficeRuntime.auth.getAccessToken()
+      
+  } catch (error) {
+      console.log("Error : ", error)
+      
+    }
+    
   }
 
   async function getTokenWithSSO(email: string) {
