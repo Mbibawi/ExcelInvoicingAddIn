@@ -1,12 +1,3 @@
-// Show the form and handle user input
-//const iframe = document.getElementById("iframe") as HTMLIFrameElement;
-//const clientId = "f670878d-ed8e-4020-bb82-21ba582d0d9c"; the old one
-const clientId = "157dd297-447d-4592-b2d3-76b643b97132"; //the new one
-const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
-const redirectUri = "https://script-lab.public.cdn.office.net";
-//const redirectUri = "msal157dd297-447d-4592-b2d3-76b643b97132://auth";
-var token;
-
 Office.onReady((info) => {
   // Office is ready
   if (info.host === Office.HostType.Excel) {
@@ -20,6 +11,7 @@ Office.onReady((info) => {
 
 
 function loadMsalScript() {
+  var token;
   const script = document.createElement("script");
   script.src = "https://alcdn.msauth.net/browser/2.17.0/js/msal-browser.min.js";
   script.onload = async () => (token = await getTokenWithMSAL());
@@ -114,6 +106,11 @@ async function createWordDocument(filtered: any[][]) {
 // Get filtered data from the Excel table
 
 function getTokenWithMSAL() {
+        //const clientId = "f670878d-ed8e-4020-bb82-21ba582d0d9c"; the old one
+      const clientId = "157dd297-447d-4592-b2d3-76b643b97132"; //the new one
+      const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
+    //const redirectUri = "https://script-lab.public.cdn.office.net";
+      const redirectUri = "msal157dd297-447d-4592-b2d3-76b643b97132://auth";
   // MSAL configuration
   const msalConfig = {
     auth: {
@@ -384,6 +381,3 @@ async function uploadWordDocument(filtered: any[][], fileName: string) {
   }
 }
 
-// Show the form when the script is run
-Office.onReady(() => showForm());
-//uploadWordDocument();

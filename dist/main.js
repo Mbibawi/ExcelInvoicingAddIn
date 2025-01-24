@@ -35,14 +35,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-// Show the form and handle user input
-//const iframe = document.getElementById("iframe") as HTMLIFrameElement;
-//const clientId = "f670878d-ed8e-4020-bb82-21ba582d0d9c"; the old one
-var clientId = "157dd297-447d-4592-b2d3-76b643b97132"; //the new one
-var tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
-var redirectUri = "https://script-lab.public.cdn.office.net";
-//const redirectUri = "msal157dd297-447d-4592-b2d3-76b643b97132://auth";
-var token;
 Office.onReady(function (info) {
     // Office is ready
     if (info.host === Office.HostType.Excel) {
@@ -54,6 +46,7 @@ Office.onReady(function (info) {
 });
 function loadMsalScript() {
     var _this = this;
+    var token;
     var script = document.createElement("script");
     script.src = "https://alcdn.msauth.net/browser/2.17.0/js/msal-browser.min.js";
     script.onload = function () { return __awaiter(_this, void 0, void 0, function () { return __generator(this, function (_a) {
@@ -160,6 +153,11 @@ async function createWordDocument(filtered: any[][]) {
 }*/
 // Get filtered data from the Excel table
 function getTokenWithMSAL() {
+    //const clientId = "f670878d-ed8e-4020-bb82-21ba582d0d9c"; the old one
+    var clientId = "157dd297-447d-4592-b2d3-76b643b97132"; //the new one
+    var tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
+    //const redirectUri = "https://script-lab.public.cdn.office.net";
+    var redirectUri = "msal157dd297-447d-4592-b2d3-76b643b97132://auth";
     // MSAL configuration
     var msalConfig = {
         auth: {
@@ -497,6 +495,3 @@ function uploadWordDocument(filtered, fileName) {
         });
     });
 }
-// Show the form when the script is run
-Office.onReady(function () { return showForm(); });
-//uploadWordDocument();
