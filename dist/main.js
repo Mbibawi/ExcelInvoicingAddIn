@@ -43,7 +43,16 @@ var tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
 var redirectUri = "https://script-lab.public.cdn.office.net";
 //const redirectUri = "msal157dd297-447d-4592-b2d3-76b643b97132://auth";
 var token;
-(function loadMsalScript(callback) {
+Office.onReady(function (info) {
+    // Office is ready
+    if (info.host === Office.HostType.Excel) {
+        // Excel-specific initialization code goes here
+        console.log("Excel is ready!");
+        loadMsalScript();
+        showForm();
+    }
+});
+function loadMsalScript() {
     var _this = this;
     var script = document.createElement("script");
     script.src = "https://alcdn.msauth.net/browser/2.17.0/js/msal-browser.min.js";
@@ -55,18 +64,13 @@ var token;
     }); }); };
     script.onerror = function () { return console.error("Failed to load MSAL.js"); };
     document.head.appendChild(script);
-})();
+}
+;
 function showForm() {
-    return __awaiter(this, void 0, void 0, function () {
-        var formHtml, form;
-        return __generator(this, function (_a) {
-            formHtml = "<div id=\"filterForm\" >\n    <label for=\"client\" > Client: </label>\n    <input type=\"text\" id=\"client\" name=\"client\"><br><br>\n    <label for=\"affaire\" > Affaire: </label>\n    <input type =\"text\" id =\"affaire\" name=\"affaire\"><br><br>\n    <label for=\"nature\" > Nature: </label>\n    <input type =\"text\" id =\"nature\" name=\"nature\"><br><br>\n    <label for=\"date\" > Date: </label>\n    <input type=\"date\" id=\"date\" name=\"date\"><br><br>\n    <button onclick=\"filter()\"> Filter Table</button>\n  </div>";
-            form = document.getElementById("form");
-            if (form)
-                form.innerHTML = formHtml;
-            return [2 /*return*/];
-        });
-    });
+    var formHtml = "<div id=\"filterForm\" >\n    <label for=\"client\" > Client: </label>\n    <input type=\"text\" id=\"client\" name=\"client\"><br><br>\n    <label for=\"affaire\" > Affaire: </label>\n    <input type =\"text\" id =\"affaire\" name=\"affaire\"><br><br>\n    <label for=\"nature\" > Nature: </label>\n    <input type =\"text\" id =\"nature\" name=\"nature\"><br><br>\n    <label for=\"date\" > Date: </label>\n    <input type=\"date\" id=\"date\" name=\"date\"><br><br>\n    <button onclick=\"filter()\"> Filter Table</button>\n  </div>";
+    var form = document.getElementById("form");
+    if (form)
+        form.innerHTML = formHtml;
 }
 function filter() {
     return __awaiter(this, void 0, void 0, function () {

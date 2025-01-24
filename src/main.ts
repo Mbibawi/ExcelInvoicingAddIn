@@ -7,15 +7,27 @@ const redirectUri = "https://script-lab.public.cdn.office.net";
 //const redirectUri = "msal157dd297-447d-4592-b2d3-76b643b97132://auth";
 var token;
 
-(function loadMsalScript(callback) {
+Office.onReady((info) => {
+  // Office is ready
+  if (info.host === Office.HostType.Excel) {
+    // Excel-specific initialization code goes here
+    console.log("Excel is ready!");
+
+    loadMsalScript();
+    showForm();
+  }
+  });
+
+
+function loadMsalScript() {
   const script = document.createElement("script");
   script.src = "https://alcdn.msauth.net/browser/2.17.0/js/msal-browser.min.js";
   script.onload = async () => (token = await getTokenWithMSAL());
   script.onerror = () => console.error("Failed to load MSAL.js");
   document.head.appendChild(script);
-})();
+};
 
-async function showForm() {
+function showForm() {
   const formHtml = `<div id="filterForm" >
     <label for="client" > Client: </label>
     <input type="text" id="client" name="client"><br><br>
