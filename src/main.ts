@@ -1,5 +1,5 @@
 Office.onReady((info) => {
-  // Office is ready
+  // Office is ready - doo
   if (info.host === Office.HostType.Excel) {
     // Excel-specific initialization code goes here
     console.log("Excel is ready!");
