@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style src="index.css"></style>
     <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js">
     </script>
      <script src="main.js"></script>
@@ -10,6 +11,8 @@
 </head>
 <body>
     <h1>This is the main page of the app</h1>
+    <button id="entry" class="ms-Button" onclick="selectForm('entry')"> Ajouter </button>
+    <button id="invoice" class="ms-Button" onclick="selectForm('invoice')"> Facturer </button>
     <div id="form"></div>
 </body>
 </html>

@@ -7,7 +7,7 @@ Office.onReady((info) => {
     loadMsalScript();
     showForm();
   }
-  });
+});
 
 
 function loadMsalScript() {
@@ -19,22 +19,166 @@ function loadMsalScript() {
   document.head.appendChild(script);
 };
 
-function showForm() {
+function selectForm(id: string) {
+  showForm(id)
+}
+
+async function showForm(id?: string) {
   const formHtml = `<div id="filterForm" >
     <label for="client" > Client: </label>
-    <input type="text" id="client" name="client"><br><br>
-    <label for="affaire" > Affaire: </label>
-    <input type ="text" id ="affaire" name="affaire"><br><br>
+    <input type="text" id="_client" name="client"><br><br>
+    <input list="clients" id="client" name="client" data-index = "0" autocomplete="on"><br><br>
+    <label for="matter" > Affaire: </label>
+    <input type ="text" id ="_matter" name="affaire"><br><br>
+    <input list="matters" id="matter" name="matter" data-index = "1" autocomplete="on"><br><br>
     <label for="nature" > Nature: </label>
-    <input type ="text" id ="nature" name="nature"><br><br>
+    <input type ="text" id ="_nature" name="nature"><br><br>
+    <input list="natures" id="nature" name="nature" data-index="2" autocomplete="on"><br><br>
     <label for="date" > Date: </label>
-    <input type="date" id="date" name="date"><br><br>
-    <button onclick="filter()"> Filter Table</button>
+    <input type="date" id="date" name="date" data-index="3"><br><br>
   </div>`;
 
-  const form = document.getElementById("form")
-    if(form) form.innerHTML = formHtml;
+  const form = document.getElementById("form") as HTMLDivElement;
+  form.innerHTML = '';
+
+  await Excel.run(async (context) => {
+    const sheet = context.workbook.worksheets.getActiveWorksheet();
+    const table = sheet.tables.getItem('LivreJournal');
+    const title = table.getHeaderRowRange();
+    title.load('values');
+    await context.sync();
+    //form.innerHTML = formHtml;
+    insertInputsAndLables(['client', 'matter', 'nature', 'date'], title.values[0]);
+    if (id === 'invoice') form.innerHTML += `<button onclick="filter()"> Filter Table</button>`;
+    
+
+    if(id !== 'entry') return;
+    const otherHtml = `
+  <label for="adress" > Adresse: </label>
+  <input type ="text" id ="_adress" name="adress"><br><br>
+  <input list="adress" id="adress" name="adress" data-index="10" autocomplete="on"><br><br>
+  <label for="adress" > Moyen de paiement: </label>
+  <input type ="text" id ="_payment" name="payment"><br><br>
+  <input list="payment" id="payment" name="payment" data-index="5" autocomplete="on"><br><br>
+  <label for="amount" > Montant: </label>
+  <input type ="text" id ="_amout" name="amount"><br><br>
+  <input list="amount" id="amount" name="amount" data-index="8" autocomplete="on"><br><br>
+  <label for="vat" > TVA: </label>
+  <input type ="text" id ="_vat" name="vat"><br><br>
+  <input list="vat" id="vat" name="vat" data-index=autocomplete="on"><br><br>
+  <label for="account" > Bank account: </label>
+  <input type ="text" id ="_account" name="account"><br><br>
+  <input list="account" id="account" name="account" data-index="6" autocomplete="on"><br><br>
+  <label for="payee" > Third Party: </label>
+  <input type ="text" id ="_payee" name="payee"><br><br>
+  <input list="payee" id="payee" name="payee" data-index="7" autocomplete="on"><br><br>
+  <label for="description" > Description: </label>
+  <input type ="text" id ="_description" name="description"><br><br>
+  <input list="description" id="description" name="description" data-index="8" autocomplete="off"><br><br>
+  <button onclick="addEntry()"> Ajouter </button>
+  `
+    form.innerHTML += otherHtml;
+   // if(id === 'insert') getInputs([null, null, null, null, 'amount', 'vat', 'account', 'payment', 'payee', 'description', 'adress' ], title.values[0])
+
+  });
   
+  function insertInputsAndLables(ids:string[], title:string[]) {
+    ids.forEach(id => {
+      if(!id) return;
+      const input = document.createElement('input');
+      const index = ids.indexOf(id);
+      input.type = "text"
+      if (id === 'date') input.type = 'date';
+      input.setAttribute('list', id + 's'),
+      input.id = id
+      input.name = id
+      input.dataset.index = index.toString();
+      input.autocomplete = "on"
+      
+      const label = document.createElement('label');
+      label.htmlFor = id;
+      label.innerText = title[index];
+      
+      form.appendChild(label);
+      form.appendChild(input);
+      form.appendChild(document.createElement('br'));
+      form.appendChild(document.createElement('br'));
+    });
+    addOnChange();
+ }
+
+  function addOnChange(inputs?: HTMLInputElement[]) {
+    if (!inputs || inputs.length < 1)
+      inputs = Array.from(document.getElementsByTagName('input')) as HTMLInputElement[];
+    console.log('inputs = ', inputs);
+    inputs.forEach(input => input.addEventListener('change', async () => await inputOnChange(input)))  ;
+
+  }
+  
+  async function inputOnChange(input: HTMLInputElement) {
+    debugger
+    const visible = await filterTable(undefined, [[Number(input.dataset.index), getArray(input.value)]]);
+    if (!visible) return;
+    const nextInput = input.nextElementSibling as HTMLInputElement;
+    if (!nextInput) return;
+    const nextColumnValues = new Set(visible.map(row => row[Number(nextInput.dataset.index)]));
+    console.log('unique values = ', nextColumnValues)
+    // Create a new datalist element
+    let dataList = Array.from(document.getElementsByTagName('datalist')).find(list => list.id === input.id + "s");
+    if (dataList) dataList.remove();
+    dataList = document.createElement('datalist');
+    //@ts-ignore
+    dataList.id = input.id + 's';
+    // Append options to the datalist
+    Array.from(nextColumnValues).forEach(option => {
+      const optionElement = document.createElement('option');
+      optionElement.value = option;
+      dataList?.appendChild(optionElement);
+    });
+    // Attach the datalist to the body or a specific element
+    document.body.appendChild(dataList);
+  }
+  
+}
+
+/**
+ * Filters the Excel table based on a criteria
+ * @param {[[number, string[]]]} criteria - the first element is the column index, the second element is the values[] based on which the column will be filtered
+ */
+async function filterTable(tableName: string = 'LivreJournal', criteria: [number, string[]][], clearFilter:boolean = false) {
+  return await Excel.run(async (context) => {
+    const sheet = context.workbook.worksheets.getActiveWorksheet();
+    const table = sheet.tables.getItem(tableName);
+
+    if(clearFilter) table.autoFilter.clearCriteria();
+
+    criteria.forEach(column => filterColumn(column[0], column[1]));
+
+    function filterColumn(index: number, filter: string[]) {
+      table.columns.getItemAt(index).filter.applyValuesFilter(filter)
+    }
+
+    await context.sync();
+    const range = table.getDataBodyRange().getVisibleView();
+    range.load('values');
+    return range.values
+    //await createWordDocument(range.values);
+    //@ts-ignore
+    uploadWordDocument(range.values, criteria.client.join(",") + "_Invoice" + "THEDATE");
+  });
+}
+
+/**
+ * Converts the ',' separated text in the input into an array
+ * @param value 
+ * @returns {string[]}
+ */
+function getArray(value: string): string[] {
+  const array =
+    value.replaceAll(', ', ',')
+      .replaceAll(' ,', ',')
+      .split(',');
+  return array.filter((el) => el);
 }
 
 async function filter() {
@@ -42,43 +186,48 @@ async function filter() {
   const matter = document.getElementById("affaire") as HTMLInputElement;
   const nature = document.getElementById("nature") as HTMLInputElement;
   const date = document.getElementById("date") as HTMLInputElement;
-  const criteria = {
-    client: getArray(client.value) || undefined,
-    matter: getArray(matter.value) || undefined,
-    nature: getArray(nature.value) || undefined,
-    date: getArray(date.value) || undefined
-  };
+  const criteria: [number, string[]][] = [
+    [0, getArray(client.value) || undefined],
+    [1, getArray(matter.value) || undefined],
+    [2, getArray(nature.value) || undefined],
+    [3, getArray(date.value) || undefined]
+  ];
 
-  filterTable(criteria);
+  filterTable(undefined, criteria, true);
 
-  function getArray(value: string): string[] {
-    const array = value.split(",");
-    return array.filter((el) => el);
-  }
 }
-// Filter the Excel table based on form data
-async function filterTable(criteria: { client: string[]; matter: string[]; nature: string[]; date: string[] }) {
+
+async function addEntry(tableName: string = 'LivreJournal') {
   await Excel.run(async (context) => {
     const sheet = context.workbook.worksheets.getActiveWorksheet();
-    const table = sheet.tables.getItem("LivreJournal");
-    table.autoFilter.clearCriteria();
+    const table = sheet.tables.getItem(tableName);
+    //const columns = ['client', 'matter', 'nature', 'date', 'year', 'startTime', 'endTime', 'totalTime', 'hourlyRate', 'amount', 'vat', 'payment', 'account', 'payee', 'description', 'link', 'adress']
+    const inputs = Array.from(document.getElementsByTagName('input')).filter(input => input.dataset.index);
+    const titleRow = table.rows.getItemAt(0).values;
+    const row = titleRow[0].map(cell => {
+      const input = inputs.find(el => Number(el.dataset.index) === titleRow.indexOf(cell));
+      if (!input) return '';
+      return input.value
+    });
 
-    if (criteria.client.length > 0) table.columns.getItemAt(0).filter.applyValuesFilter(criteria.client);
+    /*
+    columns.map(column => {
+      
+    });
+    columns.length = Number(table.columns.getCount());
+    columns.forEach
+    const row = columns.map(id => {
+      const input = document.getElementById(id) as HTMLInputElement;
+      if (!input) return '';
+      return input.value
+    })*/
 
-    if (criteria.matter.length > 0) table.columns.getItemAt(1).filter.applyValuesFilter(criteria.matter);
+    table.rows.add(-1, [row], true);
+    await context.sync()
+  })
 
-    if (criteria.nature.length > 0) table.columns.getItemAt(2).filter.applyValuesFilter(criteria.nature);
-
-    if (criteria.date.length > 0) table.columns.getItemAt(3).filter.applyValuesFilter(criteria.date);
-
-    const range = table.getDataBodyRange().getVisibleView();
-    range.load("values");
-
-    await context.sync();
-    //await createWordDocument(range.values);
-    uploadWordDocument(range.values, criteria.client.join(",") + "_Invoice" + "THEDATE");
-  });
 }
+
 /*
 // Create a new Word document based on a template and populate it with filtered data
 async function createWordDocument(filtered: any[][]) {
@@ -106,11 +255,11 @@ async function createWordDocument(filtered: any[][]) {
 // Get filtered data from the Excel table
 
 function getTokenWithMSAL() {
-      //const clientId = "f670878d-ed8e-4020-bb82-21ba582d0d9c"; the old one
-      const clientId = "157dd297-447d-4592-b2d3-76b643b97132"; //the new one
-      const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
-    //const redirectUri = "https://script-lab.public.cdn.office.net";
-      const redirectUri = "msal157dd297-447d-4592-b2d3-76b643b97132://auth";
+  //const clientId = "f670878d-ed8e-4020-bb82-21ba582d0d9c"; the old one
+  const clientId = "157dd297-447d-4592-b2d3-76b643b97132"; //the new one
+  const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
+  //const redirectUri = "https://script-lab.public.cdn.office.net";
+  const redirectUri = "msal157dd297-447d-4592-b2d3-76b643b97132://auth";
   // MSAL configuration
   const msalConfig = {
     auth: {
@@ -118,23 +267,23 @@ function getTokenWithMSAL() {
       redirectUri: redirectUri
     }
   };
-//@ts-ignore
+  //@ts-ignore
   const msalInstance = new msal.PublicClientApplication(msalConfig);
 
   return checkExistingAuthContext();
 
   // Function to check existing authentication context
-  async function checkExistingAuthContext(): Promise<string | undefined|void> {
+  async function checkExistingAuthContext(): Promise<string | undefined | void> {
     try {
       const account = msalInstance.getAllAccounts()[0];
       if (account) {
         return acquireTokenSilently(account);
       } else {
-          //return loginAndGetToken();
+        //return loginAndGetToken();
         //openLoginWindow()
-          return getOfficeToken()
+        return getOfficeToken()
         //return getTokenWithSSO('minabibawi@gmail.com')
-          //return credentitalsToken()
+        //return credentitalsToken()
       }
     } catch (error) {
       console.error("Error checking auth context:", error);
@@ -142,7 +291,7 @@ function getTokenWithMSAL() {
     }
   }
 
-  async function credentitalsToken(){
+  async function credentitalsToken() {
     const msalConfig = {
       auth: {
         clientId: clientId,
@@ -150,17 +299,17 @@ function getTokenWithMSAL() {
         //clientSecret: clientSecret,
       }
     }
-  //@ts-ignore
+    //@ts-ignore
     const cca = new msal.application.ConfidentialClientApplication(msalConfig);
 
     const tokenRequest = {
-      scopes:["Files.ReadWrite"],
+      scopes: ["Files.ReadWrite"],
     }
 
     try {
       const response = await cca.acquireTokenByClientCredential(tokenRequest);
-        return response.accessToken;
-    }catch (error){
+      return response.accessToken;
+    } catch (error) {
       console.log('Error acquiring Token: ', error)
       return null
 
@@ -170,14 +319,14 @@ function getTokenWithMSAL() {
 
   async function getOfficeToken() {
     try {
-    //@ts-ignore
-    return await OfficeRuntime.auth.getAccessToken()
-      
-  } catch (error) {
+      //@ts-ignore
+      return await OfficeRuntime.auth.getAccessToken()
+
+    } catch (error) {
       console.log("Error : ", error)
-      
+
     }
-    
+
   }
 
   async function getTokenWithSSO(email: string) {
@@ -209,7 +358,7 @@ function getTokenWithMSAL() {
   }
 
   function openLoginWindow() {
-    const loginUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${clientId}&response_type=token&redirect_uri=${redirectUri}&scope=https://graph.microsoft.com/.default` ;
+    const loginUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${clientId}&response_type=token&redirect_uri=${redirectUri}&scope=https://graph.microsoft.com/.default`;
 
     // Open in a new window (only works if triggered by user action)
     const authWindow = window.open(loginUrl, "_blank", "width=500,height=600");

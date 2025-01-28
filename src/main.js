@@ -497,4 +497,3 @@ async function uploadWordDocument(filtered, fileName) {
         console.error("Upload failed", await response.text());
     }
 }
-//# sourceMappingURL=main.js.map
