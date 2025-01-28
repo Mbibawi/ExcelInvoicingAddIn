@@ -19,6 +19,7 @@ function loadMsalScript() {
   document.head.appendChild(script);
 };
 
+
 function selectForm(id: string) {
   showForm(id)
 }
