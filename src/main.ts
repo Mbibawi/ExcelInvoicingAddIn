@@ -25,93 +25,154 @@ function selectForm(id: string) {
 }
 
 async function showForm(id?: string) {
-  const formHtml = `<div id="filterForm" >
-    <label for="client" > Client: </label>
-    <input type="text" id="_client" name="client"><br><br>
-    <input list="clients" id="client" name="client" data-index = "0" autocomplete="on"><br><br>
-    <label for="matter" > Affaire: </label>
-    <input type ="text" id ="_matter" name="affaire"><br><br>
-    <input list="matters" id="matter" name="matter" data-index = "1" autocomplete="on"><br><br>
-    <label for="nature" > Nature: </label>
-    <input type ="text" id ="_nature" name="nature"><br><br>
-    <input list="natures" id="nature" name="nature" data-index="2" autocomplete="on"><br><br>
-    <label for="date" > Date: </label>
-    <input type="date" id="date" name="date" data-index="3"><br><br>
-  </div>`;
 
   const form = document.getElementById("form") as HTMLDivElement;
   form.innerHTML = '';
+  if (!form) return;
 
   await Excel.run(async (context) => {
     const sheet = context.workbook.worksheets.getActiveWorksheet();
     const table = sheet.tables.getItem('LivreJournal');
-    const title = table.getHeaderRowRange();
-    title.load('values');
+    const header = table.getHeaderRowRange()
+    header.load('values');
+    table.columns.load('items');
+    const dataBodyRange = table.getDataBodyRange()
+    dataBodyRange.load('values');
     await context.sync();
-    //form.innerHTML = formHtml;
-    if (id === 'invoice') form.innerHTML += `<button onclick="filter()"> Filter Table</button>`;
+    const title = header.values[0];
 
-    const inputs = insertInputsAndLables(['client', 'matter', '', 'date'], title.values[0]);
-
-    inputs.forEach(input => input?.addEventListener('focusout', async () => await inputOnChange(input), { passive: true }))
-
-
-    if (id !== 'entry') return;
-    const otherHtml = `
-    <label for="adress" > Adresse: </label>
-    <input type ="text" id ="_adress" name="adress"><br><br>
-    <input list="adress" id="adress" name="adress" data-index="10" autocomplete="on"><br><br>
-    <label for="adress" > Moyen de paiement: </label>
-    <input type ="text" id ="_payment" name="payment"><br><br>
-    <input list="payment" id="payment" name="payment" data-index="5" autocomplete="on"><br><br>
-    <label for="amount" > Montant: </label>
-    <input type ="text" id ="_amout" name="amount"><br><br>
-    <input list="amount" id="amount" name="amount" data-index="8" autocomplete="on"><br><br>
-    <label for="vat" > TVA: </label>
-    <input type ="text" id ="_vat" name="vat"><br><br>
-    <input list="vat" id="vat" name="vat" data-index=autocomplete="on"><br><br>
-    <label for="account" > Bank account: </label>
-    <input type ="text" id ="_account" name="account"><br><br>
-    <input list="account" id="account" name="account" data-index="6" autocomplete="on"><br><br>
-    <label for="payee" > Third Party: </label>
-    <input type ="text" id ="_payee" name="payee"><br><br>
-    <input list="payee" id="payee" name="payee" data-index="7" autocomplete="on"><br><br>
-    <label for="description" > Description: </label>
-    <input type ="text" id ="_description" name="description"><br><br>
-    <input list="description" id="description" name="description" data-index="8" autocomplete="off"><br><br>
-    <button onclick="addEntry()"> Ajouter </button>
-    `
-    form.innerHTML += otherHtml;
-    // if(id === 'insert') getInputs([null, null, null, null, 'amount', 'vat', 'account', 'payment', 'payee', 'description', 'adress' ], title.values[0])
-
+    if (id === 'entry') await addingEntry(table.columns.items, title,dataBodyRange.values);
+    else if (id === 'invoice') await invoice(title);
   });
 
-  function insertInputsAndLables(ids: string[], title: string[]): (HTMLInputElement | undefined)[] {
-    return ids.map(id => {
-      if (!id) return;
-      const input = document.createElement('input');
-      const index = ids.indexOf(id);
-      input.type = "text"
-      input.id = id
-      input.dataset.index = index.toString();
-      if (id === 'date') input.type = 'date';
-      input.setAttribute('list', id + 's'),
-      input.name = id
-      input.autocomplete = "on"
-      //input.addEventListener('change', async () =>await inputOnChange(input), {passive:true});
+  async function invoice(title:any[]) {
+    const inputs = await Promise.all(insertInputsAndLables(['client', 'matter', '', 'date'], title));
+    form.innerHTML += `<button onclick="filter()"> Filter Table</button>`;
+    inputs.forEach(input => input?.addEventListener('focusout', async () => await inputOnChange(input), { passive: true }))
 
-      const label = document.createElement('label');
-      label.htmlFor = id + ':';
-      label.innerText = title[index];
+    function insertInputsAndLables(ids: string[], title: string[]): Promise<(HTMLInputElement | undefined)>[] {
+      return ids.map(async id => {
+        if (!id) return;
+        const input = document.createElement('input');
+        const index = ids.indexOf(id);
+        input.type = "text"
+        input.id = id
+        input.dataset.index = index.toString();
+        if (id === 'date') input.type = 'date';
+        input.setAttribute('list', id + 's'),
+          input.name = id
+        input.autocomplete = "on"
+        //input.addEventListener('change', async () =>await inputOnChange(input), {passive:true});
 
-      form.appendChild(label);
-      form.appendChild(input);
-      if (index === 0) inputOnChange(input, input.id+'s');//This will create and append a datalist for the Client
-      return input
-    });
+        const label = document.createElement('label');
+        label.htmlFor = id + ':';
+        label.innerText = title[index];
+
+        form.appendChild(label);
+        form.appendChild(input);
+        if (index === 0) createDataList(input.id, await getUniqueValues(index));//We create a unique values dataList for the 'Client' input
+        return input
+      });
+    };
+
+    async function inputOnChange(input: HTMLInputElement, id?: string, unfilter: boolean = false) {
+      const index = Number(input.dataset.index);
+
+      if (id) return createDataList(id, await getUniqueValues(index));
+
+
+      if (index === 0) unfilter = true;//If this is the 'Client' column, we remove any filter from the table;
+
+      const uniqueValues = await filterTable(undefined, [{ column: index, value: getArray(input.value) || undefined }], unfilter);
+      if (!uniqueValues) return;
+      console.log('visible values =', uniqueValues);
+      let nextInput: Element | null = input.nextElementSibling;
+
+      while (nextInput?.tagName !== 'INPUT' && nextInput?.nextElementSibling) {
+        nextInput = nextInput.nextElementSibling
+      };
+      console.log('nextInput = ', nextInput);
+      if (index === 2) {
+        const nature = new Set((await filterTable(undefined, undefined, false)).map(row => row[index]));
+        nature.forEach(el => form.appendChild(createCheckBox(undefined, el)));
+      }
+      createDataList(nextInput?.id || '', await getUniqueValues(Number((nextInput as HTMLInputElement).dataset.index)));
+
+    };
+
+    
   }
 
-  function createCheckBox(input: HTMLInputElement, id:string = '') {
+  async function addingEntry(columns: Excel.TableColumn[], title:any[], dataBodyRange:any[][]) {
+    await filterTable(undefined, undefined, true);
+
+    for(const col of columns){
+      const i = columns.indexOf(col);
+      if (![4, 7].includes(i)) form.appendChild(createLable(i));
+      form.appendChild(await createInput(i));
+    };
+    
+    const inputs = Array.from(document.getElementsByTagName('input'));
+    inputs
+      .filter(input => Number(input?.dataset.index) < 2)
+      .forEach(input => input?.addEventListener('change', async () => await onFoucusOut(input), { passive: true }));
+    
+    inputs
+      .filter(input => [4, 7].includes(Number(input?.dataset.index)))
+      .forEach(input => input.style.display = 'none');
+    
+    
+  
+    async function onFoucusOut(input: HTMLInputElement) {
+      debugger
+      const i = Number(input.dataset.index);
+      const criteria = [{ column: i, value: getArray(input.value) }];
+      let unfilter = false;
+      if (i === 0) unfilter = true;
+      await filterTable(undefined, criteria, unfilter);
+      if (i < 1)
+        createDataList('input' + String(i + 1), await getUniqueValues(i+1));
+    }
+
+    form.innerHTML += `<button onclick="addEntry()"> Ajouter </button>`;
+
+
+    function createLable(i: number) {
+      const label = document.createElement('label');
+      label.htmlFor = 'input' + i.toString();
+      label.innerHTML = title[i] + ':';
+      return label
+    }
+
+    async function createInput(i: number) {
+      const input = document.createElement('input');
+      const id = 'input';
+      input.name = id + i.toString();
+      input.id = input.name;
+      input.autocomplete = "on";
+      input.dataset.index = i.toString();
+      input.type = 'text';
+      if ([8, 9, 10].includes(i))
+        input.type = 'number';
+      else if (i === 3)
+        input.type = 'date';
+      else if ([5, 6].includes(i))
+        input.type = 'time';
+      else if ([0, 1, 2, 11, 12, 13, 16].includes(i)) {
+        //We add a dataList for those fields
+        input.setAttribute('list', input.id +'s');
+        createDataList(input.id, await getUniqueValues(i, dataBodyRange));
+      }
+
+      return input
+
+    }
+
+  }
+
+
+
+  function createCheckBox(input: HTMLInputElement | undefined, id: string = '') {
     if (!input) input = document.createElement('input');
     input.type = 'checkbox';
     input.id += id;
@@ -119,62 +180,45 @@ async function showForm(id?: string) {
 
     return input
 
-    
-  }
 
-  async function inputOnChange(input: HTMLInputElement, id?: string) {
-    const index = Number(input.dataset.index);
+  };
 
-    if (id) return createDataList(id, index);
-    
-    let unfilter = false;
-    
-    if (index === 0) unfilter = true;//If this is the 'Client' column, we remove any filter from the table;
-    
-    const visible = await filterTable(undefined, [{index:index, value:getArray(input.value)||undefined}], unfilter);
-    if (!visible) return;
-    console.log('visible values =', visible);
-    let nextInput: Element | null = input.nextElementSibling;
-    
-    while (nextInput?.tagName !== 'INPUT' && nextInput?.nextElementSibling) {
-      nextInput = nextInput.nextElementSibling
-    };
-    console.log('nextInput = ', nextInput);
-    if (index === 2) {
-      const nature = new Set((await filterTable(undefined, undefined, false)).map(row => row[index]));
-      nature.forEach(el => form.appendChild(createCheckBox(undefined, el)));
-    }
-    /**
-     * Creates a dataList with the provided id from the unique values of the column which index is passed as parameter
-     * @param {string} id - the id of the dataList that will be created
-     * @param {number} index - the index of the column from which the unique values of the datalist will be retrieved
-     * 
-    */
-   createDataList(nextInput?.id + 's', Number((nextInput as HTMLInputElement).dataset.index));
-   
-   function createDataList(id:string, i:number) {
-     const uniqueValues = Array.from(new Set(visible.map(row => row[i])));
-     if (!uniqueValues || uniqueValues.length < 1) return;
-  
-      console.log('dataList options = ', uniqueValues);
-      
-      // Create a new datalist element
-      let dataList = Array.from(document.getElementsByTagName('datalist')).find(list => list.id === id);
-      if (dataList) dataList.remove();
-      dataList = document.createElement('datalist');
-      //@ts-ignore
-      dataList.id = id;
-      // Append options to the datalist
-      uniqueValues.forEach(option => {
-        const optionElement = document.createElement('option');
-        optionElement.value = option;
-        dataList?.appendChild(optionElement);
-      });
-      // Attach the datalist to the body or a specific element
-      document.body.appendChild(dataList);
-    }
-  }
+  async function getUniqueValues(index: number, visible?: any[][], tableName: string = 'LivreJournal') {
+    if (!visible) visible = await filterTable(tableName, undefined, false);
+    return Array.from(new Set(visible.map(row => row[index])))
+  };
 
+
+
+  /**
+   * Creates a dataList with the provided id from the unique values of the column which index is passed as parameter
+   * @param {string} id - the id of the dataList that will be created
+   * @param {number} index - the index of the column from which the unique values of the datalist will be retrieved
+   * 
+  */
+
+  function createDataList(id: string, uniqueValues: any[]) {
+    //const uniqueValues = Array.from(new Set(visible.map(row => row[i])));
+    if (!uniqueValues || uniqueValues.length < 1) return;
+    id += 's';
+
+    console.log('dataList options = ', uniqueValues);
+
+    // Create a new datalist element
+    let dataList = Array.from(document.getElementsByTagName('datalist')).find(list => list.id === id);
+    if (dataList) dataList.remove();
+    dataList = document.createElement('datalist');
+    //@ts-ignore
+    dataList.id = id;
+    // Append options to the datalist
+    uniqueValues.forEach(option => {
+      const optionElement = document.createElement('option');
+      optionElement.value = option;
+      dataList?.appendChild(optionElement);
+    });
+    // Attach the datalist to the body or a specific element
+    document.body.appendChild(dataList);
+  };
 
 }
 
@@ -182,14 +226,14 @@ async function showForm(id?: string) {
  * Filters the Excel table based on a criteria
  * @param {[[number, string[]]]} criteria - the first element is the column index, the second element is the values[] based on which the column will be filtered
  */
-async function filterTable(tableName: string = 'LivreJournal', criteria?: {index:number, value:string[]}[], clearFilter: boolean = false) {
+async function filterTable(tableName: string = 'LivreJournal', criteria?: { column: number, value: string[] }[], clearFilter: boolean = false) {
   return await Excel.run(async (context) => {
     const sheet = context.workbook.worksheets.getActiveWorksheet();
     const table = sheet.tables.getItem(tableName);
 
     if (clearFilter) table.autoFilter.clearCriteria();
 
-    if(criteria) criteria.forEach(column => filterColumn(column.index, column.value));
+    if (criteria) criteria.forEach(column => filterColumn(column.column, column.value));
 
     function filterColumn(index: number, filter: string[]) {
       if (!index || !filter) return;
@@ -225,10 +269,10 @@ async function filter() {
   const nature = document.getElementById("nature") as HTMLInputElement;
   const date = document.getElementById("date") as HTMLInputElement;
   const criteria = [
-    {index: 0, value:getArray(client.value) || undefined},
-    {index: 1, value:getArray(matter.value) || undefined},
-    {index: 2, value:getArray(nature.value) || undefined},
-    {index: 3, value:getArray(date.value) || undefined},
+    { column: 0, value: getArray(client.value) || undefined },
+    { column: 1, value: getArray(matter.value) || undefined },
+    { column: 2, value: getArray(nature.value) || undefined },
+    { column: 3, value: getArray(date.value) || undefined },
   ];
 
   filterTable(undefined, criteria, true);
@@ -239,31 +283,34 @@ async function addEntry(tableName: string = 'LivreJournal') {
   await Excel.run(async (context) => {
     const sheet = context.workbook.worksheets.getActiveWorksheet();
     const table = sheet.tables.getItem(tableName);
-    //const columns = ['client', 'matter', 'nature', 'date', 'year', 'startTime', 'endTime', 'totalTime', 'hourlyRate', 'amount', 'vat', 'payment', 'account', 'payee', 'description', 'link', 'adress']
+    const columns = table.columns.getCount();
+    await context.sync();
+    table.rows.add(-1, getNewRow(columns.value), true);
+    await context.sync();
+  });
+
+  function getNewRow(columns: number) {
+    const newRow = new Array(columns);
     const inputs = Array.from(document.getElementsByTagName('input')).filter(input => input.dataset.index);
-    const titleRow = table.rows.getItemAt(0).values;
-    const row = titleRow[0].map(cell => {
-      const input = inputs.find(el => Number(el.dataset.index) === titleRow.indexOf(cell));
-      if (!input) return '';
-      return input.value
+    console.log('inputs = ', inputs)
+    if (inputs.length < 1) return;
+
+    inputs.forEach(input => {
+      const index = Number(input.dataset.index);
+      let value: string | number | Date = input.value;
+      if (input.type === 'number')
+        value = parseFloat(value);
+      else if (input.type === 'date') value = new Date(value);
+      //else if (['startTime', 'endTime'].includes(input.name))
+      // value = value.replace('.', ':') + ':00';
+
+      newRow[index] = value
     });
 
-    /*
-    columns.map(column => {
-      
-    });
-    columns.length = Number(table.columns.getCount());
-    columns.forEach
-    const row = columns.map(id => {
-      const input = document.getElementById(id) as HTMLInputElement;
-      if (!input) return '';
-      return input.value
-    })*/
+    console.log('newRow = ', newRow);
+    return [newRow]
 
-    table.rows.add(-1, [row], true);
-    await context.sync()
-  })
-
+  }
 }
 
 /*
