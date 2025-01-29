@@ -11,3 +11,7 @@ section.samples .ms-Button, section.setup .ms-Button {
 #form{
     background-color: lightseagreen;
 }
+
+input{
+margin: 2px;
+}
