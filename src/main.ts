@@ -49,81 +49,88 @@ async function showForm(id?: string) {
     title.load('values');
     await context.sync();
     //form.innerHTML = formHtml;
-    insertInputsAndLables(['client', 'matter', 'nature', 'date'], title.values[0]);
     if (id === 'invoice') form.innerHTML += `<button onclick="filter()"> Filter Table</button>`;
+
+    const inputs = insertInputsAndLables(['client', 'matter', 'nature', 'date'], title.values[0]);
+
+    inputs.forEach(input=>input?.addEventListener('change', async ()=>await inputOnChange(input), {passive:true}))
     
 
     if(id !== 'entry') return;
     const otherHtml = `
-  <label for="adress" > Adresse: </label>
-  <input type ="text" id ="_adress" name="adress"><br><br>
-  <input list="adress" id="adress" name="adress" data-index="10" autocomplete="on"><br><br>
-  <label for="adress" > Moyen de paiement: </label>
-  <input type ="text" id ="_payment" name="payment"><br><br>
-  <input list="payment" id="payment" name="payment" data-index="5" autocomplete="on"><br><br>
-  <label for="amount" > Montant: </label>
-  <input type ="text" id ="_amout" name="amount"><br><br>
-  <input list="amount" id="amount" name="amount" data-index="8" autocomplete="on"><br><br>
-  <label for="vat" > TVA: </label>
-  <input type ="text" id ="_vat" name="vat"><br><br>
-  <input list="vat" id="vat" name="vat" data-index=autocomplete="on"><br><br>
-  <label for="account" > Bank account: </label>
-  <input type ="text" id ="_account" name="account"><br><br>
-  <input list="account" id="account" name="account" data-index="6" autocomplete="on"><br><br>
-  <label for="payee" > Third Party: </label>
-  <input type ="text" id ="_payee" name="payee"><br><br>
-  <input list="payee" id="payee" name="payee" data-index="7" autocomplete="on"><br><br>
-  <label for="description" > Description: </label>
-  <input type ="text" id ="_description" name="description"><br><br>
-  <input list="description" id="description" name="description" data-index="8" autocomplete="off"><br><br>
-  <button onclick="addEntry()"> Ajouter </button>
-  `
+    <label for="adress" > Adresse: </label>
+    <input type ="text" id ="_adress" name="adress"><br><br>
+    <input list="adress" id="adress" name="adress" data-index="10" autocomplete="on"><br><br>
+    <label for="adress" > Moyen de paiement: </label>
+    <input type ="text" id ="_payment" name="payment"><br><br>
+    <input list="payment" id="payment" name="payment" data-index="5" autocomplete="on"><br><br>
+    <label for="amount" > Montant: </label>
+    <input type ="text" id ="_amout" name="amount"><br><br>
+    <input list="amount" id="amount" name="amount" data-index="8" autocomplete="on"><br><br>
+    <label for="vat" > TVA: </label>
+    <input type ="text" id ="_vat" name="vat"><br><br>
+    <input list="vat" id="vat" name="vat" data-index=autocomplete="on"><br><br>
+    <label for="account" > Bank account: </label>
+    <input type ="text" id ="_account" name="account"><br><br>
+    <input list="account" id="account" name="account" data-index="6" autocomplete="on"><br><br>
+    <label for="payee" > Third Party: </label>
+    <input type ="text" id ="_payee" name="payee"><br><br>
+    <input list="payee" id="payee" name="payee" data-index="7" autocomplete="on"><br><br>
+    <label for="description" > Description: </label>
+    <input type ="text" id ="_description" name="description"><br><br>
+    <input list="description" id="description" name="description" data-index="8" autocomplete="off"><br><br>
+    <button onclick="addEntry()"> Ajouter </button>
+    `
     form.innerHTML += otherHtml;
    // if(id === 'insert') getInputs([null, null, null, null, 'amount', 'vat', 'account', 'payment', 'payee', 'description', 'adress' ], title.values[0])
 
   });
   
-  function insertInputsAndLables(ids:string[], title:string[]) {
-    ids.forEach(id => {
-      if(!id) return;
-      const input = document.createElement('input');
-      const index = ids.indexOf(id);
-      input.type = "text"
-      if (id === 'date') input.type = 'date';
-      input.setAttribute('list', id + 's'),
-      input.id = id
-      input.name = id
-      input.dataset.index = index.toString();
-      input.autocomplete = "on"
-      input.onchange = async function () { inputOnChange(input) };
-      
-      const label = document.createElement('label');
-      label.htmlFor = id;
-      label.innerText = title[index];
-      
-      form.appendChild(label);
-      form.appendChild(input);
-      form.appendChild(document.createElement('br'));
-      form.appendChild(document.createElement('br'));
-    });
-    //addOnChange();
- }
-
-  function addOnChange(inputs?: HTMLInputElement[]) {
-    if (!inputs || inputs.length < 1)
-      inputs = Array.from(document.getElementsByTagName('input')) as HTMLInputElement[];
-    console.log('inputs = ', inputs);
-    inputs.forEach(input => input.addEventListener('change', async () => await inputOnChange(input)))  ;
-
+  function insertInputsAndLables(ids:string[], title:string[]):(HTMLInputElement|undefined)[] {
+      return ids.map(id => {
+        if(!id) return;
+        const input = document.createElement('input');
+        const index = ids.indexOf(id);
+        input.type = "text"
+        if (id === 'date') input.type = 'date';
+        input.setAttribute('list', id + 's'),
+        input.id = id
+        input.name = id
+        input.dataset.index = index.toString();
+        input.autocomplete = "on"
+        //input.addEventListener('change', async () =>await inputOnChange(input), {passive:true});
+        
+        const label = document.createElement('label');
+        label.htmlFor = id;
+        label.innerText = title[index];
+        
+        form.appendChild(label);
+        form.appendChild(input);
+        form.appendChild(document.createElement('br'));
+        form.appendChild(document.createElement('br'));
+        return input
+      });
   }
+
   
   async function inputOnChange(input: HTMLInputElement) {
-    debugger
-    const visible = await filterTable(undefined, [[Number(input.dataset.index), getArray(input.value)]]);
+    console.log('from inputOnChange');
+    let unfilter = false;
+    const index = Number(input.dataset.index);
+    if (index === 0) unfilter = true;
+    const visible = await filterTable(undefined, [[index, getArray(input.value)]], unfilter);
     if (!visible) return;
-    const nextInput = input.nextElementSibling as HTMLInputElement;
-    if (!nextInput) return;
-    const nextColumnValues = new Set(visible.map(row => row[Number(nextInput.dataset.index)]));
+    console.log('visible values =', visible);
+    let nextInput: Element | null = input.nextElementSibling;
+    
+    while (nextInput?.tagName !== 'input' && nextInput?. nextElementSibling) nextInput = nextInput.nextElementSibling ;
+    
+    if (!nextInput || nextInput?.tagName !== 'input') return;
+
+    console.log('nextInput = ', nextInput);
+
+    const nextColumnValues = new Set(visible.map(row => row[Number((nextInput as HTMLInputElement).dataset.index)]));
+
     console.log('unique values = ', nextColumnValues)
     // Create a new datalist element
     let dataList = Array.from(document.getElementsByTagName('datalist')).find(list => list.id === input.id + "s");
@@ -160,9 +167,9 @@ async function filterTable(tableName: string = 'LivreJournal', criteria: [number
       table.columns.getItemAt(index).filter.applyValuesFilter(filter)
     }
 
-    await context.sync();
     const range = table.getDataBodyRange().getVisibleView();
     range.load('values');
+    await context.sync();
     return range.values
     //await createWordDocument(range.values);
     //@ts-ignore
