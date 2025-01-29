@@ -112,8 +112,11 @@ async function showForm(id) {
             return;
         console.log('visible values =', visible);
         let nextInput = input.nextElementSibling;
-        while (nextInput?.tagName !== 'input' && nextInput?.nextElementSibling)
+        while (nextInput?.tagName !== 'input' && nextInput?.nextElementSibling) {
             nextInput = nextInput.nextElementSibling;
+        }
+        ;
+        debugger;
         if (!nextInput || nextInput?.tagName !== 'input')
             return;
         console.log('nextInput = ', nextInput);

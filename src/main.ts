@@ -123,8 +123,10 @@ async function showForm(id?: string) {
     console.log('visible values =', visible);
     let nextInput: Element | null = input.nextElementSibling;
     
-    while (nextInput?.tagName !== 'input' && nextInput?. nextElementSibling) nextInput = nextInput.nextElementSibling ;
-    
+    while (nextInput?.tagName !== 'input' && nextInput?.nextElementSibling) {
+      nextInput = nextInput.nextElementSibling
+    };
+    debugger
     if (!nextInput || nextInput?.tagName !== 'input') return;
 
     console.log('nextInput = ', nextInput);
