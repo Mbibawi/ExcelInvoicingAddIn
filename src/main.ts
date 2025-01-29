@@ -4,8 +4,8 @@ Office.onReady((info) => {
     // Excel-specific initialization code goes here
     console.log("Excel is ready!");
 
-    loadMsalScript();
-    showForm();
+   // loadMsalScript();
+    //showForm();
   }
 });
 
@@ -95,6 +95,7 @@ async function showForm(id?: string) {
       input.name = id
       input.dataset.index = index.toString();
       input.autocomplete = "on"
+      input.onchange = async function () { inputOnChange(input) };
       
       const label = document.createElement('label');
       label.htmlFor = id;
@@ -105,7 +106,7 @@ async function showForm(id?: string) {
       form.appendChild(document.createElement('br'));
       form.appendChild(document.createElement('br'));
     });
-    addOnChange();
+    //addOnChange();
  }
 
   function addOnChange(inputs?: HTMLInputElement[]) {

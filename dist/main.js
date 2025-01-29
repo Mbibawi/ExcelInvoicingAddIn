@@ -4,8 +4,8 @@ Office.onReady((info) => {
     if (info.host === Office.HostType.Excel) {
         // Excel-specific initialization code goes here
         console.log("Excel is ready!");
-        loadMsalScript();
-        showForm();
+        // loadMsalScript();
+        //showForm();
     }
 });
 function loadMsalScript() {
@@ -89,6 +89,7 @@ async function showForm(id) {
             input.name = id;
             input.dataset.index = index.toString();
             input.autocomplete = "on";
+            input.onchange = async function () { inputOnChange(input); };
             const label = document.createElement('label');
             label.htmlFor = id;
             label.innerText = title[index];
@@ -97,7 +98,7 @@ async function showForm(id) {
             form.appendChild(document.createElement('br'));
             form.appendChild(document.createElement('br'));
         });
-        addOnChange();
+        //addOnChange();
     }
     function addOnChange(inputs) {
         if (!inputs || inputs.length < 1)
