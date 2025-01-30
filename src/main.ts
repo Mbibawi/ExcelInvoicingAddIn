@@ -302,8 +302,7 @@ async function addEntry(tableName: string = 'LivreJournal') {
         value = parseFloat(value);
       else if (input.type === 'date')
         value = formatDate(value);
-      else if (input.type === 'time') value = input.valueAsDate?.getHours().toString()+ ':' + input.valueAsDate?.getMinutes().toString() + ':00'
-        //value = convertTo24HourFormat(value);
+      else if (input.type === 'time') value = [input.valueAsDate?.getHours().toString(), input.valueAsDate?.getMinutes().toString(), '00'].join(':');
 
       newRow[index] = value;
     });

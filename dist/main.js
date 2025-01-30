@@ -267,8 +267,7 @@ async function addEntry(tableName = 'LivreJournal') {
             else if (input.type === 'date')
                 value = formatDate(value);
             else if (input.type === 'time')
-                value = input.valueAsDate?.getHours().toString() + ':' + input.valueAsDate?.getMinutes().toString() + ':00';
-            //value = convertTo24HourFormat(value);
+                value = [input.valueAsDate?.getHours().toString(), input.valueAsDate?.getMinutes().toString(), '00'].join(':');
             newRow[index] = value;
         });
         console.log('newRow = ', newRow);
