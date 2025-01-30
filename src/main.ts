@@ -301,7 +301,8 @@ async function addEntry(tableName: string = 'LivreJournal') {
       if (input.type === 'number')
         value = parseFloat(value);
       else if (input.type === 'date')
-        value = formatDate(value);
+        //@ts-ignore
+        value = [String(input.valueAsDate?.getDay()), String(input.valueAsDate.getMonth() +1), String(input.valueAsDate?.getFullYear())].join('/');
       else if (input.type === 'time') value = [input.valueAsDate?.getHours().toString(), input.valueAsDate?.getMinutes().toString(), '00'].join(':');
 
       newRow[index] = value;
@@ -319,20 +320,6 @@ async function addEntry(tableName: string = 'LivreJournal') {
       if (modifier === 'PM') hours = String(parseInt(hours, 10) + 12);
     
       return `${hours}:${minutes}:00`;
-    }
-
-    function formatDate(value:string) {
-      const date = new Date(value);
-      return [
-        String(date.getDate()).padStart(2, '0'),
-        String(date.getMonth() + 1).padStart(2, '0'),
-        date.getFullYear().toString()]
-        .join('/');
-      //const day = String(date.getDate()).padStart(2, '0');
-      //const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are zero-based
-      //const year = date.getFullYear();
-      
-      //return `${day}/${month}/${year}`;
     }
   }
 }
