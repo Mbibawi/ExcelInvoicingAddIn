@@ -254,7 +254,7 @@ async function addEntry(tableName = 'LivreJournal') {
         await context.sync();
     });
     function getNewRow(columns) {
-        const newRow = new Array(columns);
+        const newRow = Array(columns).map(el => '');
         const inputs = Array.from(document.getElementsByTagName('input')).filter(input => input.dataset.index);
         console.log('inputs = ', inputs);
         if (inputs.length < 1)
@@ -264,10 +264,10 @@ async function addEntry(tableName = 'LivreJournal') {
             let value = input.value;
             if (input.type === 'number')
                 value = parseFloat(value);
-            else if (input.type === 'date')
+            else if (input.type === 'date' && input.valueAsDate)
                 //@ts-ignore
                 value = [String(input.valueAsDate?.getDay()), String(input.valueAsDate.getMonth() + 1), String(input.valueAsDate?.getFullYear())].join('/');
-            else if (input.type === 'time')
+            else if (input.type === 'time' && input.valueAsDate)
                 value = [input.valueAsDate?.getHours().toString(), input.valueAsDate?.getMinutes().toString(), '00'].join(':');
             newRow[index] = value;
         });
