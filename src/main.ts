@@ -302,8 +302,8 @@ async function addEntry(tableName: string = 'LivreJournal') {
         value = parseFloat(value);
       else if (input.type === 'date' && input.valueAsDate)
         //@ts-ignore
-        value = [String(input.valueAsDate?.getDay()), String(input.valueAsDate.getMonth() +1), String(input.valueAsDate?.getFullYear())].join('/');
-      else if (input.type === 'time' && input.valueAsDate) value = [input.valueAsDate?.getHours().toString(), input.valueAsDate?.getMinutes().toString(), '00'].join(':');
+        value = [String(input.valueAsDate?.getDay()).padStart(2,'0'), String(input.valueAsDate.getMonth() +1).padStart(2, '0'), String(input.valueAsDate?.getFullYear())].join('/');
+      else if (input.type === 'time' && input.valueAsDate) value = [input.valueAsDate?.getHours().toString().padStart(2,'0'), input.valueAsDate?.getMinutes().toString().padStart(2,'0'), '00'].join(':');
 
       newRow[index] = value;
     });
