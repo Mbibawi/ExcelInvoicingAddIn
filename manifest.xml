@@ -21,6 +21,10 @@
     <Host Name="Workbook"/>
     <Host Name="Document"/>
   </Hosts>
+        <Runtimes>
+        <Runtime resid="Taskpane.Url" lifetime="long"/>
+      </Runtimes>
+          <Runtime>SharedRuntime</Runtime>
   <DefaultSettings>
     <SourceLocation DefaultValue="https://mbibawi.github.io/ExcelInvoicingAddIn/index.html"/>
   </DefaultSettings>
@@ -32,7 +36,6 @@
             <Set Name="IdentityApi" MinVersion="1.3"/>
         </Sets>
     </Requirements>
-    <Runtime>SharedRuntime</Runtime>
   
   <WebApplicationInfo>
     <Id>157dd297-447d-4592-b2d3-76b643b97132</Id>
