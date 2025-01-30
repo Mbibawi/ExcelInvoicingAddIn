@@ -22,9 +22,11 @@
     <Host Name="Document"/>
   </Hosts>
         <Runtimes>
-        <Runtime resid="Taskpane.Url" lifetime="long"/>
+          <Runtime resid="Taskpane.Url" lifetime="long"/>
       </Runtimes>
-          <Runtime>SharedRuntime</Runtime>
+          <Runtime>
+            SharedRuntime
+          </Runtime>
   <DefaultSettings>
     <SourceLocation DefaultValue="https://mbibawi.github.io/ExcelInvoicingAddIn/index.html"/>
   </DefaultSettings>

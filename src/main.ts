@@ -301,9 +301,9 @@ async function addEntry(tableName: string = 'LivreJournal') {
       if (input.type === 'number')
         value = parseFloat(value);
       else if (input.type === 'date')
-        value = formatDateToDDMMYYYY(value);
-      else if (input.type === 'time')
-        value = convertTo24HourFormat(value);
+        value = formatDate(value);
+      else if (input.type === 'time') value = input.valueAsDate?.getHours().toString()+ ':' + input.valueAsDate?.getMinutes().toString() + ':00'
+        //value = convertTo24HourFormat(value);
 
       newRow[index] = value;
     });
@@ -321,14 +321,19 @@ async function addEntry(tableName: string = 'LivreJournal') {
     
       return `${hours}:${minutes}:00`;
     }
-    
-    function formatDateToDDMMYYYY(value:string) {
+
+    function formatDate(value:string) {
       const date = new Date(value);
-      const day = String(date.getDate()).padStart(2, '0');
-      const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are zero-based
-      const year = date.getFullYear();
+      return [
+        String(date.getDate()).padStart(2, '0'),
+        String(date.getMonth() + 1).padStart(2, '0'),
+        date.getFullYear().toString()]
+        .join('/');
+      //const day = String(date.getDate()).padStart(2, '0');
+      //const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+      //const year = date.getFullYear();
       
-      return `${day}/${month}/${year}`;
+      //return `${day}/${month}/${year}`;
     }
   }
 }
