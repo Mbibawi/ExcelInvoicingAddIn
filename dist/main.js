@@ -265,13 +265,29 @@ async function addEntry(tableName = 'LivreJournal') {
             if (input.type === 'number')
                 value = parseFloat(value);
             else if (input.type === 'date')
-                value = new Date(value);
-            //else if (['startTime', 'endTime'].includes(input.name))
-            // value = value.replace('.', ':') + ':00';
+                value = formatDateToDDMMYYYY(value);
+            else if (input.type === 'time')
+                value = convertTo24HourFormat(value);
             newRow[index] = value;
         });
         console.log('newRow = ', newRow);
         return [newRow];
+        function convertTo24HourFormat(time12h) {
+            const [time, modifier] = time12h.split(' ');
+            let [hours, minutes] = time.split(':');
+            if (hours === '12')
+                hours = '00';
+            if (modifier === 'PM')
+                hours = String(parseInt(hours, 10) + 12);
+            return `${hours}:${minutes}:00`;
+        }
+        function formatDateToDDMMYYYY(value) {
+            const date = new Date(value);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+        }
     }
 }
 /*
