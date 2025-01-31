@@ -446,10 +446,11 @@ function getTokenWithMSAL() {
   async function loginWithPopup() {
     try {
       const loginResponse = await msalInstance.loginPopup(loginRequest);
+      console.log('loginResponse = ', loginResponse)
 
       const tokenResponse = await msalInstance.acquireTokenSilent({
         account: loginResponse.account,
-        scopes: ["https://graph.microsoft.com/Files.ReadWrite"]
+        scopes: ["Files.ReadWrite"]
       });
 
       console.log("Token acquired from loginWithPopup: ", tokenResponse.accessToken);
