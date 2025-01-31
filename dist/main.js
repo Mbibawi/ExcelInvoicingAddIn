@@ -354,7 +354,7 @@ function getTokenWithMSAL() {
     const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
     //const redirectUri = "https://script-lab.public.cdn.office.net";
     //const redirectUri = "msal157dd297-447d-4592-b2d3-76b643b97132://auth";
-    const redirectUri = "https://localhost";
+    const redirectUri = "https://mbibawi.github.io/ExcelInvoicingAddIn";
     // MSAL configuration
     const msalConfig = {
         auth: {
@@ -395,6 +395,7 @@ function getTokenWithMSAL() {
         try {
             const loginResponse = await msalInstance.loginPopup(loginRequest);
             console.log('loginResponse = ', loginResponse);
+            msalInstance.setActiveAccount(loginResponse.account);
             const tokenResponse = await msalInstance.acquireTokenSilent({
                 account: loginResponse.account,
                 scopes: ["Files.ReadWrite"]
@@ -408,7 +409,7 @@ function getTokenWithMSAL() {
             if (error instanceof InteractionRequiredAuthError) {
                 // Fallback to popup if silent token acquisition fails
                 const response = await msalInstance.acquireTokenPopup({
-                    scopes: ["https://graph.microsoft.com/Files.ReadWrite"]
+                    scopes: ["Files.ReadWrite"]
                 });
                 console.log("Token acquired via popup:", response.accessToken);
                 return response.accessToken;
