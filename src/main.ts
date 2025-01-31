@@ -447,7 +447,7 @@ function getTokenWithMSAL() {
       }
     };
     //@ts-ignore
-    const msalInstance = new PublicClientApplication(msalConfig);
+    const msalInstance = new msal.PublicClientApplication(msalConfig);
 
     try {
       const loginResponse = await msalInstance.loginPopup({
