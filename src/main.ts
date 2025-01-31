@@ -1,9 +1,9 @@
 Office.onReady((info) => {
   if (info.host === Office.HostType.Excel) {
     // Excel-specific initialization code goes here
-      console.log("Excel is ready!");
+    console.log("Excel is ready!");
 
-     loadMsalScript();
+    loadMsalScript();
   }
 });
 
@@ -60,7 +60,7 @@ async function showForm(id?: string) {
         input.name = input.id;
         input.dataset.index = index.toString();
         input.setAttribute('list', input.id + 's'),
-        input.autocomplete = "on"
+          input.autocomplete = "on"
 
         const label = document.createElement('label');
         label.htmlFor = input.id;
@@ -77,19 +77,19 @@ async function showForm(id?: string) {
       const index = Number(input.dataset.index);
 
       if (index === 0) unfilter = true;//If this is the 'Client' column, we remove any filter from the table;
-      
+
       //We filter the table accordin to the input's value and return the visible cells
       const visibleCells = await filterTable(undefined, [{ column: index, value: getArray(input.value) }], unfilter);
-      
+
       if (visibleCells.length < 1) return alert('There are no visible cells in the filtered table');
 
       //We create (or update) the unique values dataList for the next input 
       const nextInput = getNextInput(input);
       if (!nextInput) return;
       createDataList(nextInput?.id || '', await getUniqueValues(Number(nextInput.dataset.index), visibleCells));
-  
-    
-      function getNextInput(input:HTMLInputElement) {
+
+
+      function getNextInput(input: HTMLInputElement) {
         let nextInput: Element | null = input.nextElementSibling;
         while (nextInput?.tagName !== 'INPUT' && nextInput?.nextElementSibling) {
           nextInput = nextInput.nextElementSibling
@@ -206,7 +206,7 @@ async function showForm(id?: string) {
     if (!id || !uniqueValues || uniqueValues.length < 1) return;
     id += 's';
 
-   // Create a new datalist element
+    // Create a new datalist element
     let dataList = Array.from(document.getElementsByTagName('datalist')).find(list => list.id === id);
     if (dataList) dataList.remove();
     dataList = document.createElement('datalist');
@@ -273,7 +273,7 @@ async function generateInvoice() {
   if (!inputs) return;
   const date = new Date();
   const fileName = "Facture_" + inputs.find(input => Number(input.dataset.index) === 0)?.value || 'CLIENT_' + [date.getDay().toString(), (date.getMonth() + 1).toString(), date.getFullYear.toString()].join('-') + '_' + date.getHours().toString() + date.getMinutes().toString();
-  
+
   const visible = await filterTable(undefined, undefined, false);
 
   await uploadWordDocument(visible, fileName);
@@ -288,7 +288,7 @@ async function uploadWordDocument(filtered: any[][], fileName: string) {
     alert(`Access token: ${accessToken}`);
     //Office.context.ui.messageParent(`Access token: ${accessToken}`);
   } else {
-    console.log("Failed to retrieve token.");
+    return console.log("Failed to retrieve token.");
   }
 
   // Sample Word document content (base64 encoded DOCX)
@@ -321,16 +321,16 @@ async function addEntry(tableName: string = 'LivreJournal') {
     table.rows.add(-1, getNewRow(columns.value), true);
     table.getDataBodyRange().load('rowCount');
     await context.sync();
-    
-    [5,6].forEach(i=>{
+
+    [5, 6].forEach(i => {
       const cell = table.getRange()
         .getCell(table.getDataBodyRange().rowCount - 1, i);
-        console.log('cell = ', cell);
+      console.log('cell = ', cell);
       cell.numberFormatLocal = [["hh:mm:ss"]];
     });
-      
-      await context.sync();
-    });
+
+    await context.sync();
+  });
 
   function getNewRow(columns: number) {
     const newRow = Array(columns).map(el => '') as any[];
@@ -418,15 +418,56 @@ function getTokenWithMSAL() {
       if (account) {
         return acquireTokenSilently(account);
       } else {
-          return loginAndGetToken();
-          //openLoginWindow()
-          //return getOfficeToken()
+        return PopupToken();
+          //return loginAndGetToken();
+        //openLoginWindow()
+        //return getOfficeToken()
         //return getTokenWithSSO('minabibawi@gmail.com')
         //return credentitalsToken()
       }
     } catch (error) {
       console.error("Error checking auth context:", error);
       return undefined;
+    }
+  }
+
+  async function PopupToken() {
+    const msalConfig = {
+      auth: {
+        clientId: clientId,
+        authority: "https://login.microsoftonline.com/common",
+        redirectUri: redirectUri
+      }
+    };
+    //@ts-ignore
+    const msalInstance = new PublicClientApplication(msalConfig);
+
+    try {
+      const loginResponse = await msalInstance.loginPopup({
+        scopes: ["Files.ReadWrite"]
+      });
+      
+      const response = await msalInstance.acquireTokenSilent({
+        account: loginResponse.account,
+        scopes: ["https://graph.microsoft.com/User.Read"]
+      });
+  
+      console.log("Token acquired:", response.accessToken);
+      return response.accessToken
+      // Use the access token to call OneDrive API
+  
+    } catch (error) {
+      console.error("Error acquiring token:", error);
+
+      //@ts-ignore
+      if (error instanceof InteractionRequiredAuthError) {
+        // Fallback to popup if silent token acquisition fails
+        const response = await msalInstance.acquireTokenPopup({
+          scopes: ["https://graph.microsoft.com/User.Read"]
+        });
+        console.log("Token acquired via popup:", response.accessToken);
+        return response.accessToken
+      }
     }
   }
 

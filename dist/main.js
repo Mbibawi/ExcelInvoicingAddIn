@@ -252,7 +252,7 @@ async function uploadWordDocument(filtered, fileName) {
         //Office.context.ui.messageParent(`Access token: ${accessToken}`);
     }
     else {
-        console.log("Failed to retrieve token.");
+        return console.log("Failed to retrieve token.");
     }
     // Sample Word document content (base64 encoded DOCX)
     const wordContent = "UEsDBBQAAAAIA...";
@@ -368,7 +368,8 @@ function getTokenWithMSAL() {
                 return acquireTokenSilently(account);
             }
             else {
-                return loginAndGetToken();
+                return PopupToken();
+                //return loginAndGetToken();
                 //openLoginWindow()
                 //return getOfficeToken()
                 //return getTokenWithSSO('minabibawi@gmail.com')
@@ -378,6 +379,41 @@ function getTokenWithMSAL() {
         catch (error) {
             console.error("Error checking auth context:", error);
             return undefined;
+        }
+    }
+    async function PopupToken() {
+        const msalConfig = {
+            auth: {
+                clientId: clientId,
+                authority: "https://login.microsoftonline.com/common",
+                redirectUri: redirectUri
+            }
+        };
+        //@ts-ignore
+        const msalInstance = new PublicClientApplication(msalConfig);
+        try {
+            const loginResponse = await msalInstance.loginPopup({
+                scopes: ["Files.ReadWrite"]
+            });
+            const response = await msalInstance.acquireTokenSilent({
+                account: loginResponse.account,
+                scopes: ["https://graph.microsoft.com/User.Read"]
+            });
+            console.log("Token acquired:", response.accessToken);
+            return response.accessToken;
+            // Use the access token to call OneDrive API
+        }
+        catch (error) {
+            console.error("Error acquiring token:", error);
+            //@ts-ignore
+            if (error instanceof InteractionRequiredAuthError) {
+                // Fallback to popup if silent token acquisition fails
+                const response = await msalInstance.acquireTokenPopup({
+                    scopes: ["https://graph.microsoft.com/User.Read"]
+                });
+                console.log("Token acquired via popup:", response.accessToken);
+                return response.accessToken;
+            }
         }
     }
     async function credentitalsToken() {
