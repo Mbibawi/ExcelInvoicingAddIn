@@ -402,7 +402,7 @@ function getTokenWithMSAL() {
             });
             const response = await msalInstance.acquireTokenSilent({
                 account: loginResponse.account,
-                scopes: ["https://graph.microsoft.com/User.Read"]
+                scopes: ["https://graph.microsoft.com/Files.ReadWrite"]
             });
             console.log("Token acquired:", response.accessToken);
             return response.accessToken;
