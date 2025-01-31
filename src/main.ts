@@ -285,7 +285,6 @@ async function uploadWordDocument(filtered: any[][], fileName: string) {
   const accessToken = await getTokenWithMSAL();
   if (accessToken) {
     console.log("Successfully retrieved token:", accessToken);
-    alert(`Access token: ${accessToken}`);
     //Office.context.ui.messageParent(`Access token: ${accessToken}`);
   } else {
     return console.log("Failed to retrieve token.");
