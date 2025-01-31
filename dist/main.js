@@ -239,7 +239,7 @@ async function generateInvoice() {
     if (!inputs)
         return;
     const date = new Date();
-    const fileName = "Facture_" + inputs.find(input => Number(input.dataset.index) === 0)?.value || 'CLIENT_' + [date.getDay().toString(), (date.getMonth() + 1).toString(), date.getFullYear.toString()].join('-') + '_' + date.getHours().toString() + date.getMinutes().toString();
+    const fileName = "Test_Facture_" + inputs.find(input => Number(input.dataset.index) === 0)?.value || 'CLIENT_' + [date.getDay().toString(), (date.getMonth() + 1).toString(), date.getFullYear.toString()].join('-') + '_' + date.getHours().toString() + date.getMinutes().toString() + '.docx';
     const visible = await filterTable(undefined, undefined, false);
     await uploadWordDocument(visible, fileName);
 }
@@ -254,6 +254,11 @@ async function uploadWordDocument(filtered, fileName) {
     else {
         return console.log("Failed to retrieve token.");
     }
+    const path = "Legal\\Mon Cabinet d'Avocat\\Comptabilité\\Factures\\";
+    const templatePath = path + "FactureTEMPLATE [NE PAS MODIFIDER].dotm";
+    const newPath = path + `Clients\\${fileName}`;
+    createWordDocumentFromTemplate(templatePath, newPath, accessToken);
+    return;
     // Sample Word document content (base64 encoded DOCX)
     const wordContent = "UEsDBBQAAAAIA...";
     const oneDriveUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/Documents/${fileName}.docx:/content`;
@@ -529,6 +534,37 @@ function getTokenWithMSAL() {
         }
         return undefined;
     }
+}
+async function createWordDocumentFromTemplate(templatePath, newDocumentPath, accessToken) {
+    if (!accessToken)
+        return;
+    const headers = {
+        "Authorization": `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+    };
+    // Fetch the template file from OneDrive
+    const templateResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${templatePath}:/content`, {
+        method: 'GET',
+        headers: headers
+    });
+    const templateBlob = await templateResponse.blob();
+    const templateArrayBuffer = await templateBlob.arrayBuffer();
+    const templateBase64 = btoa(String.fromCharCode(...new Uint8Array(templateArrayBuffer)));
+    // Create the new document with the template content
+    const newDocumentResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${newDocumentPath}:/content`, {
+        method: 'PUT',
+        headers: headers,
+        body: JSON.stringify({
+            "@microsoft.graph.conflictBehavior": "rename",
+            "file": {
+                "@odata.type": "#microsoft.graph.file"
+            },
+            "fileSystemInfo": {},
+            "contentBytes": templateBase64
+        })
+    });
+    const result = await newDocumentResponse.json();
+    console.log("Document created:", result);
 }
 /*
 async function authenticateUser() {
