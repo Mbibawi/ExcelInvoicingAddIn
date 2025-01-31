@@ -358,22 +358,28 @@ function getTokenWithMSAL() {
     // MSAL configuration
     const msalConfig = {
         auth: {
-            clientId: clientId, // Replace with your Azure AD app's client ID
-            redirectUri: redirectUri
+            clientId: clientId,
+            authority: "https://login.microsoftonline.com/common",
+            redirectUri: redirectUri,
+        },
+        cache: {
+            cacheLocation: "ExcelAddIn",
+            storeAuthStateInCookie: true
         }
     };
     //@ts-ignore
     const msalInstance = new msal.PublicClientApplication(msalConfig);
-    return checkExistingAuthContext();
+    const loginRequest = { scopes: ["Files.ReadWrite"] };
+    return acquireToken();
     // Function to check existing authentication context
-    async function checkExistingAuthContext() {
+    async function acquireToken() {
         try {
             const account = msalInstance.getAllAccounts()[0];
             if (account) {
                 return acquireTokenSilently(account);
             }
             else {
-                return PopupToken();
+                return loginWithPopup();
                 //return loginAndGetToken();
                 //openLoginWindow()
                 //return getOfficeToken()
@@ -382,39 +388,27 @@ function getTokenWithMSAL() {
             }
         }
         catch (error) {
-            console.error("Error checking auth context:", error);
-            return undefined;
+            console.error("Failed to acquire token from acquireToken(): ", error);
         }
     }
-    async function PopupToken() {
-        const msalConfig = {
-            auth: {
-                clientId: clientId,
-                authority: "https://login.microsoftonline.com/common",
-                redirectUri: redirectUri
-            }
-        };
-        //@ts-ignore
-        const msalInstance = new msal.PublicClientApplication(msalConfig);
+    async function loginWithPopup() {
         try {
-            const loginResponse = await msalInstance.loginPopup({
-                scopes: ["Files.ReadWrite"]
-            });
-            const response = await msalInstance.acquireTokenSilent({
+            const loginResponse = await msalInstance.loginPopup(loginRequest);
+            const tokenResponse = await msalInstance.acquireTokenSilent({
                 account: loginResponse.account,
                 scopes: ["https://graph.microsoft.com/Files.ReadWrite"]
             });
-            console.log("Token acquired:", response.accessToken);
-            return response.accessToken;
-            // Use the access token to call OneDrive API
+            console.log("Token acquired from loginWithPopup: ", tokenResponse.accessToken);
+            return tokenResponse.accessToken;
         }
         catch (error) {
-            console.error("Error acquiring token:", error);
+            console.error("Error acquiring token fro loginWithPopup(): ", error);
+            return;
             //@ts-ignore
             if (error instanceof InteractionRequiredAuthError) {
                 // Fallback to popup if silent token acquisition fails
                 const response = await msalInstance.acquireTokenPopup({
-                    scopes: ["https://graph.microsoft.com/User.Read"]
+                    scopes: ["https://graph.microsoft.com/Files.ReadWrite"]
                 });
                 console.log("Token acquired via popup:", response.accessToken);
                 return response.accessToken;
@@ -461,13 +455,14 @@ function getTokenWithMSAL() {
                 navigateToLoginRequestUrl: true,
             },
             cache: {
-                cacheLocation: "sessionStorage",
+                cacheLocation: "ExcelAddIn",
                 storeAuthStateInCookie: true
             }
         };
         try {
-            const response = await msalInstance.ssoSilent({
-                scopes: ["Files.ReadWrite.All"],
+            //@ts-ignore
+            const response = await msal.PublicClientApplication(msalConfig).ssoSilent({
+                scopes: ["Files.ReadWrite"],
                 //scopes: ["https://graph.microsoft.com/.default"],
                 loginHint: email // Forces MSAL to recognize the signed-in user
             });
@@ -496,7 +491,7 @@ function getTokenWithMSAL() {
                 redirectUri: redirectUri
             },
             cache: {
-                cacheLocation: "localStorage", // Specify cache location
+                cacheLocation: "ExcelInvoicing", // Specify cache location
                 storeAuthStateInCookie: true // Set this to true for IE 11
             }
         };
@@ -561,20 +556,18 @@ function getTokenWithMSAL() {
     async function acquireTokenSilently(account) {
         try {
             const tokenRequest = {
-                scopes: ["Files.ReadWritel"], // OneDrive scopes
-                account: account
+                account: account,
+                scopes: ["Files.ReadWrite"], // OneDrive scopes
             };
             const tokenResponse = await msalInstance.acquireTokenSilent(tokenRequest);
             if (tokenResponse && tokenResponse.accessToken) {
-                console.log("Access token (silent):", tokenResponse.accessToken);
+                console.log("Token acquired silently :", tokenResponse.accessToken);
                 return tokenResponse.accessToken;
             }
         }
         catch (error) {
-            console.error("Token acquisition error:", error);
-            return loginAndGetToken();
+            console.error("Token silent acquisition error:", error);
         }
-        return undefined;
     }
 }
 async function createWordDocumentFromTemplate(templatePath, newDocumentPath, accessToken) {
