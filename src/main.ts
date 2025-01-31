@@ -456,8 +456,7 @@ function getTokenWithMSAL() {
       console.log("Token acquired from loginWithPopup: ", tokenResponse.accessToken);
       return tokenResponse.accessToken
     } catch (error) {
-        console.error("Error acquiring token fro loginWithPopup(): ", error);
-      return 
+        console.error("Error acquiring token from loginWithPopup(): ", error);
       //@ts-ignore
       if (error instanceof InteractionRequiredAuthError) {
         // Fallback to popup if silent token acquisition fails
