@@ -557,11 +557,54 @@ function getTokenWithMSAL() {
 
   // Function to handle login and acquire token
   async function loginAndGetToken(): Promise<string | undefined> {
+    const msalConfig = {
+      auth: {
+        clientId: clientId,
+        authority: "https://login.microsoftonline.com/common",
+        redirectUri: redirectUri
+      },
+
+      cache: {
+        cacheLocation: "localStorage", // Specify cache location
+        storeAuthStateInCookie: true  // Set this to true for IE 11
+      }
+    };
+    //@ts-ignore
+    const msalInstance = new msal.PublicClientApplication(msalConfig);
+    return await acquire();
+    async function acquire(){
+      try {
+        const response = await msalInstance.handleRedirectPromise();
+        if (response !== null) {
+          console.log("Login successful:", response);
+          return response.accessToken;
+        }
+        const accounts = msalInstance.getAllAccounts();
+        if (accounts.length > 0) {
+          const tokenResponse = await msalInstance.acquireTokenSilent({
+            account: accounts[0],
+            scopes: ["https://graph.microsoft.com/.default"]
+          });
+          console.log("Token acquired silently:", tokenResponse.accessToken);
+          return tokenResponse.accessToken;
+        }
+      } catch (error) {
+        console.error("Error acquiring token:", error);
+        //@ts-ignore
+        if (error instanceof msal.InteractionRequiredAuthError) {
+          msalInstance.acquireTokenRedirect({
+            scopes: ["https://graph.microsoft.com/.default"]
+          });
+        }
+      }
+    }
+
+
+    return
     try {
       const loginRequest = {
         scopes: ["Files.ReadWrite"] // OneDrive scopes
       };
-
       await msalInstance.loginRedirect(loginRequest);
 
       return handleRedirectResponse();
