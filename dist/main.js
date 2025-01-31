@@ -263,7 +263,7 @@ async function uploadWordDocument(filtered, fileName) {
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         },
-        body: atob(wordContent) // Convert base64 to binary
+        body: Buffer.from(wordContent, 'base64') // Convert base64 to binary
     });
     if (response.ok) {
         console.log("File uploaded successfully!");
