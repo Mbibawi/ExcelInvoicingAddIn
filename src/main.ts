@@ -401,11 +401,11 @@ async function createWordDocument(filtered: any[][]) {
 // Get filtered data from the Excel table
 
 function getTokenWithMSAL() {
-  //const clientId = "f670878d-ed8e-4020-bb82-21ba582d0d9c"; the old one
   const clientId = "157dd297-447d-4592-b2d3-76b643b97132"; //the new one
   const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
   //const redirectUri = "https://script-lab.public.cdn.office.net";
-  const redirectUri = "msal157dd297-447d-4592-b2d3-76b643b97132://auth";
+  //const redirectUri = "msal157dd297-447d-4592-b2d3-76b643b97132://auth";
+  const redirectUri = "https://localhost";
   // MSAL configuration
   const msalConfig = {
     auth: {
