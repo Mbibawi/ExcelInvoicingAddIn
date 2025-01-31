@@ -1,11 +1,9 @@
 Office.onReady((info) => {
-  // Office is ready --
   if (info.host === Office.HostType.Excel) {
     // Excel-specific initialization code goes here
-    console.log("Excel is ready!");
+      console.log("Excel is ready!");
 
-    // loadMsalScript();
-    //showForm();
+     loadMsalScript();
   }
 });
 
@@ -17,6 +15,7 @@ function loadMsalScript() {
   script.onload = async () => (token = await getTokenWithMSAL());
   script.onerror = () => console.error("Failed to load MSAL.js");
   document.head.appendChild(script);
+  token ? console.log('Got token', token) : console.log('could not retrieve the token');
 };
 
 
@@ -41,88 +40,93 @@ async function showForm(id?: string) {
     await context.sync();
     const title = header.values[0];
 
-    if (id === 'entry') await addingEntry(table.columns.items, title,dataBodyRange.values);
+    if (id === 'entry') await addingEntry(table.columns.items, title, dataBodyRange.values);
     else if (id === 'invoice') await invoice(title);
   });
 
-  async function invoice(title:any[]) {
-    const inputs = await Promise.all(insertInputsAndLables(['client', 'matter', '', 'date'], title));
-    form.innerHTML += `<button onclick="filter()"> Filter Table</button>`;
-    inputs.forEach(input => input?.addEventListener('focusout', async () => await inputOnChange(input), { passive: true }))
+  async function invoice(title: any[]) {
+    const inputs = await Promise.all(insertInputsAndLables([0, 1, 2, 3]));
+    form.innerHTML += `<button onclick="generateInvoice()"> Filter Table</button>`;
+    inputs.forEach(input => input?.addEventListener('focusout', async () => await inputOnChange(input), { passive: true }));
 
-    function insertInputsAndLables(ids: string[], title: string[]): Promise<(HTMLInputElement | undefined)>[] {
-      return ids.map(async id => {
-        if (!id) return;
+    function insertInputsAndLables(indexes: number[]): Promise<(HTMLInputElement | undefined)>[] {
+      const id = 'input';
+      return indexes.map(async index => {
+        if (!index) return;
         const input = document.createElement('input');
-        const index = ids.indexOf(id);
         input.type = "text"
-        input.id = id
+        if (index === 3) input.type = 'date';
+        input.id = id + index.toString();
+        input.name = input.id;
         input.dataset.index = index.toString();
-        if (id === 'date') input.type = 'date';
-        input.setAttribute('list', id + 's'),
-          input.name = id
+        input.setAttribute('list', input.id + 's'),
         input.autocomplete = "on"
-        //input.addEventListener('change', async () =>await inputOnChange(input), {passive:true});
 
         const label = document.createElement('label');
-        label.htmlFor = id + ':';
+        label.htmlFor = input.id;
         label.innerText = title[index];
 
         form.appendChild(label);
         form.appendChild(input);
-        if (index === 0) createDataList(input.id, await getUniqueValues(index));//We create a unique values dataList for the 'Client' input
+        if (index === 0) createDataList(input?.id, await getUniqueValues(index));//We create a unique values dataList for the 'Client' input
         return input
       });
     };
 
-    async function inputOnChange(input: HTMLInputElement, id?: string, unfilter: boolean = false) {
+    async function inputOnChange(input: HTMLInputElement, unfilter: boolean = false) {
       const index = Number(input.dataset.index);
 
-      if (id) return createDataList(id, await getUniqueValues(index));
-
-
       if (index === 0) unfilter = true;//If this is the 'Client' column, we remove any filter from the table;
+      
+      //We filter the table accordin to the input's value and return the visible cells
+      const visibleCells = await filterTable(undefined, [{ column: index, value: getArray(input.value) }], unfilter);
+      
+      if (visibleCells.length < 1) return alert('There are no visible cells in the filtered table');
 
-      const uniqueValues = await filterTable(undefined, [{ column: index, value: getArray(input.value) || undefined }], unfilter);
-      if (!uniqueValues) return;
-      console.log('visible values =', uniqueValues);
-      let nextInput: Element | null = input.nextElementSibling;
+      //We create (or update) the unique values dataList for the next input 
+      const nextInput = getNextInput(input);
+      if (!nextInput) return;
+      createDataList(nextInput?.id || '', await getUniqueValues(Number(nextInput.dataset.index), visibleCells));
+  
+    
+      function getNextInput(input:HTMLInputElement) {
+        let nextInput: Element | null = input.nextElementSibling;
+        while (nextInput?.tagName !== 'INPUT' && nextInput?.nextElementSibling) {
+          nextInput = nextInput.nextElementSibling
+        };
 
-      while (nextInput?.tagName !== 'INPUT' && nextInput?.nextElementSibling) {
-        nextInput = nextInput.nextElementSibling
-      };
-      console.log('nextInput = ', nextInput);
-      if (index === 2) {
+        return nextInput as HTMLInputElement
+      }
+
+      if (index === 1) {
+        //!Need to figuer out how to create a multiple choice input for nature
         const nature = new Set((await filterTable(undefined, undefined, false)).map(row => row[index]));
         nature.forEach(el => form.appendChild(createCheckBox(undefined, el)));
       }
-      createDataList(nextInput?.id || '', await getUniqueValues(Number((nextInput as HTMLInputElement).dataset.index)));
 
     };
-
-    
   }
 
-  async function addingEntry(columns: Excel.TableColumn[], title:any[], dataBodyRange:any[][]) {
+  async function addingEntry(columns: Excel.TableColumn[], title: any[], dataBodyRange: any[][]) {
     await filterTable(undefined, undefined, true);
 
-    for(const col of columns){
+    for (const col of columns) {
       const i = columns.indexOf(col);
-      if (![4, 7].includes(i)) form.appendChild(createLable(i));
+      if (![4, 7].includes(i)) form.appendChild(createLable(i));//We exclued the labels for "Total Time" and for "Year"
       form.appendChild(await createInput(i));
     };
-    
+
     const inputs = Array.from(document.getElementsByTagName('input'));
     inputs
       .filter(input => Number(input?.dataset.index) < 2)
       .forEach(input => input?.addEventListener('change', async () => await onFoucusOut(input), { passive: true }));
-    
+
     inputs
       .filter(input => [4, 7].includes(Number(input?.dataset.index)))
       .forEach(input => input.style.display = 'none');
-    
-    
-  
+
+
+
     async function onFoucusOut(input: HTMLInputElement) {
       debugger
       const i = Number(input.dataset.index);
@@ -131,7 +135,7 @@ async function showForm(id?: string) {
       if (i === 0) unfilter = true;
       await filterTable(undefined, criteria, unfilter);
       if (i < 1)
-        createDataList('input' + String(i + 1), await getUniqueValues(i+1));
+        createDataList('input' + String(i + 1), await getUniqueValues(i + 1));
     }
 
     form.innerHTML += `<button onclick="addEntry()"> Ajouter </button>`;
@@ -160,7 +164,7 @@ async function showForm(id?: string) {
         input.type = 'time';
       else if ([0, 1, 2, 11, 12, 13, 16].includes(i)) {
         //We add a dataList for those fields
-        input.setAttribute('list', input.id +'s');
+        input.setAttribute('list', input.id + 's');
         createDataList(input.id, await getUniqueValues(i, dataBodyRange));
       }
 
@@ -199,12 +203,10 @@ async function showForm(id?: string) {
 
   function createDataList(id: string, uniqueValues: any[]) {
     //const uniqueValues = Array.from(new Set(visible.map(row => row[i])));
-    if (!uniqueValues || uniqueValues.length < 1) return;
+    if (!id || !uniqueValues || uniqueValues.length < 1) return;
     id += 's';
 
-    console.log('dataList options = ', uniqueValues);
-
-    // Create a new datalist element
+   // Create a new datalist element
     let dataList = Array.from(document.getElementsByTagName('datalist')).find(list => list.id === id);
     if (dataList) dataList.remove();
     dataList = document.createElement('datalist');
@@ -233,20 +235,23 @@ async function filterTable(tableName: string = 'LivreJournal', criteria?: { colu
 
     if (clearFilter) table.autoFilter.clearCriteria();
 
-    if (criteria) criteria.forEach(column => filterColumn(column.column, column.value));
+    if (!criteria) return await getVisible();
+
+    criteria.forEach(column => filterColumn(column.column, column.value));
+
+    return await getVisible();
 
     function filterColumn(index: number, filter: string[]) {
       if (!index || !filter) return;
       table.columns.getItemAt(index).filter.applyValuesFilter(filter)
     }
 
-    const range = table.getDataBodyRange().getVisibleView();
-    range.load('values');
-    await context.sync();
-    return range.values
-    //await createWordDocument(range.values);
-    //@ts-ignore
-    uploadWordDocument(range.values, criteria.client.join(",") + "_Invoice" + "THEDATE");
+    async function getVisible() {
+      const visible = table.getDataBodyRange().getVisibleView();
+      visible.load('values');
+      await context.sync();
+      return visible.values
+    }
   });
 }
 
@@ -263,20 +268,48 @@ function getArray(value: string): string[] {
   return array.filter((el) => el);
 }
 
-async function filter() {
-  const client = document.getElementById("client") as HTMLInputElement;
-  const matter = document.getElementById("affaire") as HTMLInputElement;
-  const nature = document.getElementById("nature") as HTMLInputElement;
-  const date = document.getElementById("date") as HTMLInputElement;
-  const criteria = [
-    { column: 0, value: getArray(client.value) || undefined },
-    { column: 1, value: getArray(matter.value) || undefined },
-    { column: 2, value: getArray(nature.value) || undefined },
-    { column: 3, value: getArray(date.value) || undefined },
-  ];
+async function generateInvoice() {
+  const inputs = Array.from(document.getElementsByName('input')) as HTMLInputElement[];
+  if (!inputs) return;
+  const date = new Date();
+  const fileName = "Facture_" + inputs.find(input => Number(input.dataset.index) === 0)?.value || 'CLIENT_' + [date.getDay().toString(), (date.getMonth() + 1).toString(), date.getFullYear.toString()].join('-') + '_' + date.getHours().toString() + date.getMinutes().toString();
+  
+  const visible = await filterTable(undefined, undefined, false);
 
-  filterTable(undefined, criteria, true);
+  await uploadWordDocument(visible, fileName);
 
+}
+
+async function uploadWordDocument(filtered: any[][], fileName: string) {
+  //const accessToken = await authenticateUser();
+  const accessToken = await getTokenWithMSAL();
+  if (accessToken) {
+    console.log("Successfully retrieved token:", accessToken);
+    alert(`Access token: ${accessToken}`);
+    //Office.context.ui.messageParent(`Access token: ${accessToken}`);
+  } else {
+    console.log("Failed to retrieve token.");
+  }
+
+  // Sample Word document content (base64 encoded DOCX)
+  const wordContent = "UEsDBBQAAAAIA...";
+
+  const oneDriveUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/Documents/${fileName}.docx:/content`;
+
+  const response = await fetch(oneDriveUrl, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    },
+    body: atob(wordContent) // Convert base64 to binary
+  });
+
+  if (response.ok) {
+    console.log("File uploaded successfully!");
+  } else {
+    console.error("Upload failed", await response.text());
+  }
 }
 
 async function addEntry(tableName: string = 'LivreJournal') {
@@ -286,11 +319,21 @@ async function addEntry(tableName: string = 'LivreJournal') {
     const columns = table.columns.getCount();
     await context.sync();
     table.rows.add(-1, getNewRow(columns.value), true);
+    table.getDataBodyRange().load('rowCount');
     await context.sync();
-  });
+    
+    [5,6].forEach(i=>{
+      const cell = table.getRange()
+        .getCell(table.getDataBodyRange().rowCount - 1, i);
+        console.log('cell = ', cell);
+      cell.numberFormatLocal = [["hh:mm:ss"]];
+    });
+      
+      await context.sync();
+    });
 
   function getNewRow(columns: number) {
-    const newRow = Array(columns).map(el=>'') as any[];
+    const newRow = Array(columns).map(el => '') as any[];
     const inputs = Array.from(document.getElementsByTagName('input')).filter(input => input.dataset.index);
     console.log('inputs = ', inputs)
     if (inputs.length < 1) return;
@@ -302,8 +345,8 @@ async function addEntry(tableName: string = 'LivreJournal') {
         value = parseFloat(value);
       else if (input.type === 'date' && input.valueAsDate)
         //@ts-ignore
-        value = [String(input.valueAsDate?.getDay()).padStart(2,'0'), String(input.valueAsDate.getMonth() +1).padStart(2, '0'), String(input.valueAsDate?.getFullYear())].join('/');
-      else if (input.type === 'time' && input.valueAsDate) value = [input.valueAsDate?.getHours().toString().padStart(2,'0'), input.valueAsDate?.getMinutes().toString().padStart(2,'0'), '00'].join(':');
+        value = [String(input.valueAsDate?.getDay()).padStart(2, '0'), String(input.valueAsDate.getMonth() + 1).padStart(2, '0'), String(input.valueAsDate?.getFullYear())].join('/');
+      else if (input.type === 'time' && input.valueAsDate) value = [input.valueAsDate?.getHours().toString().padStart(2, '0'), input.valueAsDate?.getMinutes().toString().padStart(2, '0'), '00'].join(':');
 
       newRow[index] = value;
     });
@@ -311,14 +354,14 @@ async function addEntry(tableName: string = 'LivreJournal') {
     console.log('newRow = ', newRow);
     return [newRow];
 
-    function convertTo24HourFormat(time12h:string):string {
+    function convertTo24HourFormat(time12h: string): string {
       const [time, modifier] = time12h.split(' ');
       let [hours, minutes] = time.split(':');
 
       if (hours === '12') hours = '00';
-      
+
       if (modifier === 'PM') hours = String(parseInt(hours, 10) + 12);
-    
+
       return `${hours}:${minutes}:00`;
     }
   }
@@ -375,9 +418,9 @@ function getTokenWithMSAL() {
       if (account) {
         return acquireTokenSilently(account);
       } else {
-        //return loginAndGetToken();
-        //openLoginWindow()
-        return getOfficeToken()
+          return loginAndGetToken();
+          //openLoginWindow()
+          //return getOfficeToken()
         //return getTokenWithSSO('minabibawi@gmail.com')
         //return credentitalsToken()
       }
@@ -571,64 +614,5 @@ async function authenticateUser() {
   }
 }*/
 
-/*
-async function getAccessToken() {
 
-  const scopes = ["Files.ReadWrite", "User.Read"];
-  const redirectUri = "https://login.microsoftonline.com/common/oauth2/nativeclient";
-
-  const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${clientId}&response_type=token&redirect_uri=${redirectUri}&scope=${scopes.join(
-    "%20"
-  )}&response_mode=fragment`;
-
-  // Open authentication window
-  const authWindow = window.open(authUrl, "_blank");
-
-  return new Promise((resolve, reject) => {
-    const checkAuth = setInterval(() => {
-      try {
-        if (authWindow.location.hash) {
-          clearInterval(checkAuth);
-          const token = new URLSearchParams(authWindow.location.hash.substring(1)).get("access_token");
-          authWindow.close();
-          resolve(token);
-        }
-      } catch (e) {}
-    }, 1000);
-  });
-}*/
-
-async function uploadWordDocument(filtered: any[][], fileName: string) {
-  //console.log('filtered = ', filtered);
-  //const accessToken = await getAccessToken();
-  //const accessToken = await authenticateUser();
-  const accessToken = await getTokenWithMSAL();
-  if (accessToken) {
-    console.log("Successfully retrieved token:", accessToken);
-    Office.context.ui.messageParent(`Access token: ${accessToken}`);
-  } else {
-    console.log("Failed to retrieve token.");
-  }
-  if (!accessToken) return console.log("No access token");
-
-  // Sample Word document content (base64 encoded DOCX)
-  const wordContent = "UEsDBBQAAAAIA...";
-
-  const oneDriveUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/Documents/${fileName}.docx:/content`;
-
-  const response = await fetch(oneDriveUrl, {
-    method: "PUT",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    },
-    body: atob(wordContent) // Convert base64 to binary
-  });
-
-  if (response.ok) {
-    console.log("File uploaded successfully!");
-  } else {
-    console.error("Upload failed", await response.text());
-  }
-}
 
