@@ -292,6 +292,11 @@ async function generateInvoice(lang = 'FR') {
                 FR: 'Total des heures facturables (hors prestations facturées au forfait) ',
                 EN: 'Total billable hours (other than lump-sum billed services)'
             },
+            decimal: {
+                nature: '',
+                FR: ',',
+                EN: '.'
+            },
         };
         const amount = 9, vat = 10, hours = 7, rate = 8;
         const filtered = visible.map(row => {
@@ -329,8 +334,12 @@ async function generateInvoice(lang = 'FR') {
                 pushSumRow(lables.totalTimeSpent, totalTimeSpent, '');
             pushSumRow(lables.totalDue, totalDue, totalDueVAT);
             function pushSumRow(label, amount, vat) {
+                if (!amount || !vat)
+                    return;
+                amount = Math.abs(amount);
+                vat = Math.abs(vat).toFixed(2);
                 //@ts-ignore
-                filtered.push([label[lang], '', String(amount), String(vat)]);
+                filtered.push([label[lang], '', amount.toFixed(2).replace('.', lables.decimal[lang]) + ' €', vat.replace('.', lables.decimal[lang]) + ' €']); //The total amount can be a negative number, that's why we use Math.abs() in order to get the absolute number without the negative sign
             }
             function getTotals(index, nature) {
                 const total = visible.filter(row => nature ? row[2] === nature : row[2] === row[2])

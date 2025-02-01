@@ -330,6 +330,12 @@ async function generateInvoice(lang:string = 'FR') {
         FR: 'Total des heures facturables (hors prestations facturées au forfait) ',
         EN: 'Total billable hours (other than lump-sum billed services)'
       },
+      decimal:{
+        nature:'',
+        FR:',',
+        EN:'.'
+
+      },
     }
     const amount = 9, vat = 10, hours=7, rate=8;
   
@@ -373,9 +379,14 @@ async function generateInvoice(lang:string = 'FR') {
       
       pushSumRow(lables.totalDue, totalDue, totalDueVAT);
 
-      function pushSumRow(label: { FR: string, EN: string }, amount: number, vat: number|string) {
+      function pushSumRow(label: { FR: string, EN: string }, amount: number, vat: number | string) {
+        if (!amount || !vat) return;
+        amount = Math.abs(amount);
+        vat = Math.abs(vat as number).toFixed(2);
+        
+    
         //@ts-ignore
-        filtered.push([label[lang], '', String(amount), String(vat)])
+        filtered.push([label[lang], '', amount.toFixed(2).replace('.', lables.decimal[lang]) + ' €', vat.replace('.', lables.decimal[lang]) + ' €']);//The total amount can be a negative number, that's why we use Math.abs() in order to get the absolute number without the negative sign
       }
  
       
