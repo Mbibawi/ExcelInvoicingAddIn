@@ -12,7 +12,7 @@ function loadMsalScript() {
   var token;
   const script = document.createElement("script");
   script.src = "https://alcdn.msauth.net/browser/2.17.0/js/msal-browser.min.js";
-  script.onload = async () => (token = await getTokenWithMSAL());
+  //script.onload = async () => (token = await getTokenWithMSAL());
   script.onerror = () => console.error("Failed to load MSAL.js");
   document.head.appendChild(script);
   token ? console.log('Got token', token) : console.log('could not retrieve the token');
@@ -268,7 +268,7 @@ function getArray(value: string): string[] {
   return array.filter((el) => el);
 }
 
-async function generateInvoice() {
+async function generateInvoice(lang:string = 'FR') {
   const inputs = Array.from(document.getElementsByName('input')) as HTMLInputElement[];
   if (!inputs) return;
   const date = new Date();
@@ -276,13 +276,132 @@ async function generateInvoice() {
 
   const visible = await filterTable(undefined, undefined, false);
 
-  await uploadWordDocument(visible, fileName);
+  const clientId = "157dd297-447d-4592-b2d3-76b643b97132"; //the new one
+  const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
+  const redirectUri = "https://mbibawi.github.io/ExcelInvoicingAddIn"; //!must be the same domain as the app
+  // MSAL configuration
+  const msalConfig: Object = {
+    auth: {
+      clientId: clientId,
+      authority: "https://login.microsoftonline.com/common",
+      redirectUri: redirectUri,
+    },
+    cache: {
+      cacheLocation: "ExcelAddIn",
+      storeAuthStateInCookie: true
+    }
+  };
 
+  await uploadWordDocument(getData(), fileName, clientId, redirectUri, msalConfig, tenantId);
+
+  function getData() {
+    const lables = {
+      totalFees: {
+        nature: 'Honoraire',
+        FR: 'Total honoraires',
+        EN: 'Total Fees'
+      },
+      totalExpenses: {
+        nature: 'Débours/Dépens',
+        FR: 'Total débours et frais',
+        EN: 'Total Expenses'
+      },
+      totalPayments: {
+        nature: 'Provision/Règlement',
+        FR: 'Total provisions reçues',
+        EN: 'Total Payments'
+      },
+      totalDue: {
+        FR: 'Montant dû',
+        EN: 'Total Due'
+      },
+      hourlyBilled: {
+        nature:'',
+        FR:'facturation au temps passé : ',
+        EN:'hourly billed: ',
+
+      },
+      hourlyRate: {
+        nature:'',
+        FR:' au taux horaire de : ',
+        EN:' at an hourly rate of: ',
+      },
+      totalTimeSpent: {
+        FR: 'Total des heures facturables (hors prestations facturées au forfait) ',
+        EN: 'Total billable hours (other than lump-sum billed services)'
+      },
+    }
+    const amount = 9, vat = 10, hours=7, rate=8;
+  
+    const filtered:string[][] = visible.map(row =>{
+      let description = String(row[2]) + ' : ' + String(row[14]);//Column Nature + Column Description;
+
+      //If the billable hours are > 0
+      if (row[hours] > 0)
+        //@ts-ignore
+        description += ` (${lables.hourlyBilled[lang]} ${row[hours].toString()} ${lables.hourlyRate[lang]} ${row[rate].toString()} €)`;
+
+      return [
+        String(row[3]),//Column Date
+        description, 
+        String(row[amount]) + ' €', //Column "Amount"
+        String(row[vat]) + ' €', //Column VAT
+      ]});
+      
+    addTotalsRows();
+
+    function addTotalsRows() {
+      //Adding rows for the totals of the different categories and amounts
+      const totalFee = getTotals(amount, lables.totalFees.nature);
+      const totalFeeVAT = getTotals(vat, lables.totalFees.nature);
+      const totalPayments = getTotals(amount, lables.totalPayments.nature);
+      const totalPaymentsVAT = getTotals(vat, lables.totalPayments.nature);
+      const totalExpenses = getTotals(amount, lables.totalExpenses.nature);
+      const totalExpensesVAT = getTotals(vat, lables.totalExpenses.nature);
+      const totalTimeSpent = getTotals(hours, null);
+      const totalDueVAT = getTotals(vat, null);
+      const totalDue = totalFee + totalExpenses - totalPayments;
+
+      if (totalFee > 0)
+          pushSumRow(lables.totalFees, totalFee, totalFeeVAT)
+      if (totalExpenses > 0)
+        pushSumRow(lables.totalExpenses, totalExpenses, totalExpensesVAT);
+      if (totalPayments > 0)
+          pushSumRow(lables.totalPayments, totalPayments, totalPaymentsVAT);
+      if (totalTimeSpent > 0)
+          pushSumRow(lables.totalTimeSpent, totalTimeSpent, '')
+      
+      pushSumRow(lables.totalDue, totalDue, totalDueVAT);
+
+      function pushSumRow(label: { FR: string, EN: string }, amount: number, vat: number|string) {
+        //@ts-ignore
+        filtered.push([label[lang], '', String(amount), String(vat)])
+      }
+ 
+      
+      function getTotals(index: number, nature: string | null) {
+        const total =
+          visible.filter(row => nature ? row[2] === nature : row[2] === row[2])
+            .map(row => Number(row[index]));
+        let sum = 0;
+        for (let i = 0; i < total.length; i++) {
+          sum += total[i]
+        }
+        if (index === 7)
+          console.log('this is the hourly rate') //!need to something to adjust the time spent format
+        return sum;
+  
+      }
+  
+    }
+    return filtered
+    
+  }
 }
 
-async function uploadWordDocument(filtered: any[][], fileName: string) {
+async function uploadWordDocument(data: string[][], fileName: string, clientId: string, redirectUri: string, msalConfig: Object, tenantId: string) {
   //const accessToken = await authenticateUser();
-  const accessToken = await getTokenWithMSAL();
+  const accessToken = await getTokenWithMSAL(clientId, redirectUri, msalConfig);
   if (accessToken) {
     console.log("Successfully retrieved token:", accessToken);
     //Office.context.ui.messageParent(`Access token: ${accessToken}`);
@@ -294,29 +413,78 @@ async function uploadWordDocument(filtered: any[][], fileName: string) {
   const templatePath = path + "FactureTEMPLATE [NE PAS MODIFIDER].dotm";
   const newPath = path + `Clients\\${fileName}`;
 
-  createWordDocumentFromTemplate(templatePath, newPath, accessToken)
+  await createWordDocumentFromTemplate(templatePath, newPath, accessToken, tenantId)
 
-  return
-  // Sample Word document content (base64 encoded DOCX)
-  const wordContent = "UEsDBBQAAAAIA...";
+  async function createWordDocumentFromTemplate(templatePath: string, newDocumentPath: string, accessToken: string, tenantId: string) {
 
-  const oneDriveUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/Documents/${fileName}.docx:/content`;
+    if (!accessToken) return;
 
-  const response = await fetch(oneDriveUrl, {
-    method: "PUT",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    },
-    body: Buffer.from(wordContent, 'base64') // Convert base64 to binary
-  });
+    const headers = {
+      "Authorization": `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    };
+    // Fetch the template file from OneDrive
+    const templateResponse = await fetch(
+      `https://graph.microsoft.com/v1.0/me/drive/root:/${templatePath}:/content`,
+      {
+        method: 'GET',
+        headers: headers
+      }
+    );
 
-  if (response.ok) {
-    console.log("File uploaded successfully!");
-  } else {
-    console.error("Upload failed", await response.text());
+    const templateBlob = await templateResponse.blob();
+    const templateArrayBuffer = await templateBlob.arrayBuffer();
+    const templateBase64 = btoa(String.fromCharCode(...new Uint8Array(templateArrayBuffer)));
+
+    // Create the new document with the template content
+    const newDocumentResponse = await fetch(
+      `https://graph.microsoft.com/v1.0/me/drive/root:/${newDocumentPath}:/content`,
+      {
+        method: 'PUT',
+        headers: headers,
+        body: JSON.stringify({
+          "@microsoft.graph.conflictBehavior": "rename",
+          "file": {
+            "@odata.type": "#microsoft.graph.file"
+          },
+          "fileSystemInfo": {},
+          "contentBytes": templateBase64
+        })
+      }
+    );
+
+    const newDocument = await newDocumentResponse.json();
+    console.log("Document created:", newDocument);
+
+    editDocument(newDocument, data)
+
+    // Function to open a Word document
   }
-}
+
+  async function editDocument(newDocument: any, data: string[][]) {
+    // Open the newly created Word document for editing
+    await Word.run(async (context) => {
+      const docUrl = newDocument["@microsoft.graph.downloadUrl"];
+      const document = context.application.createDocument(docUrl);
+      document.open();
+      context.sync();
+      console.log("Word document opened for editing:", document);
+      const tables = context.document.body.tables;
+      context.load(tables);
+      await context.sync();
+
+      if (tables.items.length < 1) return;
+      const table = tables.items[0];
+
+      data.forEach(dataRow => {
+        const tableRow = table.addRows("End", 1, [dataRow]);
+
+      });
+
+    });
+
+  }
+};
 
 async function addEntry(tableName: string = 'LivreJournal') {
   await Excel.run(async (context) => {
@@ -377,21 +545,21 @@ async function addEntry(tableName: string = 'LivreJournal') {
 // Create a new Word document based on a template and populate it with filtered data
 async function createWordDocument(filtered: any[][]) {
   return console.log("filtered = ", filtered);
-
+ 
   await Word.run(async (context) => {
     const templateUrl = "https://your-onedrive-path/template.docx";
     const newDoc = context.application.createDocument(templateUrl);
     await context.sync();
-
+ 
     const table = newDoc.body.tables.getFirst();
     //const filteredData = await getFilteredData();
-
+ 
     //filtered.forEach(el) => {
     // table.(index + 1, row);
     //});
-
+ 
     await context.sync();
-
+ 
     const saveUrl = "https://your-onedrive-path/newDocument.docx";
     await newDoc.saveAs(saveUrl);
   });
@@ -399,27 +567,12 @@ async function createWordDocument(filtered: any[][]) {
 
 // Get filtered data from the Excel table
 
-function getTokenWithMSAL() {
-  const clientId = "157dd297-447d-4592-b2d3-76b643b97132"; //the new one
-  const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
-  //const redirectUri = "https://script-lab.public.cdn.office.net";
-  //const redirectUri = "msal157dd297-447d-4592-b2d3-76b643b97132://auth";
-  const redirectUri = "https://mbibawi.github.io/ExcelInvoicingAddIn";
-  // MSAL configuration
-  const msalConfig = {
-    auth: {
-      clientId: clientId,
-      authority: "https://login.microsoftonline.com/common",
-      redirectUri: redirectUri,
-    },
-    cache: {
-      cacheLocation: "ExcelAddIn",
-      storeAuthStateInCookie: true
-    }
-  };
+function getTokenWithMSAL(clientId: string, redirectUri: string, msalConfig: Object) {
+  if (!clientId || !redirectUri || !msalConfig) return;
+
   //@ts-ignore
   const msalInstance = new msal.PublicClientApplication(msalConfig);
-  const loginRequest = { scopes: ["Files.ReadWrite"]};
+  const loginRequest = { scopes: ["Files.ReadWrite"] };
 
   return acquireToken();
 
@@ -457,7 +610,7 @@ function getTokenWithMSAL() {
       console.log("Token acquired from loginWithPopup: ", tokenResponse.accessToken);
       return tokenResponse.accessToken
     } catch (error) {
-        console.error("Error acquiring token from loginWithPopup(): ", error);
+      console.error("Error acquiring token from loginWithPopup(): ", error);
       //@ts-ignore
       if (error instanceof InteractionRequiredAuthError) {
         // Fallback to popup if silent token acquisition fails
@@ -470,7 +623,7 @@ function getTokenWithMSAL() {
     }
   }
 
-  async function credentitalsToken() {
+  async function credentitalsToken(tenantId: string) {
     const msalConfig = {
       auth: {
         clientId: clientId,
@@ -508,7 +661,7 @@ function getTokenWithMSAL() {
 
   }
 
-  async function getTokenWithSSO(email: string) {
+  async function getTokenWithSSO(email: string, tenantId: string) {
     const msalConfig = {
       auth: {
         clientId: clientId,
@@ -638,109 +791,6 @@ function getTokenWithMSAL() {
     }
   }
 }
-
-
-async function createWordDocumentFromTemplate(templatePath: string, newDocumentPath: string, accessToken: string) {
-
-  if (!accessToken) return;
-
-  const headers = {
-    "Authorization": `Bearer ${accessToken}`,
-    "Content-Type": "application/json",
-  };
-  // Fetch the template file from OneDrive
-  const templateResponse = await fetch(
-    `https://graph.microsoft.com/v1.0/me/drive/root:/${templatePath}:/content`,
-    {
-      method: 'GET',
-      headers: headers
-    }
-  );
-
-  const templateBlob = await templateResponse.blob();
-  const templateArrayBuffer = await templateBlob.arrayBuffer();
-  const templateBase64 = btoa(String.fromCharCode(...new Uint8Array(templateArrayBuffer)));
-
-  // Create the new document with the template content
-  const newDocumentResponse = await fetch(
-    `https://graph.microsoft.com/v1.0/me/drive/root:/${newDocumentPath}:/content`,
-    {
-      method: 'PUT',
-      headers: headers,
-      body: JSON.stringify({
-        "@microsoft.graph.conflictBehavior": "rename",
-        "file": {
-          "@odata.type": "#microsoft.graph.file"
-        },
-        "fileSystemInfo": {},
-        "contentBytes": templateBase64
-      })
-    }
-  );
-
-  const result = await newDocumentResponse.json();
-  console.log("Document created:", result);
-}
-
-
-/*
-async function authenticateUser() {
-  const clientSecret = "Inl8Q~jhDg8qQ5jrhBTuQBCQbGdkHmcQLpMqEcTQ";
-  const secretID = "ad646418-c15f-44b1-90cc-0af31238d1e6";
-  const tokenEndpoint = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
-
-  //return noLogin();
-  return withLogin();
-
-  async function noLogin() {
-    const params = new URLSearchParams();
-    params.append("client_id", clientId);
-    params.append("client_secret", clientSecret);
-    params.append("scope", "https://graph.microsoft.com/.default");
-    params.append("grant_type", "client_credentials");
-    console.log("params =", params);
-    try {
-      const response = await fetch(tokenEndpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: params
-      });
-
-      const data = await response.json();
-      if (data.access_token) {
-        console.log("✅ Access Token Retrieved:", data.access_token);
-        return data.access_token;
-      } else {
-        throw new Error("❌ Failed to retrieve access token: " + JSON.stringify(data));
-      }
-    } catch (error) {
-      console.error("Error getting access token:", error);
-    }
-  }
-
-  function withLogin() {
-    const scopes = "Files.ReadWrite";
-    const redirectUri = encodeURI("https://login.microsoftonline.com/common/oauth2/nativeclient");
-    const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${clientId}&response_type=token&redirect_uri=${redirectUri}&scope=${scopes}&response_mode=fragment`;
-    return new Promise((resolve, reject) => {
-      Office.context.ui.displayDialogAsync(authUrl, { height: 60, width: 40 }, (result) => {
-        console.log("result = ", result);
-        if (result.status === Office.AsyncResultStatus.Succeeded) {
-          const dialog = result.value;
-          dialog.addEventHandler(Office.EventType.DialogMessageReceived, (args) => {
-            const token = new URLSearchParams(args.message.split("#")[1]).get("access_token");
-            dialog.close();
-            debugger;
-            if (token) resolve(token);
-            else reject("Authentication failed");
-          });
-        } else {
-          reject("Failed to open login dialog.");
-        }
-      });
-    });
-  }
-}*/
 
 
 
