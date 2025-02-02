@@ -187,12 +187,6 @@ async function showForm(id?: string) {
 
   };
 
-  async function getUniqueValues(index: number, visible?: any[][], tableName: string = 'LivreJournal') {
-    if (!visible) visible = await filterTable(tableName, undefined, false);
-    return Array.from(new Set(visible.map(row => row[index])))
-  };
-
-
 
   /**
    * Creates a dataList with the provided id from the unique values of the column which index is passed as parameter
@@ -288,11 +282,22 @@ async function generateInvoice(lang: string = 'FR') {
       storeAuthStateInCookie: true
     }
   };
-  const matters = new Set(visible.map(row => String(row[15])));
-  const clientName = visible.map(row => String(row[0]))[0] ||'CLIENT';
-  const adress = new Set(visible.map(row => String(row[15])));
 
-  await uploadWordDocument(getData(), clientName, Array.from(matters), Array.from(adress), lang, clientId, redirectUri, msalConfig, tenantId);
+  const invoice =  {
+    clientName: visible.map(row => String(row[0]))[0] ||'CLIENT',
+    matters: (await getUniqueValues(1, visible)).map(el=>String(el)),
+    adress: (await getUniqueValues(15, visible)).map(el=>String(el)),
+    lang:lang
+  };
+
+  const drive = {
+    clientId: clientId,
+    redirectUri: redirectUri,
+    msalConfig: msalConfig,
+    tenantId: tenantId
+  };
+
+  await uploadWordDocument(getData(), invoice, drive);
 
   function getData() {
     const lables = {
@@ -337,13 +342,13 @@ async function generateInvoice(lang: string = 'FR') {
 
       },
     }
-    const amount = 9, vat = 10, hours = 7, rate = 8, nature = 2;
+    const amount = 9, vat = 10, hours = 7, rate = 8, nature = 2, descr = 14;
 
-    const filtered: string[][] = visible.map(row => {
+    const data: string[][] = visible.map(row => {
       const date = dateFromExcel(row[3]);
       const time = getTimeSpent(row[hours]);
 
-      let description = `${String(row[2])} : ${String(row[14])}`;//Column Nature + Column Description;
+      let description = `${String(row[nature])} : ${String(row[descr])}`;//Column Nature + Column Description;
 
       //If the billable hours are > 0
       if (time)
@@ -358,17 +363,10 @@ async function generateInvoice(lang: string = 'FR') {
         Math.abs(row[vat]).toFixed(2) + ' €', //Column VAT: always a positive value
       ];
       return rowValues;
-
-
-      function dateFromExcel(excelDate: number) {
-        const date = new Date((excelDate - 25569) * 86400 * 1000);
-        const dateOffset = date.getTimezoneOffset() * 60 * 1000;
-        return new Date(date.getTime() + dateOffset);
-      }
     });
 
     pushTotalsRows();
-    return filtered
+    return data
 
     function pushTotalsRows() {
       //Adding rows for the totals of the different categories and amounts
@@ -395,7 +393,7 @@ async function generateInvoice(lang: string = 'FR') {
 
       function pushSumRow(label: { FR: string, EN: string }, amount: number, vat?: number) {
         if (!amount) return;
-        filtered.push(
+        data.push(
           [
             //@ts-ignore
             label[lang],
@@ -440,12 +438,26 @@ async function generateInvoice(lang: string = 'FR') {
         .join(':');
     }
 
+    function dateFromExcel(excelDate: number) {
+      const date = new Date((excelDate - 25569) * (60*60*24) * 1000);//This gives the days converted from milliseconds. 
+      const dateOffset = date.getTimezoneOffset() * 60 * 1000;//Getting the difference in milleseconds
+      return new Date(date.getTime() + dateOffset);
+    }
+
   }
+
 }
 
-async function uploadWordDocument(data: string[][], clientName: string, matters: string[], adress: string[], lang: string, clientId: string, redirectUri: string, msalConfig: Object, tenantId: string) {
+async function getUniqueValues(index: number, array?: any[][], tableName: string = 'LivreJournal'):Promise<any[]>{
+  if (!array) array = await filterTable(tableName, undefined, false);
+  if (!array) array = [];
+  return Array.from(new Set(array.map(row => row[index])))
+};
+
+
+async function uploadWordDocument(data: string[][], invoice:{clientName: string, matters: string[], adress: string[], lang: string}, drive:{clientId: string, redirectUri: string, msalConfig: Object, tenantId: string}) {
   //const accessToken = await authenticateUser();
-  const accessToken = await getTokenWithMSAL(clientId, redirectUri, msalConfig);
+  const accessToken = await getTokenWithMSAL(drive.clientId, drive.redirectUri, drive.msalConfig);
   if (accessToken) {
     console.log("Successfully retrieved token:", accessToken);
     //Office.context.ui.messageParent(`Access token: ${accessToken}`);
@@ -455,13 +467,13 @@ async function uploadWordDocument(data: string[][], clientName: string, matters:
 
   const date = new Date();
 
-  const fileName = `Test_Facture_${clientName}_${Array.from(matters).join('&')}_${[date.getFullYear(), date.getMonth() + 1, date.getDate()].join('')}@${[date.getHours(), date.getMinutes()].join(':')}.docx`;
+  const fileName = `Test_Facture_${invoice.clientName}_${Array.from(invoice.matters).join('&')}_${[date.getFullYear(), date.getMonth() + 1, date.getDate()].join('')}@${[date.getHours(), date.getMinutes()].join(':')}.docx`;
 
   const path = "Legal\\Mon Cabinet d'Avocat\\Comptabilité\\Factures\\"
   const templatePath = path + "FactureTEMPLATE [NE PAS MODIFIDER].dotm";
   const newPath = path + `Clients\\${fileName}`;
 
-  await createWordDocumentFromTemplate(templatePath, newPath, accessToken, tenantId)
+  await createWordDocumentFromTemplate(templatePath, newPath, accessToken, drive.tenantId)
 
   async function createWordDocumentFromTemplate(templatePath: string, newDocumentPath: string, accessToken: string, tenantId: string) {
 
@@ -554,7 +566,7 @@ async function uploadWordDocument(data: string[][], clientName: string, matters:
           },
           subject: {
             title: 'RTMatter',
-            text: matters.join(' & '),
+            text: invoice.matters.join(' & '),
           },
           amount: {
             title: 'LabelTableHeadingMontantTTC',
@@ -565,16 +577,16 @@ async function uploadWordDocument(data: string[][], clientName: string, matters:
             text: { FR: 'TVA', EN: 'VAT' },
           },
           disclaimer: {
-            title: 'LabelDisclamer' + ['French', 'English'].find(el => !el.toUpperCase().startsWith(lang)) || 'French',
+            title: 'LabelDisclamer' + ['French', 'English'].find(el => !el.toUpperCase().startsWith(invoice.lang)) || 'French',
             text: '',
           },
           clientName: {
             title: 'RTClient',
-            text: clientName,
+            text: invoice.clientName,
           },
           adress: {
             title: 'RTClientAdresse',
-            text: adress.join(' & '),
+            text: invoice.adress.join(' & '),
           },
 
         }
@@ -701,7 +713,6 @@ async function createWordDocument(filtered: any[][]) {
   });
 }*/
 
-// Get filtered data from the Excel table
 
 function getTokenWithMSAL(clientId: string, redirectUri: string, msalConfig: Object) {
   if (!clientId || !redirectUri || !msalConfig) return;
