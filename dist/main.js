@@ -238,8 +238,6 @@ async function generateInvoice(lang = 'FR') {
     const inputs = Array.from(document.getElementsByName('input'));
     if (!inputs)
         return;
-    const date = new Date();
-    const fileName = "Test_Facture_" + inputs.find(input => Number(input.dataset.index) === 0)?.value || 'CLIENT_' + [date.getDay().toString(), (date.getMonth() + 1).toString(), date.getFullYear.toString()].join('-') + '_' + date.getHours().toString() + date.getMinutes().toString() + '.docx';
     const visible = await filterTable(undefined, undefined, false);
     const clientId = "157dd297-447d-4592-b2d3-76b643b97132"; //the new one
     const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
@@ -256,7 +254,10 @@ async function generateInvoice(lang = 'FR') {
             storeAuthStateInCookie: true
         }
     };
-    await uploadWordDocument(getData(), fileName, clientId, redirectUri, msalConfig, tenantId);
+    const matters = new Set(visible.map(row => String(row[15])));
+    const clientName = visible.map(row => String(row[0]))[0] || 'CLIENT';
+    const adress = new Set(visible.map(row => String(row[15])));
+    await uploadWordDocument(getData(), clientName, Array.from(matters), Array.from(adress), lang, clientId, redirectUri, msalConfig, tenantId);
     function getData() {
         const lables = {
             totalFees: {
@@ -298,22 +299,31 @@ async function generateInvoice(lang = 'FR') {
                 EN: '.'
             },
         };
-        const amount = 9, vat = 10, hours = 7, rate = 8;
+        const amount = 9, vat = 10, hours = 7, rate = 8, nature = 2;
         const filtered = visible.map(row => {
-            let description = String(row[2]) + ' : ' + String(row[14]); //Column Nature + Column Description;
+            const date = dateFromExcel(row[3]);
+            const time = getTimeSpent(row[hours]);
+            let description = `${String(row[2])} : ${String(row[14])}`; //Column Nature + Column Description;
             //If the billable hours are > 0
-            if (row[hours] > 0)
+            if (time)
                 //@ts-ignore
-                description += ` (${lables.hourlyBilled[lang]} ${row[hours].toString()} ${lables.hourlyRate[lang]} ${row[rate].toString()} €)`;
-            return [
-                String(row[3]), //Column Date
+                description += `(${lables.hourlyBilled[lang]} ${time} ${lables.hourlyRate[lang]} ${Math.abs(row[rate]).toString()} €)`;
+            const rowValues = [
+                [date.getDate(), date.getMonth() + 1, date.getFullYear()].join('/'), //Column Date
                 description,
-                String(row[amount]) + ' €', //Column "Amount"
-                String(row[vat]) + ' €', //Column VAT
+                (row[amount] * -1).toFixed(2) + ' €', //Column "Amount": we inverse the +/- sign for all the values 
+                Math.abs(row[vat]).toFixed(2) + ' €', //Column VAT: always a positive value
             ];
+            return rowValues;
+            function dateFromExcel(excelDate) {
+                const date = new Date((excelDate - 25569) * 86400 * 1000);
+                const dateOffset = date.getTimezoneOffset() * 60 * 1000;
+                return new Date(date.getTime() + dateOffset);
+            }
         });
-        addTotalsRows();
-        function addTotalsRows() {
+        pushTotalsRows();
+        return filtered;
+        function pushTotalsRows() {
             //Adding rows for the totals of the different categories and amounts
             const totalFee = getTotals(amount, lables.totalFees.nature);
             const totalFeeVAT = getTotals(vat, lables.totalFees.nature);
@@ -331,15 +341,25 @@ async function generateInvoice(lang = 'FR') {
             if (totalPayments > 0)
                 pushSumRow(lables.totalPayments, totalPayments, totalPaymentsVAT);
             if (totalTimeSpent > 0)
-                pushSumRow(lables.totalTimeSpent, totalTimeSpent, '');
+                pushSumRow(lables.totalTimeSpent, totalTimeSpent); //!We don't pass the vat argument in order to get the corresponding cell of the Word table empty
             pushSumRow(lables.totalDue, totalDue, totalDueVAT);
             function pushSumRow(label, amount, vat) {
-                if (!amount || !vat)
+                if (!amount)
                     return;
-                amount = Math.abs(amount);
-                vat = Math.abs(vat).toFixed(2);
-                //@ts-ignore
-                filtered.push([label[lang], '', amount.toFixed(2).replace('.', lables.decimal[lang]) + ' €', vat.replace('.', lables.decimal[lang]) + ' €']); //The total amount can be a negative number, that's why we use Math.abs() in order to get the absolute number without the negative sign
+                filtered.push([
+                    //@ts-ignore
+                    label[lang],
+                    '',
+                    amountString(Math.abs(amount)), //The total amount can be a negative number, that's why we use Math.abs() in order to get the absolute number without the negative sign
+                    //@ts-ignore
+                    Number(vat) >= 0 ? Math.abs(vat).toFixed(2).replace('.', lables.decimal[lang]) + ' €' : '' //!We must check not only that vat is a number, but that it is >=0 in order to avoid getting '' each time the vat is = 0, because we need to show 0 vat values
+                ]);
+                function amountString(amount) {
+                    if (label === lables.totalTimeSpent)
+                        return getTimeSpent(amount);
+                    //@ts-ignore
+                    return amount.toFixed(2).replace('.', lables.decimal[lang]) + ' €';
+                }
             }
             function getTotals(index, nature) {
                 const total = visible.filter(row => nature ? row[2] === nature : row[2] === row[2])
@@ -353,10 +373,19 @@ async function generateInvoice(lang = 'FR') {
                 return sum;
             }
         }
-        return filtered;
+        function getTimeSpent(time) {
+            if (!time || time <= 0)
+                return undefined;
+            const minute = 60 * 1000;
+            const minutes = Math.floor(time / minute);
+            const hours = Math.floor(minutes / 60);
+            return [hours, minutes % 60]
+                .map(el => el.toString().padStart(2, '0'))
+                .join(':');
+        }
     }
 }
-async function uploadWordDocument(data, fileName, clientId, redirectUri, msalConfig, tenantId) {
+async function uploadWordDocument(data, clientName, matters, adress, lang, clientId, redirectUri, msalConfig, tenantId) {
     //const accessToken = await authenticateUser();
     const accessToken = await getTokenWithMSAL(clientId, redirectUri, msalConfig);
     if (accessToken) {
@@ -366,6 +395,8 @@ async function uploadWordDocument(data, fileName, clientId, redirectUri, msalCon
     else {
         return console.log("Failed to retrieve token.");
     }
+    const date = new Date();
+    const fileName = `Test_Facture_${clientName}_${Array.from(matters).join('&')}_${[date.getFullYear(), date.getMonth() + 1, date.getDate()].join('')}@${[date.getHours(), date.getMinutes()].join(':')}.docx`;
     const path = "Legal\\Mon Cabinet d'Avocat\\Comptabilité\\Factures\\";
     const templatePath = path + "FactureTEMPLATE [NE PAS MODIFIDER].dotm";
     const newPath = path + `Clients\\${fileName}`;
@@ -412,14 +443,92 @@ async function uploadWordDocument(data, fileName, clientId, redirectUri, msalCon
             context.sync();
             console.log("Word document opened for editing:", document);
             const tables = context.document.body.tables;
+            const contentControls = context.document.body.contentControls;
             context.load(tables);
+            context.load(contentControls);
             await context.sync();
-            if (tables.items.length < 1)
-                return;
             const table = tables.items[0];
-            data.forEach(dataRow => {
-                const tableRow = table.addRows("End", 1, [dataRow]);
-            });
+            if (!table)
+                return;
+            data.forEach(dataRow => table.addRows("End", 1, [dataRow]));
+            await editRichTextContentControls();
+            async function editRichTextContentControls() {
+                const fields = {
+                    dateLabel: {
+                        title: 'LabelParisLe',
+                        text: { FR: 'Paris le ', EN: 'Paris on ' },
+                    },
+                    date: {
+                        title: 'RTInvoiceDate',
+                        text: [date.getDay(), date.getMonth() + 1, date.getFullYear()].join('/'),
+                    },
+                    numberLabel: {
+                        title: 'LabelInvoiceNumber',
+                        text: { FR: 'Facturen n° : ', EN: 'Invoice No.:' },
+                    },
+                    number: {
+                        title: 'RTInvoiceNumber',
+                        text: [date.getDay(), date.getMonth() + 1, date.getFullYear() - 2000].join('') + '/' + [date.getHours(), date.getMinutes].join(''),
+                    },
+                    subjectLable: {
+                        title: 'LabelSubject',
+                        text: { FR: 'Objet : ', EN: 'Subject: ' },
+                    },
+                    subject: {
+                        title: 'RTMatter',
+                        text: matters.join(' & '),
+                    },
+                    amount: {
+                        title: 'LabelTableHeadingMontantTTC',
+                        text: { FR: 'Montant TTC', EN: 'Amount VAT Included' },
+                    },
+                    vat: {
+                        title: 'LabelTableHeadingTVA',
+                        text: { FR: 'TVA', EN: 'VAT' },
+                    },
+                    disclaimer: {
+                        title: 'LabelDisclamer' + ['French', 'English'].find(el => !el.toUpperCase().startsWith(lang)) || 'French',
+                        text: '',
+                    },
+                    clientName: {
+                        title: 'RTClient',
+                        text: clientName,
+                    },
+                    adress: {
+                        title: 'RTClientAdresse',
+                        text: adress.join(' & '),
+                    },
+                };
+                //@ts-ignore
+                await edit(fields.dateLabel.title, fields.dateLabel.text[lang] || fields.dateLabel.text.FR); //Date Label
+                await edit(fields.date.title, fields.date.text); //Date
+                //@ts-ignore
+                await edit(fields.subjectLable.title, fields.subjectLable.text[lang] || fields.subjectLable.text.FR); //Subject Label
+                await edit(fields.subject.title, fields.subject.text); //Subject
+                //@ts-ignore
+                await edit(fields.numberLabel.title, fields.numberLabel.text[lang] || fields.numberLabel.text.FR); //Invoice Number Label
+                await edit(fields.number.text, fields.number.title); //Invoice Number
+                await edit(fields.disclaimer.title, fields.disclaimer.text); //Disclaimer
+                await edit(fields.adress.title, fields.adress.text); //Client adress
+                await edit(fields.clientName.title, fields.clientName.text); //Client name
+                //@ts-ignore
+                await edit(fields.amount.title, fields.amount.text[lang] || fields.amount.text.FR); // Table Header 'Amount'
+                //@ts-ignore
+                await edit(fields.vat.title, fields.vat.text[lang] || fields.vat.text.FR); //Table Header 'VAT'
+                async function edit(title, text) {
+                    const field = contentControls.getByTitle(title).getFirst();
+                    if (!field)
+                        return;
+                    context.load(field);
+                    await context.sync();
+                    if (!text)
+                        field.delete(false);
+                    else
+                        field.insertText(text, 'Replace');
+                    await context.sync();
+                    return field;
+                }
+            }
         });
     }
 }
