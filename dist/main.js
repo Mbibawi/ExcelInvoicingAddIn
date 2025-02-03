@@ -45,7 +45,7 @@ async function showForm(id) {
         const inputs = insertInputsAndLables([0, 1, 2, 3]); //Inserting the fields inputs (Client, Matter, Nature, Date)
         inputs.forEach(input => input?.addEventListener('focusout', async () => await inputOnChange(input), { passive: true }));
         insertInputsAndLables(['Français', 'English'], true); //Inserting langauges checkboxes
-        form.innerHTML += `<button onclick="generateInvoice()"> Filter Table</button>`; //Inserting the button that generates the invoice
+        form.innerHTML += `<button onclick="generateInvoice()"> Generate Invoice</button>`; //Inserting the button that generates the invoice
         function insertInputsAndLables(indexes, checkBox = false) {
             const id = 'input';
             return indexes.map(index => {
@@ -427,7 +427,8 @@ async function uploadWordDocument(data, invoice) {
         const templateBlob = await templateResponse.blob();
         const templateArrayBuffer = await templateBlob.arrayBuffer();
         const uint8Array = new Uint8Array(templateArrayBuffer);
-        const buf = window.Buffer.from(uint8Array);
+        //@ts-ignore
+        const buf = buffer.Buffer.from(uint8Array);
         const templateBase64 = buf.toString('base64');
         // Create the new document with the template content
         const newDocumentResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${newDocumentPath}:/content`, {
