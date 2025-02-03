@@ -24,46 +24,51 @@ async function showForm(id) {
     form.innerHTML = '';
     if (!form)
         return;
+    let table;
     await Excel.run(async (context) => {
         const sheet = context.workbook.worksheets.getActiveWorksheet();
-        const table = sheet.tables.getItem('LivreJournal');
+        table = sheet.tables.getItem('LivreJournal');
         const header = table.getHeaderRowRange();
-        header.load('values');
-        table.columns.load('items');
-        const dataBodyRange = table.getDataBodyRange();
-        dataBodyRange.load('values');
+        context.load(header);
+        const body = table.getDataBodyRange();
+        context.load(body);
         await context.sync();
-        const title = header.values[0];
+        const headers = header.text[0];
+        const clientUniqueValues = await getUniqueValues(0, body.text);
         if (id === 'entry')
-            await addingEntry(table.columns.items, title, dataBodyRange.values);
+            await addingEntry(headers, await getUniqueValues(0, body.values));
         else if (id === 'invoice')
-            await invoice(title);
+            await invoice(headers, clientUniqueValues);
     });
-    async function invoice(title) {
-        const inputs = await Promise.all(insertInputsAndLables([0, 1, 2, 3]));
-        form.innerHTML += `<button onclick="generateInvoice()"> Filter Table</button>`;
+    function invoice(title, clientUniqueValues) {
+        const inputs = insertInputsAndLables([0, 1, 2, 3]); //Inserting the fields inputs (Client, Matter, Nature, Date)
         inputs.forEach(input => input?.addEventListener('focusout', async () => await inputOnChange(input), { passive: true }));
-        function insertInputsAndLables(indexes) {
+        insertInputsAndLables(['Français', 'English'], true); //Inserting langauges checkboxes
+        form.innerHTML += `<button onclick="generateInvoice()"> Filter Table</button>`; //Inserting the button that generates the invoice
+        function insertInputsAndLables(indexes, checkBox = false) {
             const id = 'input';
-            return indexes.map(async (index) => {
-                if (!index)
-                    return;
+            return indexes.map(index => {
                 const input = document.createElement('input');
-                input.type = "text";
-                if (index === 3)
+                if (checkBox)
+                    input.type = 'checkbox';
+                else if (Number(index) < 3)
+                    input.type = 'text';
+                else
                     input.type = 'date';
-                input.id = id + index.toString();
-                input.name = input.id;
-                input.dataset.index = index.toString();
-                input.setAttribute('list', input.id + 's'),
+                checkBox ? input.id = id : input.id = id + index.toString();
+                if (!checkBox) {
+                    input.name = input.id;
+                    input.dataset.index = index.toString();
+                    input.setAttribute('list', input.id + 's');
                     input.autocomplete = "on";
+                }
                 const label = document.createElement('label');
+                checkBox ? label.innerText = index.toString() : label.innerText = title[Number(index)];
                 label.htmlFor = input.id;
-                label.innerText = title[index];
                 form.appendChild(label);
                 form.appendChild(input);
-                if (index === 0)
-                    createDataList(input?.id, await getUniqueValues(index)); //We create a unique values dataList for the 'Client' input
+                if (Number(index) === 0)
+                    createDataList(input?.id, clientUniqueValues); //We create a unique values dataList for the 'Client' input
                 return input;
             });
         }
@@ -97,10 +102,10 @@ async function showForm(id) {
         }
         ;
     }
-    async function addingEntry(columns, title, dataBodyRange) {
+    async function addingEntry(title, uniqueValues) {
         await filterTable(undefined, undefined, true);
-        for (const col of columns) {
-            const i = columns.indexOf(col);
+        for (const t of title) { //!We could not use for(let i=0; i<title.length; i++) because the await does not work properly inside this loop
+            const i = title.indexOf(t);
             if (![4, 7].includes(i))
                 form.appendChild(createLable(i)); //We exclued the labels for "Total Time" and for "Year"
             form.appendChild(await createInput(i));
@@ -112,7 +117,7 @@ async function showForm(id) {
             .forEach(input => input?.addEventListener('change', async () => await onFoucusOut(input), { passive: true }));
         inputs
             .filter(input => [4, 7].includes(Number(input?.dataset.index)))
-            .forEach(input => input.style.display = 'none');
+            .forEach(input => input.style.display = 'none'); //We hide the inputs of some columns like the "Total Hours" or the "Link" column
         async function onFoucusOut(input) {
             debugger;
             const i = Number(input.dataset.index);
@@ -148,7 +153,7 @@ async function showForm(id) {
             else if ([0, 1, 2, 11, 12, 13, 16].includes(i)) {
                 //We add a dataList for those fields
                 input.setAttribute('list', input.id + 's');
-                createDataList(input.id, await getUniqueValues(i, dataBodyRange));
+                createDataList(input.id, uniqueValues);
             }
             return input;
         }
@@ -228,39 +233,19 @@ function getArray(value) {
         .split(',');
     return array.filter((el) => el);
 }
-async function generateInvoice(lang = 'FR') {
+async function generateInvoice() {
     const inputs = Array.from(document.getElementsByName('input'));
     if (!inputs)
         return;
+    const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.id.slice(0, 3).toUpperCase() || 'FR';
     const visible = await filterTable(undefined, undefined, false);
-    const clientId = "157dd297-447d-4592-b2d3-76b643b97132"; //the new one
-    const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
-    const redirectUri = "https://mbibawi.github.io/ExcelInvoicingAddIn"; //!must be the same domain as the app
-    // MSAL configuration
-    const msalConfig = {
-        auth: {
-            clientId: clientId,
-            authority: "https://login.microsoftonline.com/common",
-            redirectUri: redirectUri,
-        },
-        cache: {
-            cacheLocation: "ExcelAddIn",
-            storeAuthStateInCookie: true
-        }
-    };
-    const invoice = {
+    const invoiceDetails = {
         clientName: visible.map(row => String(row[0]))[0] || 'CLIENT',
         matters: (await getUniqueValues(1, visible)).map(el => String(el)),
         adress: (await getUniqueValues(15, visible)).map(el => String(el)),
         lang: lang
     };
-    const drive = {
-        clientId: clientId,
-        redirectUri: redirectUri,
-        msalConfig: msalConfig,
-        tenantId: tenantId
-    };
-    await uploadWordDocument(getData(), invoice, drive);
+    await uploadWordDocument(getData(), invoiceDetails);
     function getData() {
         const lables = {
             totalFees: {
@@ -314,13 +299,17 @@ async function generateInvoice(lang = 'FR') {
             const rowValues = [
                 [date.getDate(), date.getMonth() + 1, date.getFullYear()].join('/'), //Column Date
                 description,
-                (row[amount] * -1).toFixed(2) + ' €', //Column "Amount": we inverse the +/- sign for all the values 
-                Math.abs(row[vat]).toFixed(2) + ' €', //Column VAT: always a positive value
+                getAmountString(row[amount] * -1), //Column "Amount": we inverse the +/- sign for all the values 
+                getAmountString(Math.abs(row[vat])), //Column VAT: always a positive value
             ];
             return rowValues;
         });
         pushTotalsRows();
         return data;
+        function getAmountString(value) {
+            //@ts-ignore
+            return value.toFixed(2).replace('.', lables.decimal[lang] || '.') + ' €' || '';
+        }
         function pushTotalsRows() {
             //Adding rows for the totals of the different categories and amounts
             const totalFee = getTotals(amount, lables.totalFees.nature);
@@ -344,20 +333,15 @@ async function generateInvoice(lang = 'FR') {
             function pushSumRow(label, amount, vat) {
                 if (!amount)
                     return;
+                amount = Math.abs(amount);
                 data.push([
                     //@ts-ignore
                     label[lang],
                     '',
-                    amountString(Math.abs(amount)), //The total amount can be a negative number, that's why we use Math.abs() in order to get the absolute number without the negative sign
+                    label === lables.totalTimeSpent ? getTimeSpent(amount) || '' : getAmountString(amount) || '', //The total amount can be a negative number, that's why we use Math.abs() in order to get the absolute number without the negative sign
                     //@ts-ignore
-                    Number(vat) >= 0 ? Math.abs(vat).toFixed(2).replace('.', lables.decimal[lang]) + ' €' : '' //!We must check not only that vat is a number, but that it is >=0 in order to avoid getting '' each time the vat is = 0, because we need to show 0 vat values
+                    Number(vat) >= 0 ? getAmountString(Math.abs(vat)) : '' //!We must check not only that vat is a number, but that it is >=0 in order to avoid getting '' each time the vat is = 0, because we need to show 0 vat values
                 ]);
-                function amountString(amount) {
-                    if (label === lables.totalTimeSpent)
-                        return getTimeSpent(amount);
-                    //@ts-ignore
-                    return amount.toFixed(2).replace('.', lables.decimal[lang]) + ' €';
-                }
             }
             function getTotals(index, nature) {
                 const total = visible.filter(row => nature ? row[2] === nature : row[2] === row[2])
@@ -374,10 +358,10 @@ async function generateInvoice(lang = 'FR') {
         function getTimeSpent(time) {
             if (!time || time <= 0)
                 return undefined;
-            const minute = 60 * 1000;
-            const minutes = Math.floor(time / minute);
+            time = time * (60 * 60 * 24); //84600 is the number in seconds per day. Excel stores the time as fraction number of days like "1.5" which is = 36 hours 0 minutes 0 seconds;
+            const minutes = Math.floor(time / 60);
             const hours = Math.floor(minutes / 60);
-            return [hours, minutes % 60]
+            return [hours, minutes % 60, 0]
                 .map(el => el.toString().padStart(2, '0'))
                 .join(':');
         }
@@ -396,9 +380,24 @@ async function getUniqueValues(index, array, tableName = 'LivreJournal') {
     return Array.from(new Set(array.map(row => row[index])));
 }
 ;
-async function uploadWordDocument(data, invoice, drive) {
+async function uploadWordDocument(data, invoice) {
+    const clientId = "157dd297-447d-4592-b2d3-76b643b97132"; //the new one
+    const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
+    const redirectUri = "https://mbibawi.github.io/ExcelInvoicingAddIn"; //!must be the same domain as the app
+    // MSAL configuration
+    const msalConfig = {
+        auth: {
+            clientId: clientId,
+            authority: "https://login.microsoftonline.com/common",
+            redirectUri: redirectUri,
+        },
+        cache: {
+            cacheLocation: "ExcelAddIn",
+            storeAuthStateInCookie: true
+        }
+    };
     //const accessToken = await authenticateUser();
-    const accessToken = await getTokenWithMSAL(drive.clientId, drive.redirectUri, drive.msalConfig);
+    const accessToken = await getTokenWithMSAL(clientId, redirectUri, msalConfig);
     if (accessToken) {
         console.log("Successfully retrieved token:", accessToken);
         //Office.context.ui.messageParent(`Access token: ${accessToken}`);
@@ -411,7 +410,7 @@ async function uploadWordDocument(data, invoice, drive) {
     const path = "Legal\\Mon Cabinet d'Avocat\\Comptabilité\\Factures\\";
     const templatePath = path + "FactureTEMPLATE [NE PAS MODIFIDER].dotm";
     const newPath = path + `Clients\\${fileName}`;
-    await createWordDocumentFromTemplate(templatePath, newPath, accessToken, drive.tenantId);
+    await createWordDocumentFromTemplate(templatePath, newPath, accessToken, tenantId);
     async function createWordDocumentFromTemplate(templatePath, newDocumentPath, accessToken, tenantId) {
         if (!accessToken)
             return;
@@ -426,7 +425,9 @@ async function uploadWordDocument(data, invoice, drive) {
         });
         const templateBlob = await templateResponse.blob();
         const templateArrayBuffer = await templateBlob.arrayBuffer();
-        const templateBase64 = btoa(String.fromCharCode(...new Uint8Array(templateArrayBuffer)));
+        const uint8Array = new Uint8Array(templateArrayBuffer);
+        const buf = Buffer.from(uint8Array);
+        const templateBase64 = buf.toString('base64');
         // Create the new document with the template content
         const newDocumentResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${newDocumentPath}:/content`, {
             method: 'PUT',
