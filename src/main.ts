@@ -38,12 +38,12 @@ async function showForm(id?: string) {
     header.load('text');
     await context.sync();
     const body = table.getDataBodyRange();
-    body.load('values');
+    body.load('text');
     await context.sync();
     const headers = header.text[0];
     const clientUniqueValues:string[] = await getUniqueValues(0, body.text);
 
-    if (id === 'entry') await addingEntry(headers, await getUniqueValues(0, body.values));
+    if (id === 'entry') await addingEntry(headers, clientUniqueValues);
     else if (id === 'invoice') await invoice(headers, clientUniqueValues);
   });
 
@@ -117,7 +117,7 @@ async function showForm(id?: string) {
 
   }
 
-  async function addingEntry(title:string[], uniqueValues:any[]) {
+  async function addingEntry(title:string[], uniqueValues:string[]) {
     await filterTable(undefined, undefined, true);
 
     for (const t of title) {//!We could not use for(let i=0; i<title.length; i++) because the await does not work properly inside this loop
@@ -202,7 +202,7 @@ async function showForm(id?: string) {
    * 
   */
 
-  function createDataList(id: string, uniqueValues: any[]) {
+  function createDataList(id: string, uniqueValues: string[]) {
     //const uniqueValues = Array.from(new Set(visible.map(row => row[i])));
     if (!id || !uniqueValues || uniqueValues.length < 1) return;
     id += 's';

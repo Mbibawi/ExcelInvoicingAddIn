@@ -32,12 +32,12 @@ async function showForm(id) {
         header.load('text');
         await context.sync();
         const body = table.getDataBodyRange();
-        body.load('values');
+        body.load('text');
         await context.sync();
         const headers = header.text[0];
         const clientUniqueValues = await getUniqueValues(0, body.text);
         if (id === 'entry')
-            await addingEntry(headers, await getUniqueValues(0, body.values));
+            await addingEntry(headers, clientUniqueValues);
         else if (id === 'invoice')
             await invoice(headers, clientUniqueValues);
     });
