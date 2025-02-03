@@ -496,7 +496,7 @@ async function uploadWordDocument(data: string[][], invoice: { clientName: strin
     const templateBlob = await templateResponse.blob();
     const templateArrayBuffer = await templateBlob.arrayBuffer();
     const uint8Array = new Uint8Array(templateArrayBuffer);
-    const buf = Buffer.from(uint8Array);
+    const buf = window.Buffer.from(uint8Array);
     const templateBase64 = buf.toString('base64');
 
     // Create the new document with the template content

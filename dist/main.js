@@ -427,7 +427,7 @@ async function uploadWordDocument(data, invoice) {
         const templateBlob = await templateResponse.blob();
         const templateArrayBuffer = await templateBlob.arrayBuffer();
         const uint8Array = new Uint8Array(templateArrayBuffer);
-        const buf = Buffer.from(uint8Array);
+        const buf = window.Buffer.from(uint8Array);
         const templateBase64 = buf.toString('base64');
         // Create the new document with the template content
         const newDocumentResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${newDocumentPath}:/content`, {
