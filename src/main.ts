@@ -36,6 +36,7 @@ async function showForm(id?: string) {
     table = sheet.tables.getItem('LivreJournal');
     const header = table.getHeaderRowRange();
     header.load('text');
+    await context.sync();
     const body = table.getDataBodyRange();
     body.load('values');
     await context.sync();

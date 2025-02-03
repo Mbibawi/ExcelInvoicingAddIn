@@ -29,9 +29,10 @@ async function showForm(id) {
         const sheet = context.workbook.worksheets.getActiveWorksheet();
         table = sheet.tables.getItem('LivreJournal');
         const header = table.getHeaderRowRange();
-        context.load(header);
+        header.load('text');
+        await context.sync();
         const body = table.getDataBodyRange();
-        context.load(body);
+        body.load('values');
         await context.sync();
         const headers = header.text[0];
         const clientUniqueValues = await getUniqueValues(0, body.text);
