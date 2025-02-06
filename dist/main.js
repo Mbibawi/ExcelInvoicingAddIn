@@ -393,7 +393,7 @@ async function uploadWordDocument(data, invoice) {
             redirectUri: redirectUri,
         },
         cache: {
-            cacheLocation: "ExcelAddIn",
+            cacheLocation: "localStorage",
             storeAuthStateInCookie: true
         }
     };
@@ -408,145 +408,284 @@ async function uploadWordDocument(data, invoice) {
     }
     const date = new Date();
     const fileName = `Test_Facture_${invoice.clientName}_${Array.from(invoice.matters).join('&')}_${[date.getFullYear(), date.getMonth() + 1, date.getDate()].join('')}@${[date.getHours(), date.getMinutes()].join(':')}.docx`;
-    const path = "Legal\\Mon Cabinet d'Avocat\\Comptabilité\\Factures\\";
-    const templatePath = path + "FactureTEMPLATE [NE PAS MODIFIDER].dotm";
-    const newPath = path + `Clients\\${fileName}`;
-    await createWordDocumentFromTemplate(templatePath, newPath, accessToken, tenantId);
-    async function createWordDocumentFromTemplate(templatePath, newDocumentPath, accessToken, tenantId) {
+    const path = "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/";
+    const templatePath = path + 'FactureTEMPLATE [NE PAS MODIFIDER].dotm';
+    const destinationFolder = path + 'Clients';
+    await createWordDocumentFromTemplate(templatePath, destinationFolder, accessToken, tenantId);
+    async function createWordDocumentFromTemplate(templatePath, destinationFolder, accessToken, tenantId) {
         if (!accessToken)
             return;
-        const headers = {
-            "Authorization": `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-        };
-        // Fetch the template file from OneDrive
-        const templateResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${templatePath}:/content`, {
-            method: 'GET',
-            headers: headers
-        });
-        const templateBlob = await templateResponse.blob();
-        const templateArrayBuffer = await templateBlob.arrayBuffer();
-        const uint8Array = new Uint8Array(templateArrayBuffer);
-        //@ts-ignore
-        const buf = buffer.Buffer.from(uint8Array);
-        const templateBase64 = buf.toString('base64');
-        // Create the new document with the template content
-        const newDocumentResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${newDocumentPath}:/content`, {
-            method: 'PUT',
-            headers: headers,
+        return await editOpenXML();
+        async function editOpenXML() {
+            const blob = await fetchBlobFromFile(templatePath, accessToken);
+            if (!blob)
+                return;
+            const zip = await convertBlobIntoXML(blob);
+            const doc = zip.xmlDoc;
+            if (!doc)
+                return;
+            const table = getXMLTable(doc, 0);
+            data.forEach(row => {
+                const tblRow = addRowToXMLTable(doc, table);
+                if (!tblRow)
+                    return;
+                row.forEach(el => addCellToXMLTableRow(doc, tblRow, el));
+            });
+            getContentControlsValues(invoice.lang)
+                .forEach(el => {
+                const [title, text] = el;
+                const control = findXMLContentControlByTitle(doc, title);
+                if (!control)
+                    return;
+                editXMLContentControl(control, text);
+            });
+            uploadToOneDrive(await convertXMLIntoBlob(doc, zip.zip), destinationFolder, fileName, accessToken);
+        }
+    }
+    //await editDocumentWordJSAPI(await copyTemplate()?.id, accessToken, data, getContentControlsValues(invoice.lang))
+    async function copyTemplate() {
+        // 1. Create a new Word document from the template
+        const createResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${templatePath}:/copy`, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${accessToken}`,
+                "Content-Type": "application/json"
+            },
             body: JSON.stringify({
-                "@microsoft.graph.conflictBehavior": "rename",
-                "file": {
-                    "@odata.type": "#microsoft.graph.file"
-                },
-                "fileSystemInfo": {},
-                "contentBytes": templateBase64
+                parentReference: { path: `/drive/root:/${destinationFolder}` },
+                name: fileName
             })
         });
-        const newDocument = await newDocumentResponse.json();
-        console.log("Document created:", newDocument);
-        editDocument(newDocument, data);
-        // Function to open a Word document
-    }
-    async function editDocument(newDocument, data) {
-        // Open the newly created Word document for editing
-        await Word.run(async (context) => {
-            const docUrl = newDocument["@microsoft.graph.downloadUrl"];
-            const document = context.application.createDocument(docUrl);
-            document.open();
-            context.sync();
-            console.log("Word document opened for editing:", document);
-            const tables = context.document.body.tables;
-            const contentControls = context.document.body.contentControls;
-            context.load(tables);
-            context.load(contentControls);
-            await context.sync();
-            const table = tables.items[0];
-            if (!table)
+        if (!createResponse.ok)
+            throw new Error("Failed to create document");
+        // 2. Poll for the File ID (since copy is async)
+        const file = await getFile(0);
+        if (!file || !file.id)
+            throw new Error("Failed to retrieve new document ID. File may not be ready.");
+        return file;
+        async function getFile(i) {
+            if (i > 7)
                 return;
-            data.forEach(dataRow => table.addRows("End", 1, [dataRow]));
-            await editRichTextContentControls();
-            async function editRichTextContentControls() {
-                const fields = {
-                    dateLabel: {
-                        title: 'LabelParisLe',
-                        text: { FR: 'Paris le ', EN: 'Paris on ' },
-                    },
-                    date: {
-                        title: 'RTInvoiceDate',
-                        text: [date.getDay(), date.getMonth() + 1, date.getFullYear()].join('/'),
-                    },
-                    numberLabel: {
-                        title: 'LabelInvoiceNumber',
-                        text: { FR: 'Facturen n° : ', EN: 'Invoice No.:' },
-                    },
-                    number: {
-                        title: 'RTInvoiceNumber',
-                        text: [date.getDay(), date.getMonth() + 1, date.getFullYear() - 2000].join('') + '/' + [date.getHours(), date.getMinutes].join(''),
-                    },
-                    subjectLable: {
-                        title: 'LabelSubject',
-                        text: { FR: 'Objet : ', EN: 'Subject: ' },
-                    },
-                    subject: {
-                        title: 'RTMatter',
-                        text: invoice.matters.join(' & '),
-                    },
-                    amount: {
-                        title: 'LabelTableHeadingMontantTTC',
-                        text: { FR: 'Montant TTC', EN: 'Amount VAT Included' },
-                    },
-                    vat: {
-                        title: 'LabelTableHeadingTVA',
-                        text: { FR: 'TVA', EN: 'VAT' },
-                    },
-                    disclaimer: {
-                        title: 'LabelDisclamer' + ['French', 'English'].find(el => !el.toUpperCase().startsWith(invoice.lang)) || 'French',
-                        text: '',
-                    },
-                    clientName: {
-                        title: 'RTClient',
-                        text: invoice.clientName,
-                    },
-                    adress: {
-                        title: 'RTClientAdresse',
-                        text: invoice.adress.join(' & '),
-                    },
-                };
-                //@ts-ignore
-                await edit(fields.dateLabel.title, fields.dateLabel.text[lang] || fields.dateLabel.text.FR); //Date Label
-                await edit(fields.date.title, fields.date.text); //Date
-                //@ts-ignore
-                await edit(fields.subjectLable.title, fields.subjectLable.text[lang] || fields.subjectLable.text.FR); //Subject Label
-                await edit(fields.subject.title, fields.subject.text); //Subject
-                //@ts-ignore
-                await edit(fields.numberLabel.title, fields.numberLabel.text[lang] || fields.numberLabel.text.FR); //Invoice Number Label
-                await edit(fields.number.text, fields.number.title); //Invoice Number
-                await edit(fields.disclaimer.title, fields.disclaimer.text); //Disclaimer
-                await edit(fields.adress.title, fields.adress.text); //Client adress
-                await edit(fields.clientName.title, fields.clientName.text); //Client name
-                //@ts-ignore
-                await edit(fields.amount.title, fields.amount.text[lang] || fields.amount.text.FR); // Table Header 'Amount'
-                //@ts-ignore
-                await edit(fields.vat.title, fields.vat.text[lang] || fields.vat.text.FR); //Table Header 'VAT'
-                async function edit(title, text) {
-                    const field = contentControls.getByTitle(title).getFirst();
-                    if (!field)
-                        return;
-                    context.load(field);
-                    await context.sync();
-                    if (!text)
-                        field.delete(false);
-                    else
-                        field.insertText(text, 'Replace');
-                    await context.sync();
-                    return field;
+            const checkFilesResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${destinationFolder}:/children`, {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${accessToken}`
                 }
+            });
+            if (!checkFilesResponse.ok) {
+                await new Promise(res => setTimeout(res, 3000));
+                getFile(i + 1);
             }
-        });
+            ;
+            const files = await checkFilesResponse.json();
+            const file = files.value.find((f) => f.name === fileName);
+            if (file) {
+                console.log('file =', file);
+                return file;
+            }
+            else {
+                await new Promise(res => setTimeout(res, 3000));
+                await getFile(i + 1);
+            }
+        }
     }
+    async function fetchBlobFromFile(templatePath, accessToken) {
+        const response = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${templatePath}:/content`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+            },
+        });
+        if (!response.ok)
+            throw new Error('Failed to fetch the Word file from OneDrive');
+        return await response.blob();
+    }
+    async function convertBlobIntoXML(blob) {
+        const arrayBuffer = await blob.arrayBuffer();
+        //@ts-ignore
+        const zip = new JSZip();
+        await zip.loadAsync(arrayBuffer);
+        const documentXml = await zip.file("word/document.xml").async("string");
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(documentXml, "application/xml");
+        return { xmlDoc, zip };
+    }
+    //@ts-expect-error
+    async function convertXMLIntoBlob(xmlDoc, zip) {
+        //@ts-expect-error
+        if (!zip)
+            zip = new JSZip();
+        const serializer = new XMLSerializer();
+        let modifiedDocumentXml = serializer.serializeToString(xmlDoc);
+        modifiedDocumentXml = `<?xml version="1.0" encoding="UTF-8"?>\n` + modifiedDocumentXml;
+        zip.file("word/document.xml", modifiedDocumentXml);
+        const modifiedArrayBuffer = await zip.generateAsync({ type: "arraybuffer" });
+        return new Blob([modifiedArrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    }
+    function getXMLTable(xmlDoc, index) {
+        const tables = xmlDoc.getElementsByTagName("w:tbl");
+        return tables[index];
+    }
+    function addRowToXMLTable(xmlDoc, table) {
+        if (!table)
+            return;
+        const row = createTableElement(xmlDoc, "w:tr");
+        table.appendChild(row);
+        return row;
+    }
+    function addCellToXMLTableRow(xmlDoc, row, text) {
+        if (!xmlDoc || !row)
+            return;
+        const cell = createTableElement(xmlDoc, "w:tc");
+        row.appendChild(cell);
+        const parag = createTableElement(xmlDoc, "w:p");
+        cell.appendChild(parag);
+        const newRun = createTableElement(xmlDoc, "w:r");
+        parag.appendChild(newRun);
+        if (!text)
+            return;
+        const newText = createTableElement(xmlDoc, "w:t");
+        newText.textContent = text;
+        newRun.appendChild(newText);
+    }
+    function createTableElement(xmlDoc, tag) {
+        return xmlDoc.createElementNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', tag);
+    }
+    function findXMLContentControlByTitle(xmlDoc, title) {
+        const contentControls = Array.from(xmlDoc.getElementsByTagName("w:sdt"));
+        return contentControls.find(control => control.getElementsByTagName("w:alias")[0]?.getAttribute("w:val") === title);
+    }
+    function editXMLContentControl(control, text) {
+        if (!control)
+            return;
+        const textElement = control.getElementsByTagName("w:t")[0];
+        if (!textElement)
+            return;
+        textElement.textContent = text;
+    }
+    function getContentControlsValues(lang = 'FR') {
+        const fields = {
+            dateLabel: {
+                title: 'LabelParisLe',
+                text: { FR: 'Paris le ', EN: 'Paris on ' }[lang] || '',
+            },
+            date: {
+                title: 'RTInvoiceDate',
+                text: [date.getDate(), date.getMonth() + 1, date.getFullYear()].join('/'),
+            },
+            numberLabel: {
+                title: 'LabelInvoiceNumber',
+                text: { FR: 'Facturen n° : ', EN: 'Invoice No.:' }[lang] || '',
+            },
+            number: {
+                title: 'RTInvoiceNumber',
+                text: [date.getDate(), date.getMonth() + 1, date.getFullYear() - 2000].join('') + '/' + [date.getHours(), date.getMinutes()].join(''),
+            },
+            subjectLable: {
+                title: 'LabelSubject',
+                text: { FR: 'Objet : ', EN: 'Subject: ' }[lang] || '',
+            },
+            subject: {
+                title: 'RTMatter',
+                text: invoice.matters.join(' & '),
+            },
+            amount: {
+                title: 'LabelTableHeadingMontantTTC',
+                text: { FR: 'Montant TTC', EN: 'Amount VAT Included' }[lang] || '',
+            },
+            vat: {
+                title: 'LabelTableHeadingTVA',
+                text: { FR: 'TVA', EN: 'VAT' }[lang] || '',
+            },
+            disclaimer: {
+                title: 'LabelDisclamer' + ['French', 'English'].find(el => !el.toUpperCase().startsWith(lang.toUpperCase())) || 'French',
+                text: '',
+            },
+            clientName: {
+                title: 'RTClient',
+                text: invoice.clientName,
+            },
+            adress: {
+                title: 'RTClientAdresse',
+                text: invoice.adress.join(' & '),
+            },
+        };
+        return Object.keys(fields).map(key => [fields[key].title, fields[key].text]);
+    }
+    async function uploadToOneDrive(blob, folderPath, fileName, accessToken) {
+        const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${folderPath}/${fileName}:/content`;
+        const response = await fetch(endpoint, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // Correct MIME type for Word docs
+            },
+            body: blob, // Use the template's content as the new document's content
+        });
+        response.ok ? console.log('succefully uploaded the new file') : console.log('failed to upload the file to onedrive error = ', await response.json());
+    }
+    ;
 }
 ;
+async function editDocumentWordJSAPI(id, accessToken, data, controlsData) {
+    if (!id || !accessToken || !data)
+        return;
+    await Word.run(async (context) => {
+        // Open the document by downloading its content
+        const fileResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${id}/content`, {
+            method: "GET",
+            headers: {
+                "Authorization": `Bearer ${accessToken}`
+            }
+        });
+        if (!fileResponse.ok)
+            throw new Error("Failed to retrieve document");
+        const blob = await fileResponse.blob();
+        const base64File = await convertBlobToBase64(blob);
+        const doc = context.application.createDocument(base64File);
+        console.log("Word document opened for editing:", document);
+        const tables = doc.body.tables;
+        const contentControls = doc.body.contentControls;
+        context.load(tables);
+        context.load(contentControls);
+        await context.sync();
+        const table = tables.items[0];
+        if (!table)
+            return;
+        data.forEach(dataRow => table.addRows("End", 1, [dataRow]));
+        await editRichTextContentControls();
+        async function editRichTextContentControls() {
+            if (!controlsData || contentControls)
+                return;
+            controlsData.forEach(control => edit(control));
+            async function edit(control) {
+                const [title, text] = control;
+                const field = contentControls.getByTitle(title).getFirst();
+                if (!field)
+                    return;
+                context.load(field);
+                await context.sync();
+                if (!text)
+                    field.delete(false);
+                else
+                    field.insertText(text, 'Replace');
+                await context.sync();
+                return field;
+            }
+        }
+    });
+}
+/**
+ * Helper function to convert Blob to Base64
+ *  */
+function convertBlobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result.toString().split(",")[1]); // Extract base64 part
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
 async function addEntry(tableName = 'LivreJournal') {
     await Excel.run(async (context) => {
         const sheet = context.workbook.worksheets.getActiveWorksheet();
