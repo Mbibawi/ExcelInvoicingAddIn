@@ -7,7 +7,7 @@ const accessToken = getAccessToken();
 const path = "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/"
 const templatePath = path + 'FactureTEMPLATE [NE PAS MODIFIDER].dotm';
 const destinationFolder = path + 'Clients';
-const excelFilePath = "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlm"
+const excelFilePath = "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm"
 
 
 function getAccessToken() {

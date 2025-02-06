@@ -5,7 +5,7 @@ const accessToken = getAccessToken();
 const path = "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/";
 const templatePath = path + 'FactureTEMPLATE [NE PAS MODIFIDER].dotm';
 const destinationFolder = path + 'Clients';
-const excelFilePath = "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlm";
+const excelFilePath = "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm";
 function getAccessToken() {
     const clientId = "157dd297-447d-4592-b2d3-76b643b97132";
     const redirectUri = "https://mbibawi.github.io/ExcelInvoicingAddIn"; //!must be the same domain as the app
