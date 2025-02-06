@@ -30,9 +30,18 @@ function getAccessToken() {
 // Fetch OneDrive File by Path
 async function fetchOneDriveFileByPath(filePathAndName: string) {
     try {
+        const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePathAndName}:/content`;
 
-        const fileContent = await getMSGraphClient().api(`/me/drive/root:/${filePathAndName}:/content`).responseType('arraybuffer').get();
-        return fileContent;
+        const response = await fetch(url, {
+            method: "GET",
+            headers: {
+                "Authorization": `Bearer ${accessToken}`,
+                "Content-Type": "application/json"
+            }
+        });
+
+        const data = await response.arrayBuffer();
+        return data;
     } catch (error) {
         console.error("Error fetching OneDrive file:", error);
     }
@@ -46,7 +55,7 @@ async function fetchExcelData(filePath: string = excelFilePath) {
         
         await workbook.xlsx.load(await fetchOneDriveFileByPath(filePath));
 
-      
+    
         const worksheet = workbook.getWorksheet(1);
         const data = worksheet.getSheetValues();
 
@@ -72,7 +81,8 @@ async function invoice() {
     if (!tableData) return;
     try {
         const document = new Word.Document();
-        await document.load(await fetchOneDriveFileByPath(templatePath));
+
+        document.load(await fetchOneDriveFileByPath(templatePath));
 
         // Update Table
         //@ts-expect-error
