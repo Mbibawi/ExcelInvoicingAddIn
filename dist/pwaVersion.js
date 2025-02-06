@@ -26,7 +26,7 @@ function getAccessToken() {
 // Fetch OneDrive File by Path
 async function fetchOneDriveFileByPath(filePathAndName) {
     try {
-        const fileContent = await getMSGraphClient().api(`/me/drive/root:${filePathAndName}:/content`).get();
+        const fileContent = await getMSGraphClient().api(`/me/drive/root:/${filePathAndName}:/content`).get();
         return fileContent;
     }
     catch (error) {
@@ -36,10 +36,9 @@ async function fetchOneDriveFileByPath(filePathAndName) {
 // Fetch Excel Data
 async function fetchExcelData(filePath = excelFilePath) {
     try {
+        //@ts-expect-error
         const workbook = new ExcelJS.Workbook();
-        //@ts-expect-error
         await workbook.xlsx.load(await fetchOneDriveFileByPath(filePath));
-        //@ts-expect-error
         const worksheet = workbook.getWorksheet(1);
         const data = worksheet.getSheetValues();
         return data;
