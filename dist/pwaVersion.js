@@ -26,7 +26,7 @@ function getAccessToken() {
 // Fetch OneDrive File by Path
 async function fetchOneDriveFileByPath(filePathAndName) {
     try {
-        const fileContent = await getMSGraphClient().api(`/me/drive/root:/${filePathAndName}:/content`).get();
+        const fileContent = await getMSGraphClient().api(`/me/drive/root:/${filePathAndName}:/content`).responseType('arraybuffer').get();
         return fileContent;
     }
     catch (error) {

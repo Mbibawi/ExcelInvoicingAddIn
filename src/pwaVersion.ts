@@ -31,7 +31,7 @@ function getAccessToken() {
 async function fetchOneDriveFileByPath(filePathAndName: string) {
     try {
 
-        const fileContent = await getMSGraphClient().api(`/me/drive/root:/${filePathAndName}:/content`).get();
+        const fileContent = await getMSGraphClient().api(`/me/drive/root:/${filePathAndName}:/content`).responseType('arraybuffer').get();
         return fileContent;
     } catch (error) {
         console.error("Error fetching OneDrive file:", error);
