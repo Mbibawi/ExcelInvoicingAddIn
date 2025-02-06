@@ -41,7 +41,7 @@ async function fetchOneDriveFileByPath(filePathAndName: string) {
 // Fetch Excel Data
 async function fetchExcelData(filePath: string = excelFilePath) {
     try {
-        const workbook = new Excel.Workbook();
+        const workbook = new ExcelJS.Workbook();
         //@ts-expect-error
         await workbook.xlsx.load(await fetchOneDriveFileByPath(filePath));
 
