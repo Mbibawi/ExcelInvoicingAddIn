@@ -125,6 +125,8 @@ async function mainWithWordgraphApi() {
     // Fetch Excel data
 
     const excelData = await fetchExcelTable(accessToken, excelPath, 'LivreJournal');
+    
+    if (!excelData) return;
 
     insertInvoiceForm(excelData, Array.from(new Set(excelData.map(row => row[0]))));
     
