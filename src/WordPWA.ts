@@ -13,7 +13,7 @@ async function fetchExcelTable(accessToken: string | undefined, filePath: string
 
     const data = await response.json();
     //@ts-ignore
-    return data.value.map(el=>el.values[0]); // Returns data as string[][]
+    return data.values; // Returns data as string[][]
 }
 
 async function fetchWordTemplate(accessToken: string, filePath: string): Promise<Blob> {
@@ -121,7 +121,8 @@ async function mainWithWordgraphApi() {
     const accessToken = await getAccessToken() || ''; // Ensure you obtain this via MSAL.js
     if (!accessToken) return
     
-    const excelPath = "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm"
+    const excelPath = "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm";
+
     // Fetch Excel data
 
     const excelData = await fetchExcelTable(accessToken, excelPath, 'LivreJournal');
@@ -180,7 +181,8 @@ async function mainWithWordgraphApi() {
             data = data.filter(row => row[Number(criteria[i].dataset.index)] === criteria[i].value);
             i++
         }
-        const nature = criteria[2].value.split(', ');
+        
+        const nature = criteria[2].value.replace(' ', '').split(',');
         data = data.filter(row => nature.includes(row[2]));
 
         data = filterByDate(data);

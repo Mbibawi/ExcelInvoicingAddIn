@@ -10,7 +10,7 @@ async function fetchExcelTable(accessToken, filePath, tableName = 'LivreJournal'
         throw new Error("Failed to fetch Excel data");
     const data = await response.json();
     //@ts-ignore
-    return data.value.map(el => el.values[0]); // Returns data as string[][]
+    return data.values; // Returns data as string[][]
 }
 async function fetchWordTemplate(accessToken, filePath) {
     const fileUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/content`;
@@ -140,7 +140,7 @@ async function mainWithWordgraphApi() {
             data = data.filter(row => row[Number(criteria[i].dataset.index)] === criteria[i].value);
             i++;
         }
-        const nature = criteria[2].value.split(', ');
+        const nature = criteria[2].value.replace(' ', '').split(',');
         data = data.filter(row => nature.includes(row[2]));
         data = filterByDate(data);
         return getData(data);
