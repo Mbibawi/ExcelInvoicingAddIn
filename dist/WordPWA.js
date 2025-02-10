@@ -357,15 +357,11 @@ async function editWordWithGraphApi(excelData, contentControlData, templatePath,
     await updateContentControls(newPath.join('/'), contentControlData);
     console.log('Document creation and updates completed successfully');
     // Function to copy a Word template to a new location
-    async function copyTemplate(accessToken, templatePath, newPath) {
-        const [folder, fileName] = newPath;
-        const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURIComponent(templatePath)}`;
-        const fileResponse = await fetch(endpoint, {
-            method: 'GET',
-            headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        const fileData = await fileResponse.json();
-        const copyTo = `https://graph.microsoft.com/v1.0/me/drive/items/${fileData.fileId}/copy`;
+    async function copyTemplate(accessToken, templatePath, fileName) {
+        const fileData = await getFileDataByPath(accessToken, templatePath);
+        if (!fileData || !fileData.id)
+            return;
+        const copyTo = `https://graph.microsoft.com/v1.0/me/drive/items/${fileData.id}/copy`;
         const response = await fetch(copyTo, {
             method: 'POST',
             headers: {
@@ -398,10 +394,18 @@ async function editWordWithGraphApi(excelData, contentControlData, templatePath,
             }
             const status = await statusResponse.json();
             if (status.status === 'completed') {
-                return newPath.join('/'); // Return the path of the new file
+                return response; // Return the path of the new file
             }
             await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1 second before polling again
         } while (true);
+    }
+    async function getFileDataByPath(accessToken, filePath) {
+        const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURIComponent(filePath)}`;
+        const fileResponse = await fetch(endpoint, {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        return await fileResponse.json();
     }
     // Function to add rows to the first table in a Word document
     async function addRowsToTable(filePath, newRows) {
