@@ -368,7 +368,7 @@ async function editWordWithGraphApi(excelData, contentControlData, templatePath,
             },
             body: JSON.stringify({
                 parentReference: {
-                    path: `/drive/root:/${folder}`,
+                    path: `/drive/root:/${folder}:/`,
                 },
                 name: fileName,
             }),
