@@ -154,8 +154,8 @@ async function mainWithWordgraphApi() {
         adress:  Array.from(new Set(filtered.map(row=>row[16])))
     }
 
-    const path = encodeURIComponent("Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/");
-    const templatePath = encodeURIComponent(path + 'FactureTEMPLATE [NE PAS MODIFIDER].dotm');
+    const path = "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/";
+    const templatePath = path + 'FactureTEMPLATE [NE PAS MODIFIDER].dotm';
     const newPath: string[] = [path + 'Clients', newWordFileName(new Date(), invoice.clientName, invoice.matters)];
 
     // Define content control replacements
@@ -439,7 +439,7 @@ async function editWordWithGraphApi(excelData: string[][], contentControlData: s
     // Function to copy a Word template to a new location
     async function copyTemplate(accessToken: string, templatePath: string, newPath: string[]) {
         const [folder, fileName] = newPath;
-        const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${templatePath}:/copy`;
+        const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURIComponent(templatePath)}:/copy`;
 
         const response = await fetch(endpoint, {
             method: 'POST',
@@ -449,7 +449,7 @@ async function editWordWithGraphApi(excelData: string[][], contentControlData: s
             },
             body: JSON.stringify({
                 parentReference: {
-                    path: `/drive/root:/${folder}:/`,
+                    path: encodeURIComponent(`/drive/root:/${folder}:/`),
                 },
                 name: encodeURIComponent(fileName),
             }),
