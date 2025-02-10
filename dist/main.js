@@ -628,7 +628,7 @@ async function uploadWordDocument(data, invoice) {
 }
 ;
 function newWordFileName(date, clientName, matters) {
-    return 'test file name for now';
+    return 'test file name for now.docx';
     return `Test_Facture_${clientName}_${Array.from(matters).join('&')}_${[date.getFullYear(), date.getMonth() + 1, date.getDate()].join('')}@${[date.getHours(), date.getMinutes()].join(':')}.docx`;
 }
 async function editDocumentWordJSAPI(id, accessToken, data, controlsData) {

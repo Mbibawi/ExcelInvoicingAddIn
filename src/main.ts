@@ -728,7 +728,7 @@ async function uploadWordDocument(data: string[][], invoice: { clientName: strin
 };
 
 function newWordFileName(date: Date, clientName: string, matters: string[]): string {
-  return 'test file name for now'
+  return 'test file name for now.docx'
   return `Test_Facture_${clientName}_${Array.from(matters).join('&')}_${[date.getFullYear(), date.getMonth() + 1, date.getDate()].join('')}@${[date.getHours(), date.getMinutes()].join(':')}.docx`;
 
 }
