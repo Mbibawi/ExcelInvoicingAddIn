@@ -9,7 +9,8 @@ async function fetchExcelTable(accessToken, filePath, tableName = 'LivreJournal'
     if (!response.ok)
         throw new Error("Failed to fetch Excel data");
     const data = await response.json();
-    return data.values; // Returns data as string[][]
+    //@ts-ignore
+    return data.value.map(el => el.values[0]); // Returns data as string[][]
 }
 async function fetchWordTemplate(accessToken, filePath) {
     const fileUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/content`;
@@ -108,11 +109,12 @@ async function mainWithWordgraphApi() {
     criteria[1].value = 'Adjudication studio rue Théodore Deck';
     criteria[2].value = 'CARPA, Honoraire, Débours/Dépens, Provision/Règlement';
     const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.dataset.language || 'FR';
+    const filtered = filterExcelData(excelData);
     const invoice = {
         clientName: getInputValue(0, criteria),
         matters: getArray(getInputValue(1, criteria)),
         lang: lang,
-        adress: excelData.map(row => row[15])
+        adress: Array.from(new Set(filtered.map(row => row[16])))
     };
     const path = "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/";
     const templatePath = path + 'FactureTEMPLATE [NE PAS MODIFIDER].dotm';

@@ -12,7 +12,8 @@ async function fetchExcelTable(accessToken: string | undefined, filePath: string
     if (!response.ok) throw new Error("Failed to fetch Excel data");
 
     const data = await response.json();
-    return data.values; // Returns data as string[][]
+    //@ts-ignore
+    return data.value.map(el=>el.values[0]); // Returns data as string[][]
 }
 
 async function fetchWordTemplate(accessToken: string, filePath: string): Promise<Blob> {
@@ -138,11 +139,13 @@ async function mainWithWordgraphApi() {
 
     const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.dataset.language || 'FR';
 
+    const filtered = filterExcelData(excelData);
+
     const invoice = {
         clientName: getInputValue(0, criteria),
         matters: getArray(getInputValue(1, criteria)),
         lang: lang,
-        adress: excelData.map(row => row[15])
+        adress:  Array.from(new Set(filtered.map(row=>row[16])))
     }
 
     const path = "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/"
