@@ -447,10 +447,9 @@ async function editWordWithGraphApi(excelData: string[][], contentControlData: s
         });
 
         const fileData = await fileResponse.json();
-        const fileId = fileData.id; // Extract the file ID
-        if (!fileId) return;
+        
 
-        const copyTo = `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/copy`;
+        const copyTo = `https://graph.microsoft.com/v1.0/me/drive/items/${fileData.fileId}/copy`;
 
         const response = await fetch(copyTo, {
             method: 'POST',
@@ -459,9 +458,7 @@ async function editWordWithGraphApi(excelData: string[][], contentControlData: s
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                parentReference: {
-                    path: `/drive/root/${folder}`,
-                },
+                parentReference: fileData.parentReference,
                 name: fileName,
             }),
         });
