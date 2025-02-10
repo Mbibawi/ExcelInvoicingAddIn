@@ -122,17 +122,17 @@ async function mainWithWordgraphApi() {
     };
     const path = "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/";
     const templatePath = path + 'FactureTEMPLATE [NE PAS MODIFIDER].dotm';
-    const newPath = [path + 'Clients', newWordFileName(new Date(), invoice.clientName, invoice.matters)];
+    const fileName = newWordFileName(new Date(), invoice.clientName, invoice.matters);
     // Define content control replacements
     const contentControls = getContentControlsValues(invoice);
-    await editWordWithGraphApi(filterExcelData(excelData), contentControls, templatePath, newPath, accessToken);
+    await editWordWithGraphApi(filterExcelData(excelData), contentControls, templatePath, fileName, accessToken);
     return;
     function getInputValue(index, inputs) {
         return inputs.find(input => Number(input.dataset.index) === index)?.value || '';
     }
     async function editWithAny() {
         // Generate Word document from template
-        await createDocumentFromTemplate(accessToken, templatePath, newPath.join('/'), excelData, contentControls);
+        await createDocumentFromTemplate(accessToken, templatePath, `${path}Client/${fileName}`, excelData, contentControls);
     }
     function filterExcelData(data, i = 0) {
         while (i < 2) {
@@ -350,11 +350,14 @@ async function mainWithWordgraphApi() {
     }
 }
 //main().catch(console.error);
-async function editWordWithGraphApi(excelData, contentControlData, templatePath, newPath, accessToken) {
+async function editWordWithGraphApi(excelData, contentControlData, templatePath, fileName, accessToken) {
     // Function to authenticate and get access token
-    await copyTemplate(accessToken, templatePath, newPath);
-    await addRowsToTable(newPath.join('/'), excelData);
-    await updateContentControls(newPath.join('/'), contentControlData);
+    const fileData = await copyTemplate(accessToken, templatePath, fileName);
+    if (!fileData)
+        return;
+    const fileId = fileData.id;
+    await addRowsToTable(fileId, excelData);
+    await updateContentControls(fileId, contentControlData);
     console.log('Document creation and updates completed successfully');
     // Function to copy a Word template to a new location
     async function copyTemplate(accessToken, templatePath, fileName) {
@@ -394,7 +397,7 @@ async function editWordWithGraphApi(excelData, contentControlData, templatePath,
             }
             const status = await statusResponse.json();
             if (status.status === 'completed') {
-                return response; // Return the path of the new file
+                return await response.json(); // Return the path of the new file
             }
             await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1 second before polling again
         } while (true);
@@ -408,14 +411,14 @@ async function editWordWithGraphApi(excelData, contentControlData, templatePath,
         return await fileResponse.json();
     }
     // Function to add rows to the first table in a Word document
-    async function addRowsToTable(filePath, newRows) {
+    async function addRowsToTable(fileId, newRows) {
         // JSON patch to add rows to the first table
         const patchData = newRows.map((row) => ({
             op: 'add',
             path: `/tables/0/rows/-`, // The "0" refers to the first table in the document
             value: row,
         }));
-        if (await patch(patchData, filePath) === true)
+        if (await patch(patchData, fileId) === true)
             console.log('Rows added successfully');
     }
     // Function to update content controls by their titles
@@ -429,8 +432,8 @@ async function editWordWithGraphApi(excelData, contentControlData, templatePath,
         if (await patch(patchData, filePath) === true)
             console.log('Content controls updated successfully');
     }
-    async function patch(patchData, filePath) {
-        const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/content`;
+    async function patch(patchData, fileId) {
+        const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${fileId}:/content`;
         const response = await fetch(endpoint, {
             method: 'PATCH',
             headers: {
