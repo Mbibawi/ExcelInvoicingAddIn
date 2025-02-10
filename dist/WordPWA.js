@@ -120,8 +120,8 @@ async function mainWithWordgraphApi() {
         lang: lang,
         adress: Array.from(new Set(filtered.map(row => row[16])))
     };
-    const path = "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/";
-    const templatePath = path + 'FactureTEMPLATE [NE PAS MODIFIDER].dotm';
+    const path = encodeURIComponent("Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/");
+    const templatePath = encodeURIComponent(path + 'FactureTEMPLATE [NE PAS MODIFIDER].dotm');
     const newPath = [path + 'Clients', newWordFileName(new Date(), invoice.clientName, invoice.matters)];
     // Define content control replacements
     const contentControls = getContentControlsValues(invoice);

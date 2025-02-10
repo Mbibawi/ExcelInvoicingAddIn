@@ -154,8 +154,8 @@ async function mainWithWordgraphApi() {
         adress:  Array.from(new Set(filtered.map(row=>row[16])))
     }
 
-    const path = "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/"
-    const templatePath = path + 'FactureTEMPLATE [NE PAS MODIFIDER].dotm';
+    const path = encodeURIComponent("Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/");
+    const templatePath = encodeURIComponent(path + 'FactureTEMPLATE [NE PAS MODIFIDER].dotm');
     const newPath: string[] = [path + 'Clients', newWordFileName(new Date(), invoice.clientName, invoice.matters)];
 
     // Define content control replacements
