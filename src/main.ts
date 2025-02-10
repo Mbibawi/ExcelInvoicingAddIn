@@ -728,7 +728,7 @@ async function uploadWordDocument(data: string[][], invoice: { clientName: strin
 };
 
 function newWordFileName(date:Date, clientName:string, matters:string[]):string {
-  return `Test_Facture_${clientName}_${Array.from(matters).join('&')}_${[date.getFullYear(), date.getMonth() + 1, date.getDate()].join('')}@${[date.getHours(), date.getMinutes()].join(':')}.docx`;
+  return `Test_Facture_${clientName}_${Array.from(matters).join('&')}_${[date.getFullYear(), date.getMonth() + 1, date.getDate()].join('')}-${[date.getHours(), date.getMinutes()].join('-')}.docx`;
 
 }
 
