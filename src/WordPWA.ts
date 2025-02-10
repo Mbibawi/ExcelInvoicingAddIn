@@ -2,7 +2,7 @@
 
 async function fetchExcelTable(accessToken: string | undefined, filePath: string, tableName = 'LivreJournal'): Promise<string[][]> {
 
-        const fileUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook:/workbook/tables/${tableName}/rows`;
+        const fileUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/rows`;
 
     const response = await fetch(fileUrl, {
         method: "GET",

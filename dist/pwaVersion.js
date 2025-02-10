@@ -72,6 +72,7 @@ async function invoice() {
         return;
     try {
         const document = new Word.Document();
+        //@ts-expect-error
         document.load(await fetchOneDriveFileByPath(templatePath));
         // Update Table
         //@ts-expect-error
@@ -98,6 +99,7 @@ async function invoice() {
 async function extractInvoiceData() {
     const inputs = Array.from(document.getElementsByTagName('input'));
     const criteria = inputs.filter(input => input.dataset.index);
+    //@ts-expect-error
     const tableData = filterRows(0, await fetchExcelData());
     return getData(tableData);
     function getData(tableData) {
