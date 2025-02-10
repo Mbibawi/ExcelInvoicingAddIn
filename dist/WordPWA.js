@@ -372,7 +372,10 @@ async function editWordWithGraphApi(excelData, contentControlData, templatePath,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                parentReference: fileData.parentReference,
+                parentReference: {
+                    driveId: fileData.parentReference.driveId,
+                    id: fileData.id
+                },
                 name: fileName,
             }),
         });
