@@ -2,7 +2,7 @@
 
 async function fetchExcelTable(accessToken: string | undefined, filePath: string, tableName = 'LivreJournal'): Promise<string[][]> {
 
-        const fileUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/rows`;
+        const fileUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/range`;
 
     const response = await fetch(fileUrl, {
         method: "GET",
@@ -125,21 +125,24 @@ async function mainWithWordgraphApi() {
     // Fetch Excel data
 
     const excelData = await fetchExcelTable(accessToken, excelPath, 'LivreJournal');
-    
+
     if (!excelData) return;
 
     insertInvoiceForm(excelData, Array.from(new Set(excelData.map(row => row[0]))));
     
     const inputs = Array.from(document.getElementsByTagName('input'));
 
-    const criteria = inputs.filter(input => Number(input.dataset.index));
+    const criteria = inputs.filter(input => Number(input.dataset.index)>=0);
     
     //!For testing only
     criteria[0].value = 'SCI SHAMS';
     criteria[1].value = 'Adjudication studio rue Théodore Deck';
     criteria[2].value = 'CARPA, Honoraire, Débours/Dépens, Provision/Règlement';
+    
+    inputs.filter(input => input.type === 'checkbox')[1].checked = true;
 
     const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.dataset.language || 'FR';
+    console.log('language = ', lang)
 
     const filtered = filterExcelData(excelData);
 
