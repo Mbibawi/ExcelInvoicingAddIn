@@ -407,7 +407,7 @@ async function uploadWordDocument(data, invoice) {
         return console.log("Failed to retrieve token.");
     }
     const date = new Date();
-    const fileName = `Test_Facture_${invoice.clientName}_${Array.from(invoice.matters).join('&')}_${[date.getFullYear(), date.getMonth() + 1, date.getDate()].join('')}@${[date.getHours(), date.getMinutes()].join(':')}.docx`;
+    const fileName = newWordFileName(date, invoice.clientName, invoice.matters);
     const path = "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/";
     const templatePath = path + 'FactureTEMPLATE [NE PAS MODIFIDER].dotm';
     const destinationFolder = path + 'Clients';
@@ -627,6 +627,9 @@ async function uploadWordDocument(data, invoice) {
     ;
 }
 ;
+function newWordFileName(date, clientName, matters) {
+    return `Test_Facture_${clientName}_${Array.from(matters).join('&')}_${[date.getFullYear(), date.getMonth() + 1, date.getDate()].join('')}@${[date.getHours(), date.getMinutes()].join(':')}.docx`;
+}
 async function editDocumentWordJSAPI(id, accessToken, data, controlsData) {
     if (!id || !accessToken || !data)
         return;

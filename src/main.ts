@@ -195,35 +195,35 @@ async function showForm(id?: string) {
   };
 
 
-  /**
-   * Creates a dataList with the provided id from the unique values of the column which index is passed as parameter
-   * @param {string} id - the id of the dataList that will be created
-   * @param {number} index - the index of the column from which the unique values of the datalist will be retrieved
-   * 
-  */
-
-  function createDataList(id: string, uniqueValues: string[]) {
-    //const uniqueValues = Array.from(new Set(visible.map(row => row[i])));
-    if (!id || !uniqueValues || uniqueValues.length < 1) return;
-    id += 's';
-
-    // Create a new datalist element
-    let dataList = Array.from(document.getElementsByTagName('datalist')).find(list => list.id === id);
-    if (dataList) dataList.remove();
-    dataList = document.createElement('datalist');
-    //@ts-ignore
-    dataList.id = id;
-    // Append options to the datalist
-    uniqueValues.forEach(option => {
-      const optionElement = document.createElement('option');
-      optionElement.value = option;
-      dataList?.appendChild(optionElement);
-    });
-    // Attach the datalist to the body or a specific element
-    document.body.appendChild(dataList);
-  };
-
+  
 }
+/**
+ * Creates a dataList with the provided id from the unique values of the column which index is passed as parameter
+ * @param {string} id - the id of the dataList that will be created
+ * @param {number} index - the index of the column from which the unique values of the datalist will be retrieved
+ * 
+*/
+
+function createDataList(id: string, uniqueValues: string[]) {
+  //const uniqueValues = Array.from(new Set(visible.map(row => row[i])));
+  if (!id || !uniqueValues || uniqueValues.length < 1) return;
+  id += 's';
+
+  // Create a new datalist element
+  let dataList = Array.from(document.getElementsByTagName('datalist')).find(list => list.id === id);
+  if (dataList) dataList.remove();
+  dataList = document.createElement('datalist');
+  //@ts-ignore
+  dataList.id = id;
+  // Append options to the datalist
+  uniqueValues.forEach(option => {
+    const optionElement = document.createElement('option');
+    optionElement.value = option;
+    dataList?.appendChild(optionElement);
+  });
+  // Attach the datalist to the body or a specific element
+  document.body.appendChild(dataList);
+};
 
 /**
  * Filters the Excel table based on a criteria
@@ -467,8 +467,7 @@ async function uploadWordDocument(data: string[][], invoice: { clientName: strin
   }
 
   const date = new Date();
-
-  const fileName = `Test_Facture_${invoice.clientName}_${Array.from(invoice.matters).join('&')}_${[date.getFullYear(), date.getMonth() + 1, date.getDate()].join('')}@${[date.getHours(), date.getMinutes()].join(':')}.docx`;
+  const fileName = newWordFileName(date, invoice.clientName, invoice.matters)
 
   const path = "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/"
   const templatePath = path + 'FactureTEMPLATE [NE PAS MODIFIDER].dotm';
@@ -728,6 +727,10 @@ async function uploadWordDocument(data: string[][], invoice: { clientName: strin
 
 };
 
+function newWordFileName(date:Date, clientName:string, matters:string[]):string {
+  return `Test_Facture_${clientName}_${Array.from(matters).join('&')}_${[date.getFullYear(), date.getMonth() + 1, date.getDate()].join('')}@${[date.getHours(), date.getMinutes()].join(':')}.docx`;
+
+}
 
 async function editDocumentWordJSAPI(id: string, accessToken: string, data: string[][], controlsData: string[][]) {
   if (!id || !accessToken || !data) return;
@@ -877,7 +880,7 @@ async function createWordDocument(filtered: any[][]) {
 function getTokenWithMSAL(clientId: string, redirectUri: string, msalConfig: Object) {
   if (!clientId || !redirectUri || !msalConfig) return;
 
-  //@ts-ignore
+  //@ts-expect-error
   const msalInstance = new msal.PublicClientApplication(msalConfig);
   const loginRequest = { scopes: ["Files.ReadWrite"] };
 
