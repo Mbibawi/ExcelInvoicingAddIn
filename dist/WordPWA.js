@@ -359,8 +359,17 @@ async function editWordWithGraphApi(excelData, contentControlData, templatePath,
     // Function to copy a Word template to a new location
     async function copyTemplate(accessToken, templatePath, newPath) {
         const [folder, fileName] = newPath;
-        const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURIComponent(templatePath)}:/copy`;
-        const response = await fetch(endpoint, {
+        const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURIComponent(templatePath)}`;
+        const fileResponse = await fetch(endpoint, {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const fileData = await fileResponse.json();
+        const fileId = fileData.id; // Extract the file ID
+        if (!fileId)
+            return;
+        const copyTo = `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/copy`;
+        const response = await fetch(copyTo, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${accessToken}`,

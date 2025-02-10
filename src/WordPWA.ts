@@ -2,7 +2,7 @@
 
 async function fetchExcelTable(accessToken: string | undefined, filePath: string, tableName = 'LivreJournal'): Promise<string[][]> {
 
-        const fileUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/range`;
+    const fileUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/range`;
 
     const response = await fetch(fileUrl, {
         method: "GET",
@@ -120,7 +120,7 @@ function base64ToBlob(base64: string): Blob {
 async function mainWithWordgraphApi() {
     const accessToken = await getAccessToken() || ''; // Ensure you obtain this via MSAL.js
     if (!accessToken) return
-    
+
     const excelPath = "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm";
 
     // Fetch Excel data
@@ -130,16 +130,16 @@ async function mainWithWordgraphApi() {
     if (!excelData) return;
 
     insertInvoiceForm(excelData, Array.from(new Set(excelData.map(row => row[0]))));
-    
+
     const inputs = Array.from(document.getElementsByTagName('input'));
 
-    const criteria = inputs.filter(input => Number(input.dataset.index)>=0);
-    
+    const criteria = inputs.filter(input => Number(input.dataset.index) >= 0);
+
     //!For testing only
     criteria[0].value = 'SCI SHAMS';
     criteria[1].value = 'Adjudication studio rue Théodore Deck';
     criteria[2].value = 'CARPA, Honoraire, Débours/Dépens, Provision/Règlement';
-    
+
     inputs.filter(input => input.type === 'checkbox')[1].checked = true;
 
     const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.dataset.language || 'FR';
@@ -151,7 +151,7 @@ async function mainWithWordgraphApi() {
         clientName: getInputValue(0, criteria),
         matters: getArray(getInputValue(1, criteria)),
         lang: lang,
-        adress:  Array.from(new Set(filtered.map(row=>row[16])))
+        adress: Array.from(new Set(filtered.map(row => row[16])))
     }
 
     const path = "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/";
@@ -164,7 +164,7 @@ async function mainWithWordgraphApi() {
     await editWordWithGraphApi(filterExcelData(excelData), contentControls, templatePath, newPath, accessToken);
     return
 
-    function getInputValue(index: number, inputs:HTMLInputElement[]) {
+    function getInputValue(index: number, inputs: HTMLInputElement[]) {
         return inputs.find(input => Number(input.dataset.index) === index)?.value || ''
     }
 
@@ -181,7 +181,7 @@ async function mainWithWordgraphApi() {
             data = data.filter(row => row[Number(criteria[i].dataset.index)] === criteria[i].value);
             i++
         }
-        
+
         const nature = criteria[2].value.replace(' ', '').split(',');
         data = data.filter(row => nature.includes(row[2]));
 
@@ -191,23 +191,23 @@ async function mainWithWordgraphApi() {
 
         function filterByDate(data: string[][]) {
             const [from, to] = getDateCriteria();
-            
+
             if (from && to)
                 return data.filter(row => new Date(row[3]) >= from && new Date(row[3]) <= to); //we filter by the date
             else if (from)
                 return data.filter(row => new Date(row[3]) >= from); //we filter by the date
-            else if(to)
+            else if (to)
                 return data.filter(row => new Date(row[3]) <= to); //we filter by the date
             else
-                 return data.filter(row => new Date(row[3]) <= new Date()); //we filter by the date
+                return data.filter(row => new Date(row[3]) <= new Date()); //we filter by the date
 
-            
+
             function getDateCriteria() {
                 const [from, to] = criteria.filter(input => Number(input.dataset.index) === 3);
                 return [new Date(from.value) || undefined, new Date(to.value) || undefined];
             }
         }
-        
+
         function getData(tableData: string[][]): string[][] {
             const lables = {
                 totalFees: {
@@ -244,7 +244,7 @@ async function mainWithWordgraphApi() {
                     FR: 'Total des heures facturables (hors prestations facturées au forfait) ',
                     EN: 'Total billable hours (other than lump-sum billed services)'
                 },
-                decimalSign: {FR: ',', EN: '.'}[lang] || '.',
+                decimalSign: { FR: ',', EN: '.' }[lang] || '.',
             }
             const amount = 9, vat = 10, hours = 7, rate = 8, nature = 2, descr = 14;
 
@@ -355,74 +355,74 @@ async function mainWithWordgraphApi() {
         if (!form) return;
         const title = excelTable[0];
         const inputs = insertInputsAndLables([0, 1, 2, 3, 3]);//Inserting the fields inputs (Client, Matter, Nature, Date). We insert the date twice
-    
-          inputs.forEach(input => input?.addEventListener('focusout', async () => await inputOnChange(input), { passive: true }));
-    
+
+        inputs.forEach(input => input?.addEventListener('focusout', async () => await inputOnChange(input), { passive: true }));
+
         insertInputsAndLables(['Français', 'English'], true); //Inserting langauges checkboxes
         form.innerHTML += `<button onclick="generateInvoice()"> Generate Invoice</button>`; //Inserting the button that generates the invoice
-    
+
         function insertInputsAndLables(indexes: (number | string)[], checkBox: boolean = false): HTMLInputElement[] {
-          const id = 'input';
-          return indexes.map(index => {
-            const input = document.createElement('input');
-            if (checkBox) input.type = 'checkbox';
-            else if (Number(index) < 3) input.type = 'text';
-            else input.type = 'date';
-            checkBox ? input.id = id : input.id = id + index.toString();
-            if (!checkBox) {
-              input.name = input.id;
-              input.dataset.index = index.toString();
-              input.setAttribute('list', input.id + 's');
-              input.autocomplete = "on";
-            }
-    
-            const label = document.createElement('label');
-              checkBox ? label.innerText = index.toString() : label.innerText = title[Number(index)];
-            label.htmlFor = input.id;
-    
-            form?.appendChild(label);
-            form?.appendChild(input);
-            if (Number(index) === 0) createDataList(input?.id, clientUniqueValues);//We create a unique values dataList for the 'Client' input
-            return input
-          });
+            const id = 'input';
+            return indexes.map(index => {
+                const input = document.createElement('input');
+                if (checkBox) input.type = 'checkbox';
+                else if (Number(index) < 3) input.type = 'text';
+                else input.type = 'date';
+                checkBox ? input.id = id : input.id = id + index.toString();
+                if (!checkBox) {
+                    input.name = input.id;
+                    input.dataset.index = index.toString();
+                    input.setAttribute('list', input.id + 's');
+                    input.autocomplete = "on";
+                }
+
+                const label = document.createElement('label');
+                checkBox ? label.innerText = index.toString() : label.innerText = title[Number(index)];
+                label.htmlFor = input.id;
+
+                form?.appendChild(label);
+                form?.appendChild(input);
+                if (Number(index) === 0) createDataList(input?.id, clientUniqueValues);//We create a unique values dataList for the 'Client' input
+                return input
+            });
         };
-    
+
         async function inputOnChange(input: HTMLInputElement, unfilter: boolean = false) {
             return console.log('filter table on input change was called')
-          const index = Number(input.dataset.index);
-    
-          if (index === 0) unfilter = true;//If this is the 'Client' column, we remove any filter from the table;
-    
-          //We filter the table accordin to the input's value and return the visible cells
-          const visibleCells = await filterTable(undefined, [{ column: index, value: getArray(input.value) }], unfilter);
-    
-          if (visibleCells.length < 1) return alert('There are no visible cells in the filtered table');
-    
-          //We create (or update) the unique values dataList for the next input 
-          const nextInput = getNextInput(input);
-          if (!nextInput) return;
-          createDataList(nextInput?.id || '', await getUniqueValues(Number(nextInput.dataset.index), visibleCells));
-    
-    
-          function getNextInput(input: HTMLInputElement) {
-            let nextInput: Element | null = input.nextElementSibling;
-            while (nextInput?.tagName !== 'INPUT' && nextInput?.nextElementSibling) {
-              nextInput = nextInput.nextElementSibling
-            };
-    
-            return nextInput as HTMLInputElement
-          }
-    
-          if (index === 1) {
-            //!Need to figuer out how to create a multiple choice input for nature
-            const nature = new Set((await filterTable(undefined, undefined, false)).map(row => row[index]));
-            //nature.forEach(el => form?.appendChild(createCheckBox(undefined, el)));
-          }
-    
+            const index = Number(input.dataset.index);
+
+            if (index === 0) unfilter = true;//If this is the 'Client' column, we remove any filter from the table;
+
+            //We filter the table accordin to the input's value and return the visible cells
+            const visibleCells = await filterTable(undefined, [{ column: index, value: getArray(input.value) }], unfilter);
+
+            if (visibleCells.length < 1) return alert('There are no visible cells in the filtered table');
+
+            //We create (or update) the unique values dataList for the next input 
+            const nextInput = getNextInput(input);
+            if (!nextInput) return;
+            createDataList(nextInput?.id || '', await getUniqueValues(Number(nextInput.dataset.index), visibleCells));
+
+
+            function getNextInput(input: HTMLInputElement) {
+                let nextInput: Element | null = input.nextElementSibling;
+                while (nextInput?.tagName !== 'INPUT' && nextInput?.nextElementSibling) {
+                    nextInput = nextInput.nextElementSibling
+                };
+
+                return nextInput as HTMLInputElement
+            }
+
+            if (index === 1) {
+                //!Need to figuer out how to create a multiple choice input for nature
+                const nature = new Set((await filterTable(undefined, undefined, false)).map(row => row[index]));
+                //nature.forEach(el => form?.appendChild(createCheckBox(undefined, el)));
+            }
+
         };
-    
-      }
-    
+
+    }
+
 }
 
 //main().catch(console.error);
@@ -439,9 +439,20 @@ async function editWordWithGraphApi(excelData: string[][], contentControlData: s
     // Function to copy a Word template to a new location
     async function copyTemplate(accessToken: string, templatePath: string, newPath: string[]) {
         const [folder, fileName] = newPath;
-        const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURIComponent(templatePath)}:/copy`;
+        const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURIComponent(templatePath)}`;
 
-        const response = await fetch(endpoint, {
+        const fileResponse = await fetch(endpoint, {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${accessToken}` },
+        });
+
+        const fileData = await fileResponse.json();
+        const fileId = fileData.id; // Extract the file ID
+        if (!fileId) return;
+
+        const copyTo = `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/copy`;
+
+        const response = await fetch(copyTo, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
@@ -510,7 +521,7 @@ async function editWordWithGraphApi(excelData: string[][], contentControlData: s
         if (await patch(patchData, filePath) === true)
             console.log('Content controls updated successfully');
     }
-    
+
     async function patch(patchData: { op: string; path: string; value: string | string[] }[], filePath: string) {
         const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/content`;
 
