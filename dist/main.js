@@ -628,7 +628,8 @@ async function uploadWordDocument(data, invoice) {
 }
 ;
 function newWordFileName(date, clientName, matters) {
-    return `Test_Facture_${clientName}_${Array.from(matters).join('&')}_${[date.getFullYear(), date.getMonth() + 1, date.getDate()].join('')}-${[date.getHours(), date.getMinutes()].join('-')}.docx`;
+    return 'test file name for now';
+    return `Test_Facture_${clientName}_${Array.from(matters).join('&')}_${[date.getFullYear(), date.getMonth() + 1, date.getDate()].join('')}@${[date.getHours(), date.getMinutes()].join(':')}.docx`;
 }
 async function editDocumentWordJSAPI(id, accessToken, data, controlsData) {
     if (!id || !accessToken || !data)

@@ -451,7 +451,7 @@ async function editWordWithGraphApi(excelData: string[][], contentControlData: s
                 parentReference: {
                     path: `/drive/root:/${folder}:/`,
                 },
-                name: fileName,
+                name: encodeURIComponent(fileName),
             }),
         });
 
