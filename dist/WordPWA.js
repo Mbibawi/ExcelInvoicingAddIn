@@ -1,8 +1,7 @@
 "use strict";
 /// <reference types="office-js" />
 async function fetchExcelTable(accessToken, filePath, tableName = 'LivreJournal') {
-    if (!)
-        const fileUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook:/workbook/tables/${tableName}/rows`;
+    const fileUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook:/workbook/tables/${tableName}/rows`;
     const response = await fetch(fileUrl, {
         method: "GET",
         headers: { Authorization: `Bearer ${accessToken}` }
@@ -22,8 +21,8 @@ async function fetchWordTemplate(accessToken, filePath) {
         throw new Error("Failed to fetch Word template");
     return await response.blob(); // Returns the Word template as a Blob
 }
-async function saveWordDocument(accessToken, filePath, fileName, blob) {
-    const fileUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}/${fileName}:/content`;
+async function saveWordDocument(accessToken, filePath, blob) {
+    const fileUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/content`;
     const response = await fetch(fileUrl, {
         method: "PUT",
         headers: {
@@ -50,6 +49,7 @@ async function createDocumentFromTemplate(accessToken, templatePath, newPath, ex
         if (tables.items.length > 0) {
             const firstTable = tables.items[0];
             for (const row of excelData) {
+                //@ts-expect-error
                 firstTable.addRow(-1, row);
             }
         }
@@ -57,19 +57,24 @@ async function createDocumentFromTemplate(accessToken, templatePath, newPath, ex
         const contentControls = doc.contentControls;
         contentControls.load("items, title");
         await context.sync();
-        contentControls.items.forEach((control) => {
-            if (contentControlData[control.title]) {
+        /*
+        contentControls.items.forEach(([title, text]) => {
+            if (title) {
                 control.insertText(contentControlData[control.title], Word.InsertLocation.replace);
             }
         });
+        */
         await context.sync();
         // Save the modified document
+        //@ts-expect-error
         const base64Doc = doc.body.getBase64();
         await context.sync();
         // Convert base64 to Blob and save to OneDrive
         const finalBlob = base64ToBlob(await base64Doc.value);
-        await saveWordDocument(accessToken, newPath, newName, finalBlob);
+        await saveWordDocument(accessToken, newPath, finalBlob);
     });
+}
+async function copyWordTemplate() {
 }
 // Utility function: Convert Blob to Base64
 async function blobToBase64(blob) {
@@ -88,31 +93,66 @@ function base64ToBlob(base64) {
     return new Blob([byteArray], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
 }
 // Usage Example
-async function main() {
+async function mainWithWordgraphApi() {
     const accessToken = await getAccessToken() || ''; // Ensure you obtain this via MSAL.js
+    if (!accessToken)
+        return;
     const excelPath = "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm";
     // Fetch Excel data
-    const excelData = filterExcelData(await fetchExcelTable(accessToken, excelPath, 'LivreJournal'));
-    let inputs = Array.from(document.getElementsByTagName('input'));
+    const excelData = await fetchExcelTable(accessToken, excelPath, 'LivreJournal');
+    insertInvoiceForm(excelData, Array.from(new Set(excelData.map(row => row[0]))));
+    const inputs = Array.from(document.getElementsByTagName('input'));
     const criteria = inputs.filter(input => Number(input.dataset.index));
+    //!For testing only
+    criteria[0].value = 'SCI SHAMS';
+    criteria[1].value = 'Adjudication studio rue Théodore Deck';
+    criteria[2].value = 'CARPA, Honoraire, Débours/Dépens, Provision/Règlement';
     const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.dataset.language || 'FR';
-    const invoice = { clientName: getInputValue(0), matters: getArray(getInputValue(1)), lang: lang, adress: excelData.map(row => row[15]) };
+    const invoice = {
+        clientName: getInputValue(0, criteria),
+        matters: getArray(getInputValue(1, criteria)),
+        lang: lang,
+        adress: excelData.map(row => row[15])
+    };
     const path = "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/";
     const templatePath = path + 'FactureTEMPLATE [NE PAS MODIFIDER].dotm';
-    const newPath = path + 'Clients/' + newWordFileName(new Date(), invoice.clientName, invoice.matters);
+    const newPath = [path + 'Clients', newWordFileName(new Date(), invoice.clientName, invoice.matters)];
     // Define content control replacements
     const contentControls = getContentControlsValues(invoice);
-    function getInputValue(index) {
+    await editWordWithGraphApi(filterExcelData(excelData), contentControls, templatePath, newPath, accessToken);
+    return;
+    function getInputValue(index, inputs) {
         return inputs.find(input => Number(input.dataset.index) === index)?.value || '';
     }
-    // Generate Word document from template
-    await createDocumentFromTemplate(accessToken, templatePath, newPath, excelData, contentControls);
+    async function editWithAny() {
+        // Generate Word document from template
+        await createDocumentFromTemplate(accessToken, templatePath, newPath.join('/'), excelData, contentControls);
+    }
     function filterExcelData(data, i = 0) {
-        while (i < criteria.length) {
+        while (i < 2) {
+            //!We exclued the nature input (column = 2) because it is a string[] of values not only one value.
             data = data.filter(row => row[Number(criteria[i].dataset.index)] === criteria[i].value);
             i++;
         }
+        const nature = criteria[2].value.split(', ');
+        data = data.filter(row => nature.includes(row[2]));
+        data = filterByDate(data);
         return getData(data);
+        function filterByDate(data) {
+            const [from, to] = getDateCriteria();
+            if (from && to)
+                return data.filter(row => new Date(row[3]) >= from && new Date(row[3]) <= to); //we filter by the date
+            else if (from)
+                return data.filter(row => new Date(row[3]) >= from); //we filter by the date
+            else if (to)
+                return data.filter(row => new Date(row[3]) <= to); //we filter by the date
+            else
+                return data.filter(row => new Date(row[3]) <= new Date()); //we filter by the date
+            function getDateCriteria() {
+                const [from, to] = criteria.filter(input => Number(input.dataset.index) === 3);
+                return [new Date(from.value) || undefined, new Date(to.value) || undefined];
+            }
+        }
         function getData(tableData) {
             const lables = {
                 totalFees: {
@@ -148,11 +188,7 @@ async function main() {
                     FR: 'Total des heures facturables (hors prestations facturées au forfait) ',
                     EN: 'Total billable hours (other than lump-sum billed services)'
                 },
-                decimal: {
-                    nature: '',
-                    FR: ',',
-                    EN: '.'
-                },
+                decimalSign: { FR: ',', EN: '.' }[lang] || '.',
             };
             const amount = 9, vat = 10, hours = 7, rate = 8, nature = 2, descr = 14;
             const data = tableData.map(row => {
@@ -174,8 +210,8 @@ async function main() {
             pushTotalsRows();
             return data;
             function getAmountString(value) {
-                //@ts-ignore
-                return value.toFixed(2).replace('.', lables.decimal[lang] || '.') + ' €' || '';
+                //@ts-expect
+                return value.toFixed(2).replace('.', lables.decimalSign) + ' €' || '';
             }
             function pushTotalsRows() {
                 //Adding rows for the totals of the different categories and amounts
@@ -239,6 +275,160 @@ async function main() {
             }
         }
     }
+    function insertInvoiceForm(excelTable, clientUniqueValues) {
+        const form = document.getElementById('form');
+        if (!form)
+            return;
+        const title = excelTable[0];
+        const inputs = insertInputsAndLables([0, 1, 2, 3, 3]); //Inserting the fields inputs (Client, Matter, Nature, Date). We insert the date twice
+        inputs.forEach(input => input?.addEventListener('focusout', async () => await inputOnChange(input), { passive: true }));
+        insertInputsAndLables(['Français', 'English'], true); //Inserting langauges checkboxes
+        form.innerHTML += `<button onclick="generateInvoice()"> Generate Invoice</button>`; //Inserting the button that generates the invoice
+        function insertInputsAndLables(indexes, checkBox = false) {
+            const id = 'input';
+            return indexes.map(index => {
+                const input = document.createElement('input');
+                if (checkBox)
+                    input.type = 'checkbox';
+                else if (Number(index) < 3)
+                    input.type = 'text';
+                else
+                    input.type = 'date';
+                checkBox ? input.id = id : input.id = id + index.toString();
+                if (!checkBox) {
+                    input.name = input.id;
+                    input.dataset.index = index.toString();
+                    input.setAttribute('list', input.id + 's');
+                    input.autocomplete = "on";
+                }
+                const label = document.createElement('label');
+                checkBox ? label.innerText = index.toString() : label.innerText = title[Number(index)];
+                label.htmlFor = input.id;
+                form?.appendChild(label);
+                form?.appendChild(input);
+                if (Number(index) === 0)
+                    createDataList(input?.id, clientUniqueValues); //We create a unique values dataList for the 'Client' input
+                return input;
+            });
+        }
+        ;
+        async function inputOnChange(input, unfilter = false) {
+            return console.log('filter table on input change was called');
+            const index = Number(input.dataset.index);
+            if (index === 0)
+                unfilter = true; //If this is the 'Client' column, we remove any filter from the table;
+            //We filter the table accordin to the input's value and return the visible cells
+            const visibleCells = await filterTable(undefined, [{ column: index, value: getArray(input.value) }], unfilter);
+            if (visibleCells.length < 1)
+                return alert('There are no visible cells in the filtered table');
+            //We create (or update) the unique values dataList for the next input 
+            const nextInput = getNextInput(input);
+            if (!nextInput)
+                return;
+            createDataList(nextInput?.id || '', await getUniqueValues(Number(nextInput.dataset.index), visibleCells));
+            function getNextInput(input) {
+                let nextInput = input.nextElementSibling;
+                while (nextInput?.tagName !== 'INPUT' && nextInput?.nextElementSibling) {
+                    nextInput = nextInput.nextElementSibling;
+                }
+                ;
+                return nextInput;
+            }
+            if (index === 1) {
+                //!Need to figuer out how to create a multiple choice input for nature
+                const nature = new Set((await filterTable(undefined, undefined, false)).map(row => row[index]));
+                //nature.forEach(el => form?.appendChild(createCheckBox(undefined, el)));
+            }
+        }
+        ;
+    }
 }
-main().catch(console.error);
+//main().catch(console.error);
+async function editWordWithGraphApi(excelData, contentControlData, templatePath, newPath, accessToken) {
+    // Function to authenticate and get access token
+    await copyTemplate(accessToken, templatePath, newPath);
+    await addRowsToTable(newPath.join('/'), excelData);
+    await updateContentControls(newPath.join('/'), contentControlData);
+    console.log('Document creation and updates completed successfully');
+    // Function to copy a Word template to a new location
+    async function copyTemplate(accessToken, templatePath, newPath) {
+        const [folder, fileName] = newPath;
+        const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${templatePath}:/copy`;
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                parentReference: {
+                    path: `/drive/root:/${folder}`,
+                },
+                name: fileName,
+            }),
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to copy template: ${response.statusText}`);
+        }
+        // Wait for the copy operation to complete
+        const location = response.headers.get('Location');
+        if (!location) {
+            throw new Error('Copy operation did not return a location header');
+        }
+        // Poll the status URL until the copy operation is complete
+        let statusResponse;
+        do {
+            statusResponse = await fetch(location, {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                },
+            });
+            if (!statusResponse.ok) {
+                throw new Error(`Failed to check copy status: ${statusResponse.statusText}`);
+            }
+            const status = await statusResponse.json();
+            if (status.status === 'completed') {
+                return newPath.join('/'); // Return the path of the new file
+            }
+            await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1 second before polling again
+        } while (true);
+    }
+    // Function to add rows to the first table in a Word document
+    async function addRowsToTable(filePath, newRows) {
+        // JSON patch to add rows to the first table
+        const patchData = newRows.map((row) => ({
+            op: 'add',
+            path: `/tables/0/rows/-`, // The "0" refers to the first table in the document
+            value: row,
+        }));
+        if (await patch(patchData, filePath) === true)
+            console.log('Rows added successfully');
+    }
+    // Function to update content controls by their titles
+    async function updateContentControls(filePath, contentControls) {
+        // JSON patch to update content controls
+        const patchData = contentControls.map(([title, text]) => ({
+            op: 'replace',
+            path: `/contentControls[title='${title}']/text`,
+            value: text,
+        }));
+        if (await patch(patchData, filePath) === true)
+            console.log('Content controls updated successfully');
+    }
+    async function patch(patchData, filePath) {
+        const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/content`;
+        const response = await fetch(endpoint, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(patchData),
+        });
+        if (!response.ok)
+            throw new Error(`Failed to update content controls: ${response.statusText}`);
+        else
+            return true;
+    }
+}
 //# sourceMappingURL=WordPWA.js.map

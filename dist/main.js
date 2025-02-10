@@ -167,35 +167,35 @@ async function showForm(id) {
         return input;
     }
     ;
-    /**
-     * Creates a dataList with the provided id from the unique values of the column which index is passed as parameter
-     * @param {string} id - the id of the dataList that will be created
-     * @param {number} index - the index of the column from which the unique values of the datalist will be retrieved
-     *
-    */
-    function createDataList(id, uniqueValues) {
-        //const uniqueValues = Array.from(new Set(visible.map(row => row[i])));
-        if (!id || !uniqueValues || uniqueValues.length < 1)
-            return;
-        id += 's';
-        // Create a new datalist element
-        let dataList = Array.from(document.getElementsByTagName('datalist')).find(list => list.id === id);
-        if (dataList)
-            dataList.remove();
-        dataList = document.createElement('datalist');
-        //@ts-ignore
-        dataList.id = id;
-        // Append options to the datalist
-        uniqueValues.forEach(option => {
-            const optionElement = document.createElement('option');
-            optionElement.value = option;
-            dataList?.appendChild(optionElement);
-        });
-        // Attach the datalist to the body or a specific element
-        document.body.appendChild(dataList);
-    }
-    ;
 }
+/**
+ * Creates a dataList with the provided id from the unique values of the column which index is passed as parameter
+ * @param {string} id - the id of the dataList that will be created
+ * @param {number} index - the index of the column from which the unique values of the datalist will be retrieved
+ *
+*/
+function createDataList(id, uniqueValues) {
+    //const uniqueValues = Array.from(new Set(visible.map(row => row[i])));
+    if (!id || !uniqueValues || uniqueValues.length < 1)
+        return;
+    id += 's';
+    // Create a new datalist element
+    let dataList = Array.from(document.getElementsByTagName('datalist')).find(list => list.id === id);
+    if (dataList)
+        dataList.remove();
+    dataList = document.createElement('datalist');
+    //@ts-ignore
+    dataList.id = id;
+    // Append options to the datalist
+    uniqueValues.forEach(option => {
+        const optionElement = document.createElement('option');
+        optionElement.value = option;
+        dataList?.appendChild(optionElement);
+    });
+    // Attach the datalist to the body or a specific element
+    document.body.appendChild(dataList);
+}
+;
 /**
  * Filters the Excel table based on a criteria
  * @param {[[number, string[]]]} criteria - the first element is the column index, the second element is the values[] based on which the column will be filtered
@@ -763,7 +763,7 @@ async function createWordDocument(filtered: any[][]) {
 function getTokenWithMSAL(clientId, redirectUri, msalConfig) {
     if (!clientId || !redirectUri || !msalConfig)
         return;
-    //@ts-ignore
+    //@ts-expect-error
     const msalInstance = new msal.PublicClientApplication(msalConfig);
     const loginRequest = { scopes: ["Files.ReadWrite"] };
     return acquireToken();

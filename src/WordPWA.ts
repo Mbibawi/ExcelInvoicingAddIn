@@ -123,7 +123,7 @@ async function mainWithWordgraphApi() {
     const excelPath = "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm"
     // Fetch Excel data
 
-    const excelData = filterExcelData(await fetchExcelTable(accessToken, excelPath, 'LivreJournal'));
+    const excelData = await fetchExcelTable(accessToken, excelPath, 'LivreJournal');
 
     insertInvoiceForm(excelData, Array.from(new Set(excelData.map(row => row[0]))));
     

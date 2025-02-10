@@ -20,7 +20,6 @@ function getAccessToken() {
             storeAuthStateInCookie: true
         }
     };
-    return 'EwCIA8l6BAAUBKgm8k1UswUNwklmy2v7U/S+1fEAAW3mLo2m+j+d+uqvV8G67AA/c1dG7DgnhW+g3bALiGDtdyrBPR1XsKdRIeL7ZVhp5A1gPLX4rwNgXXqpce6iX+4+R6Lil22lPbwMsrp7EJ/wdww2kc9SjWTR5rw0mxQusLIIqanfNf1X8EDWtzFmykOcIEHqhcPMh5Xd3kBlbrJMGFxAua01W6HAoe/MeS7uaAi0a++HtEpCJxM3KwOom34i5ZJtFXE1myPfwB0VrKld1D2+TDt3XQkG3Xj9pf2X4BEh0wsjwSiOtNWo73SAMIwjbLlVQ6Rg9IK9RUqAGLES2UealLne+3jZoI6/5TpTmfDAkJQUsYWgSLvRQQgHPaQQZgAAENxM6m66rNw5u72cCCstZehQArmJ9dbJeGs9kDKcTRcVCWJ8wHTPk4Y4foUNf+WpX7eUa+R+KfREV/wLelkm9E9BdObm/ndRdcz9iYJt6CsmdMV9QlHndh3FG187/R5ZkJEG8/qBISuKqqIBtBZusKOd7u49VV6rhJzHkNGEWf/jcch4MMgCPDh9VgjfHEIpRtKbKG0tS5kWCHs/PuBgc1fVetOmrs7MW9jG3Apx/7AfYATQF1hcBCzk2boSFUx2gnoiljjigbLWVGSSOoe/7qlkkkZT5h9OSjVBdDIshDup1H01BjK2AW/gAoJLZcKQ0HaDuhEAtfZqn/TlsGKuCFlGkDoPXklawE2JjeANqgf1INWVIbBjzs6LFirL4tIQPXnY4laV/sOGxxiAo7/s1siELF+YITPoz47ETncDST+J3fyVaF4dWtILtRfzcRgftt8+PoWDxdyhYvihYF1nPeHVggzz4xtJZR0Sb2Z+pAkbRkG4gRBigsY9EgoijgcaJdjNQRMYzxA619hY2oFOzawCiZlFqE3OFoJZCdHcIDovMIRY9WJT9Jdh37Q+zEaeSmHv9/lzpZ8JU9ttUuoVXUeMAl7TK47aWW4FIhEtArlSfMQR5GEZhQFFqos85koDrDlMi779KjY47gmvVzj1q57JC7MK4+NI6iwcuRyqDEwkbQ0QbFzbg8UvTKFO80uY5vzuznzw6KrHJOATTUesyKKFV07IcjmvmfBIfdsi5KE59Ep4vztseKRBkJhZdRyWNolx4Q0WiRfElmjjH9J0vdJ2HRsuax4JQFeiGlRR1chZNjN7Ag==';
     return getTokenWithMSAL(clientId, redirectUri, msalConfig);
 }
 // Fetch OneDrive File by Path
@@ -51,7 +50,7 @@ async function fetchExcelData(filePath = excelFilePath) {
             return;
         await workbook.xlsx.load(data);
         const worksheet = workbook.getWorksheet(1);
-        const data = worksheet.getSheetValues();
+        //const data = worksheet.getSheetValues();
         return data;
     }
     catch (error) {
