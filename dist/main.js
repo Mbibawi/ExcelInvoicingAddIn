@@ -492,10 +492,10 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
         createAndAppend(styleProps, "w:sz").setAttribute("w:val", style.fontSize.toString());
         // Set italic
         if (style.isItalic)
-            createAndAppend(styleProps, "w:i");
+            ['w:i', 'w:iCs'].forEach(tag => createAndAppend(styleProps, tag));
         // Set bold
         if (style.isBold)
-            createAndAppend(styleProps, "w:b");
+            ['w:b', 'w:bCs'].forEach(tag => createAndAppend(styleProps, tag));
         function createAndAppend(parent, tag, append = true) {
             const newElement = createTableElement(doc, tag);
             if (append)

@@ -576,9 +576,9 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
     createAndAppend(styleProps, "w:sz").setAttribute("w:val", style.fontSize.toString());
 
     // Set italic
-    if (style.isItalic) createAndAppend(styleProps, "w:i");
+    if (style.isItalic) ['w:i', 'w:iCs'].forEach(tag=>createAndAppend(styleProps, tag));
     // Set bold
-    if (style.isBold) createAndAppend(styleProps, "w:b");
+    if (style.isBold) ['w:b', 'w:bCs'].forEach(tag=>createAndAppend(styleProps, tag));
 
 
     function createAndAppend(parent: Element, tag: string, append: boolean = true) {
