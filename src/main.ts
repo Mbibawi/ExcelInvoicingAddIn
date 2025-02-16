@@ -497,7 +497,6 @@ async function uploadWordDocument(data: string[][], contentControls: string[][],
           style.isItalic = true;
           style.isBold = true;
       };
-      debugger
     }
   }
 

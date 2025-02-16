@@ -435,7 +435,6 @@ async function uploadWordDocument(data, contentControls, accessToken, filePath) 
                 style.isBold = true;
             }
             ;
-            debugger;
         }
     }
     //await editDocumentWordJSAPI(await copyTemplate()?.id, accessToken, data, getContentControlsValues(invoice.lang))
