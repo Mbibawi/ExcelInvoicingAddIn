@@ -1,7 +1,7 @@
 "use strict";
 const excelPath = "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm";
 const path = "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/";
-const templatePath = path + 'FactureTEMPLATE [NE PAS MODIFIDER].dotm';
+const templatePath = path + 'FactureTEMPLATE [NE PAS MODIFIDER].docx';
 const destinationFolder = path + 'Clients';
 const excelFilePath = "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm";
 const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
