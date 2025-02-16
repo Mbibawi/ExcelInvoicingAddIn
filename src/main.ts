@@ -493,7 +493,7 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
       cell === 0 ? style.isBold = true : style.isBold = false;//If it is the 1st element (the date for example), it is always bold
       [1, 3].includes(cell) ? style.isItalic = true : style.isItalic = false;//The second and last columns (the description and the VAT) are always italic
       if (row === data.length - 1 && [0, 2].includes(cell))
-        style.isItalic = false!;
+        style.isItalic = false;
       if (isTotal) {
         style.isItalic = true;
         style.isBold = true;
