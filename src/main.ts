@@ -497,7 +497,7 @@ async function uploadWordDocument(data: string[][], contentControls: string[][],
           style.isItalic = true;
           style.isBold = true;
       };
-      
+      debugger
     }
   }
 
@@ -642,7 +642,6 @@ async function uploadWordDocument(data: string[][], contentControls: string[][],
 };
 
 async function uploadToOneDrive(blob: Blob, filePath: string, accessToken: string) {
-  debugger
   const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/content`
 
   const response = await fetch(endpoint, {

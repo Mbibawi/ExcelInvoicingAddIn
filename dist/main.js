@@ -435,6 +435,7 @@ async function uploadWordDocument(data, contentControls, accessToken, filePath) 
                 style.isBold = true;
             }
             ;
+            debugger;
         }
     }
     //await editDocumentWordJSAPI(await copyTemplate()?.id, accessToken, data, getContentControlsValues(invoice.lang))
@@ -548,7 +549,6 @@ async function uploadWordDocument(data, contentControls, accessToken, filePath) 
 }
 ;
 async function uploadToOneDrive(blob, filePath, accessToken) {
-    debugger;
     const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/content`;
     const response = await fetch(endpoint, {
         method: 'PUT',
