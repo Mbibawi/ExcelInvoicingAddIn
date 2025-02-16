@@ -479,23 +479,19 @@ async function uploadWordDocument(data, contentControls, accessToken, destinatio
         const zip = new JSZip();
         const arrayBuffer = await blob.arrayBuffer();
         await zip.loadAsync(arrayBuffer);
-        debugger;
         const documentXml = await zip.file("word/document.xml").async("string");
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(documentXml, "application/xml");
         return { xmlDoc, zip };
     }
     //@ts-expect-error
-    async function convertXMLIntoBlob(xmlDoc, zip) {
-        //@ts-expect-error
-        if (!zip)
-            zip = new JSZip();
+    async function convertXMLIntoBlob(editedXml, zip) {
+        debugger;
         const serializer = new XMLSerializer();
-        let modifiedDocumentXml = serializer.serializeToString(xmlDoc);
-        modifiedDocumentXml = `<?xml version="1.0" encoding="UTF-8"?>\n` + modifiedDocumentXml;
+        let modifiedDocumentXml = serializer.serializeToString(editedXml);
+        //modifiedDocumentXml = `<?xml version="1.0" encoding="UTF-8"?>\n` + modifiedDocumentXml;
         zip.file("word/document.xml", modifiedDocumentXml);
-        const modifiedArrayBuffer = await zip.generateAsync({ type: "arraybuffer" });
-        return new Blob([modifiedArrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+        return await zip.generateAsync({ type: "blob" });
     }
     function getXMLTable(xmlDoc, index) {
         const tables = xmlDoc.getElementsByTagName("w:tbl");
@@ -554,8 +550,8 @@ async function uploadToOneDrive(blob, folderPath, fileName, accessToken) {
 }
 ;
 function newWordFileName(date, clientName, matters) {
-    return 'test file name for now.docx';
-    return `Test_Facture_${clientName}_${Array.from(matters).join('&')}_${[date.getFullYear(), date.getMonth() + 1, date.getDate()].join('')}@${[date.getHours(), date.getMinutes()].join(':')}.docx`;
+    // return 'test file name for now.docx'
+    return `_Test_Facture_${clientName}_${Array.from(matters).join('&')}_${[date.getFullYear(), date.getMonth() + 1, date.getDate()].join('')}@${[date.getHours(), date.getMinutes()].join(':')}.docx`;
 }
 async function editDocumentWordJSAPI(id, accessToken, data, controlsData) {
     if (!id || !accessToken || !data)

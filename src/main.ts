@@ -558,32 +558,28 @@ async function uploadWordDocument(data: string[][], contentControls: string[][],
     const arrayBuffer = await blob.arrayBuffer();
 
     await zip.loadAsync(arrayBuffer);
-    
-    debugger
+
     const documentXml = await zip.file("word/document.xml").async("string");
 
     const parser = new DOMParser();
 
     const xmlDoc = parser.parseFromString(documentXml, "application/xml");
+    
     return { xmlDoc, zip }
   }
 
   //@ts-expect-error
-  async function convertXMLIntoBlob(xmlDoc: XMLDocument, zip: JSZip) {
-    //@ts-expect-error
-    if (!zip) zip = new JSZip();
+  async function convertXMLIntoBlob(editedXml: XMLDocument, zip: JSZip) {      debugger
 
     const serializer = new XMLSerializer();
-    let modifiedDocumentXml = serializer.serializeToString(xmlDoc);
+    let modifiedDocumentXml = serializer.serializeToString(editedXml);
 
-    modifiedDocumentXml = `<?xml version="1.0" encoding="UTF-8"?>\n` + modifiedDocumentXml;
+    //modifiedDocumentXml = `<?xml version="1.0" encoding="UTF-8"?>\n` + modifiedDocumentXml;
 
 
     zip.file("word/document.xml", modifiedDocumentXml);
 
-    const modifiedArrayBuffer = await zip.generateAsync({ type: "arraybuffer" });
-
-    return new Blob([modifiedArrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    return await zip.generateAsync({ type: "blob" });
   }
 
   function getXMLTable(xmlDoc: XMLDocument, index: number) {
@@ -647,8 +643,8 @@ async function uploadToOneDrive(blob: Blob, folderPath: string, fileName: string
 };
 
 function newWordFileName(date: Date, clientName: string, matters: string[]): string {
-  return 'test file name for now.docx'
-  return `Test_Facture_${clientName}_${Array.from(matters).join('&')}_${[date.getFullYear(), date.getMonth() + 1, date.getDate()].join('')}@${[date.getHours(), date.getMinutes()].join(':')}.docx`;
+ // return 'test file name for now.docx'
+  return `_Test_Facture_${clientName}_${Array.from(matters).join('&')}_${[date.getFullYear(), date.getMonth() + 1, date.getDate()].join('')}@${[date.getHours(), date.getMinutes()].join(':')}.docx`;
 
 }
 
