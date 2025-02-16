@@ -506,7 +506,7 @@ async function uploadWordDocument(data, contentControls, accessToken, filePath) 
         if (style.isBold)
             createAndAppend(styleProps, "w:b");
         function createAndAppend(parent, tag, append = true) {
-            let newElement = parent.querySelector(tag);
+            let newElement = parent.getElementsByTagNameNS("http://schemas.openxmlformats.org/wordprocessingml/2006/main", tag)[0];
             if (newElement)
                 return newElement;
             newElement = doc.createElement(tag);

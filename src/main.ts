@@ -592,7 +592,7 @@ async function uploadWordDocument(data: string[][], contentControls: string[][],
 
     
     function createAndAppend(parent: Element, tag: string, append:boolean = true) {
-      let newElement = parent.querySelector(tag);
+      let newElement =  parent.getElementsByTagNameNS("http://schemas.openxmlformats.org/wordprocessingml/2006/main", tag)[0];
       if (newElement) return newElement;
       newElement = doc.createElement(tag);
       append?parent.appendChild(newElement):parent.insertBefore(newElement, parent.firstChild);
