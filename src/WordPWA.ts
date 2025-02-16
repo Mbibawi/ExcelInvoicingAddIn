@@ -138,7 +138,9 @@ async function mainWithWordgraphApi() {
     //!For testing only
     criteria[0].value = 'SCI SHAMS';
     criteria[1].value = 'Adjudication studio rue Théodore Deck';
-    criteria[2].value = 'CARPA, Honoraire, Débours/Dépens, Provision/Règlement';
+    criteria[2].value = ['CARPA', 'Honoraire', 'Débours/Dépens', 'Provision/Règlement'].join(', ');
+    criteria[3].value = '01/01/2015';
+    criteria[4].value = '01/01/2025';
 
     inputs.filter(input => input.type === 'checkbox')[1].checked = true;
 
@@ -164,13 +166,13 @@ async function mainWithWordgraphApi() {
     await editWordWithGraphApi(filtered, contentControls, templatePath, fileName, accessToken);
     return
 
-    
+
     async function editWithAny() {
         // Generate Word document from template
         await createDocumentFromTemplate(accessToken, templatePath, `${path}Client/${fileName}`, excelData, contentControls);
-        
+
     }
-    
+
 }
 
 function getInputValue(index: number, inputs: HTMLInputElement[]) {
@@ -250,14 +252,14 @@ function insertInvoiceForm(excelTable: string[][], clientUniqueValues: string[])
 
 }
 
-function filterExcelData(data: string[][], criteria:HTMLInputElement[], lang:string, i: number = 0) {
+function filterExcelData(data: string[][], criteria: HTMLInputElement[], lang: string, i: number = 0) {
     while (i < 2) {
         //!We exclued the nature input (column = 2) because it is a string[] of values not only one value.
         data = data.filter(row => row[Number(criteria[i].dataset.index)] === criteria[i].value);
         i++
     }
 
-    const nature = criteria[2].value.replace(' ', '').split(',');
+    const nature = criteria[2].value.replaceAll(' ', '').split(',');
     data = data.filter(row => nature.includes(row[2]));
 
     data = filterByDate(data);
@@ -267,19 +269,23 @@ function filterExcelData(data: string[][], criteria:HTMLInputElement[], lang:str
     function filterByDate(data: string[][]) {
         const [from, to] = getDateCriteria();
 
-        if (from && to)
-            return data.filter(row => new Date(row[3]) >= from && new Date(row[3]) <= to); //we filter by the date
-        else if (from)
-            return data.filter(row => new Date(row[3]) >= from); //we filter by the date
-        else if (to)
-            return data.filter(row => new Date(row[3]) <= to); //we filter by the date
+        if (Number(from) && Number(to))
+            return data.filter(row => convertDate(row[3]) >= new Date(from).getTime() && convertDate(row[3]) <= new Date(to).getTime()); //we filter by the date
+        else if (Number(from))
+            return data.filter(row => convertDate(row[3]) >= new Date(from).getTime()); //we filter by the date
+        else if (Number(to))
+            return data.filter(row => convertDate(row[3]) <= new Date(to).getTime()); //we filter by the date
         else
-            return data.filter(row => new Date(row[3]) <= new Date()); //we filter by the date
+            return data.filter(row => convertDate(row[3]) <= new Date().getTime()); //we filter by the date
 
 
         function getDateCriteria() {
             const [from, to] = criteria.filter(input => Number(input.dataset.index) === 3);
             return [new Date(from.value) || undefined, new Date(to.value) || undefined];
+        }
+
+        function convertDate(date: string){
+            return dateFromExcel(Number(date)).getTime();
         }
     }
 
@@ -491,7 +497,7 @@ async function editWordWithGraphApi(excelData: string[][], contentControlData: s
         } while (true);
     }
 
-    async function getFileDataByPath(accessToken: string, filePath:string) {
+    async function getFileDataByPath(accessToken: string, filePath: string) {
         const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURIComponent(filePath)}`;
 
         const fileResponse = await fetch(endpoint, {

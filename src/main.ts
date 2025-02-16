@@ -628,22 +628,20 @@ async function uploadWordDocument(data: string[][], contentControls:string[][], 
     textElement.textContent = text;
   }
 
+};
 
+async function uploadToOneDrive(blob: Blob, folderPath: string, fileName: string, accessToken: string) {
+  const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${folderPath}/${fileName}:/content`
 
-  async function uploadToOneDrive(blob: Blob, folderPath: string, fileName: string, accessToken: string) {
-    const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${folderPath}/${fileName}:/content`
-
-    const response = await fetch(endpoint, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // Correct MIME type for Word docs
-      },
-      body: blob,  // Use the template's content as the new document's content
-    });
-    response.ok ? console.log('succefully uploaded the new file') : console.log('failed to upload the file to onedrive error = ', await response.json())
-  };
-
+  const response = await fetch(endpoint, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // Correct MIME type for Word docs
+    },
+    body: blob,  // Use the template's content as the new document's content
+  });
+  response.ok ? console.log('succefully uploaded the new file') : console.log('failed to upload the file to onedrive error = ', await response.json())
 };
 
 function newWordFileName(date: Date, clientName: string, matters: string[]): string {

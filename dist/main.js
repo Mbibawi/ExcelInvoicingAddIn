@@ -537,19 +537,19 @@ async function uploadWordDocument(data, contentControls, accessToken, destinatio
             return;
         textElement.textContent = text;
     }
-    async function uploadToOneDrive(blob, folderPath, fileName, accessToken) {
-        const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${folderPath}/${fileName}:/content`;
-        const response = await fetch(endpoint, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // Correct MIME type for Word docs
-            },
-            body: blob, // Use the template's content as the new document's content
-        });
-        response.ok ? console.log('succefully uploaded the new file') : console.log('failed to upload the file to onedrive error = ', await response.json());
-    }
-    ;
+}
+;
+async function uploadToOneDrive(blob, folderPath, fileName, accessToken) {
+    const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${folderPath}/${fileName}:/content`;
+    const response = await fetch(endpoint, {
+        method: 'PUT',
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // Correct MIME type for Word docs
+        },
+        body: blob, // Use the template's content as the new document's content
+    });
+    response.ok ? console.log('succefully uploaded the new file') : console.log('failed to upload the file to onedrive error = ', await response.json());
 }
 ;
 function newWordFileName(date, clientName, matters) {

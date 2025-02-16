@@ -229,11 +229,6 @@ async function extractInvoiceData() {
                 .map(el => el.toString().padStart(2, '0'))
                 .join(':');
         }
-        function dateFromExcel(excelDate) {
-            const date = new Date((excelDate - 25569) * (60 * 60 * 24) * 1000); //This gives the days converted from milliseconds. 
-            const dateOffset = date.getTimezoneOffset() * 60 * 1000; //Getting the difference in milleseconds
-            return new Date(date.getTime() + dateOffset);
-        }
     }
     function filterRows(i, tableData) {
         while (i < criteria.length) {
@@ -243,6 +238,11 @@ async function extractInvoiceData() {
         }
         return tableData;
     }
+}
+function dateFromExcel(excelDate) {
+    const date = new Date((excelDate - 25569) * (60 * 60 * 24) * 1000); //This gives the days converted from milliseconds. 
+    const dateOffset = date.getTimezoneOffset() * 60 * 1000; //Getting the difference in milleseconds
+    return new Date(date.getTime() + dateOffset);
 }
 function getContentControlsValues(invoice) {
     const date = new Date();

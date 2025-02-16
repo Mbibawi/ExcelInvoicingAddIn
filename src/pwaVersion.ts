@@ -279,11 +279,6 @@ async function extractInvoiceData() {
                 .join(':');
         }
 
-        function dateFromExcel(excelDate: number) {
-            const date = new Date((excelDate - 25569) * (60 * 60 * 24) * 1000);//This gives the days converted from milliseconds. 
-            const dateOffset = date.getTimezoneOffset() * 60 * 1000;//Getting the difference in milleseconds
-            return new Date(date.getTime() + dateOffset);
-        }
 
     }
     function filterRows(i: number, tableData: string[][]) {
@@ -296,6 +291,12 @@ async function extractInvoiceData() {
     }
 
 
+}
+
+function dateFromExcel(excelDate: number) {
+    const date = new Date((excelDate - 25569) * (60 * 60 * 24) * 1000);//This gives the days converted from milliseconds. 
+    const dateOffset = date.getTimezoneOffset() * 60 * 1000;//Getting the difference in milleseconds
+    return new Date(date.getTime() + dateOffset);
 }
 
 function getContentControlsValues(invoice: { clientName: string, matters: string[], adress: string[], lang: string }): string[][] {

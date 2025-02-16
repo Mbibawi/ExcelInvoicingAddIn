@@ -109,7 +109,9 @@ async function mainWithWordgraphApi() {
     //!For testing only
     criteria[0].value = 'SCI SHAMS';
     criteria[1].value = 'Adjudication studio rue Théodore Deck';
-    criteria[2].value = 'CARPA, Honoraire, Débours/Dépens, Provision/Règlement';
+    criteria[2].value = ['CARPA', 'Honoraire', 'Débours/Dépens', 'Provision/Règlement'].join(', ');
+    criteria[3].value = '01/01/2015';
+    criteria[4].value = '01/01/2025';
     inputs.filter(input => input.type === 'checkbox')[1].checked = true;
     const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.dataset.language || 'FR';
     console.log('language = ', lang);
@@ -208,23 +210,26 @@ function filterExcelData(data, criteria, lang, i = 0) {
         data = data.filter(row => row[Number(criteria[i].dataset.index)] === criteria[i].value);
         i++;
     }
-    const nature = criteria[2].value.replace(' ', '').split(',');
+    const nature = criteria[2].value.replaceAll(' ', '').split(',');
     data = data.filter(row => nature.includes(row[2]));
     data = filterByDate(data);
     return getData(data);
     function filterByDate(data) {
         const [from, to] = getDateCriteria();
-        if (from && to)
-            return data.filter(row => new Date(row[3]) >= from && new Date(row[3]) <= to); //we filter by the date
-        else if (from)
-            return data.filter(row => new Date(row[3]) >= from); //we filter by the date
-        else if (to)
-            return data.filter(row => new Date(row[3]) <= to); //we filter by the date
+        if (Number(from) && Number(to))
+            return data.filter(row => convertDate(row[3]) >= new Date(from).getTime() && convertDate(row[3]) <= new Date(to).getTime()); //we filter by the date
+        else if (Number(from))
+            return data.filter(row => convertDate(row[3]) >= new Date(from).getTime()); //we filter by the date
+        else if (Number(to))
+            return data.filter(row => convertDate(row[3]) <= new Date(to).getTime()); //we filter by the date
         else
-            return data.filter(row => new Date(row[3]) <= new Date()); //we filter by the date
+            return data.filter(row => convertDate(row[3]) <= new Date().getTime()); //we filter by the date
         function getDateCriteria() {
             const [from, to] = criteria.filter(input => Number(input.dataset.index) === 3);
             return [new Date(from.value) || undefined, new Date(to.value) || undefined];
+        }
+        function convertDate(date) {
+            return dateFromExcel(Number(date)).getTime();
         }
     }
     function getData(tableData) {
