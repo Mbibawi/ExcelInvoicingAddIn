@@ -555,6 +555,7 @@ async function uploadWordDocument(data: string[][], contentControls:string[][], 
     const arrayBuffer = await blob.arrayBuffer();
     //@ts-ignore
     const zip = new JSZip();
+    //zip.support.nodebuffer = false;
 
     await zip.loadAsync(arrayBuffer);
 
