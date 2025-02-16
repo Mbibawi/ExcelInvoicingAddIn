@@ -490,14 +490,14 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
 
     function adaptStyle(row: number, cell: number, isTotal: boolean = false) {
       debugger
-      cell === 0 ? style.isBold = true : style.isBold = false;//If it is the 1st element (the date for example), it is always bold
-      [1, 3].includes(cell) ? style.isItalic = true : style.isItalic = false;//The second and last columns (the description and the VAT) are always italic
+      if (cell === 0 || isTotal)
+        style.isBold = true;
+      else style.isBold = false;//If it is the 1st element (the date for example), it is always bold
+      if ([1, 3].includes(cell) || isTotal)
+        style.isItalic = true;
+      else style.isItalic = false;//The second and last columns (the description and the VAT) are always italic
       if (row === data.length - 1 && [0, 2].includes(cell))
         style.isItalic = false;
-      if (isTotal) {
-        style.isItalic = true;
-        style.isBold = true;
-      };
     }
   }
 
