@@ -461,7 +461,7 @@ async function uploadWordDocument(data: string[][], contentControls: string[][],
     const zip = await convertBlobIntoXML(blob);
     const doc = zip.xmlDoc;
     if (!doc) return;
-    const table = getXMLTable(doc, 0);
+    const table = getXMLElement(doc, "w:tbl", 0);
     const style = {
       isBold: false,
       isItalic: false,
@@ -470,7 +470,7 @@ async function uploadWordDocument(data: string[][], contentControls: string[][],
     }
 
     data.forEach((row, x) => {
-      const newXmlRow = insertRowToXMLTable(doc, table, 0);
+      const newXmlRow = insertRowToXMLTable(doc, table);
       if (!newXmlRow) return;
       row.forEach((text, y) => {
         //adaptStyle(x, y, row[0].startsWith('Total'));
@@ -549,27 +549,18 @@ async function uploadWordDocument(data: string[][], contentControls: string[][],
     return await zip.generateAsync({ type: "blob" });
   }
 
-  function getXMLTable(xmlDoc: XMLDocument, index: number) {
-    const tables = xmlDoc.getElementsByTagName("w:tbl");
-    return tables[index];
+  function getXMLElement(xmlDoc: XMLDocument |Element, tag:string, index: number) {
+    const elements = xmlDoc.getElementsByTagName(tag);
+    return elements[index];
   }
 
   function insertRowToXMLTable(xmlDoc: XMLDocument, table: Element, after: number = -1) {
     if (!table) return;
+    
     const row = createTableElement(xmlDoc, "w:tr");
-    after >= 0 ? table.children[after].insertAdjacentElement('afterend', row) :
+    after >= 0 ? getXMLElement(table, 'w:tr', after)?.insertAdjacentElement('afterend', row) :
       table.appendChild(row);
     return row;
-  }
-
-  function formatText(element: HTMLElement, style: { bold: boolean, italic: boolean, fontSize: number, fontName:string }) {
-    if (style.bold) element.style.fontWeight = "bold";
-    if (style.italic) element.style.fontStyle = "italic";
-    if (style.fontSize) element.style.fontSize = style.fontSize.toString() + 'pt';
-    if (style.fontName)
-      element.style.fontFamily = style.fontName;
-    return element
-
   }
 
   function setRunStyle(runElement: Element, style: { fontName: string; fontSize: number; isItalic: boolean; isBold: boolean}, doc:Document): void {
@@ -593,7 +584,7 @@ async function uploadWordDocument(data: string[][], contentControls: string[][],
     function createAndAppend(parent: Element, tag: string, append:boolean = true) {
       //let newElement =  parent.getElementsByTagNameNS("http://schemas.openxmlformats.org/wordprocessingml/2006/main", tag)[0];
       //if (newElement) return newElement;
-      const newElement = doc.createElement(tag);
+      const newElement = createTableElement(doc, tag);
       append?parent.appendChild(newElement):parent.insertBefore(newElement, parent.firstChild);
       return newElement
       
