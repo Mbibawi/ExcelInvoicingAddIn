@@ -426,6 +426,7 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
         const newBlob = await convertXMLIntoBlob(doc, zip.zip);
         await uploadToOneDrive(newBlob, filePath, accessToken);
         function adaptStyle(row, cell, isTotal = false) {
+            debugger;
             cell === 0 ? style.isBold = true : style.isBold = false; //If it is the 1st element (the date for example), it is always bold
             [1, 3].includes(cell) ? style.isItalic = true : style.isItalic = false; //The second and last columns (the description and the VAT) are always italic
             if (row === data.length - 1 && [0, 2].includes(cell))
@@ -463,7 +464,6 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
     async function convertXMLIntoBlob(editedXml, zip) {
         const serializer = new XMLSerializer();
         let modifiedDocumentXml = serializer.serializeToString(editedXml);
-        //modifiedDocumentXml = `<?xml version="1.0" encoding="UTF-8"?>\n` + modifiedDocumentXml;
         zip.file("word/document.xml", modifiedDocumentXml);
         return await zip.generateAsync({ type: "blob" });
     }

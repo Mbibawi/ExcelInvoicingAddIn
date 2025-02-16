@@ -489,6 +489,7 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
     await uploadToOneDrive(newBlob, filePath, accessToken);
 
     function adaptStyle(row: number, cell: number, isTotal: boolean = false) {
+      debugger
       cell === 0 ? style.isBold = true : style.isBold = false;//If it is the 1st element (the date for example), it is always bold
       [1, 3].includes(cell) ? style.isItalic = true : style.isItalic = false;//The second and last columns (the description and the VAT) are always italic
       if (row === data.length - 1 && [0, 2].includes(cell))
@@ -541,9 +542,6 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
     const serializer = new XMLSerializer();
     let modifiedDocumentXml = serializer.serializeToString(editedXml);
 
-    //modifiedDocumentXml = `<?xml version="1.0" encoding="UTF-8"?>\n` + modifiedDocumentXml;
-
-
     zip.file("word/document.xml", modifiedDocumentXml);
 
     return await zip.generateAsync({ type: "blob" });
@@ -556,7 +554,6 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
 
   function insertRowToXMLTable(xmlDoc: XMLDocument, table: Element, after: number = -1) {
     if (!table) return;
-
     const row = createTableElement(xmlDoc, "w:tr");
     after >= 0 ? getXMLElement(table, 'w:tr', after)?.insertAdjacentElement('afterend', row) :
       table.appendChild(row);
