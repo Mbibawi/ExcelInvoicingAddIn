@@ -1,11 +1,6 @@
 "use strict";
 // Authentication
 //const accessToken = getAccessToken();
-const accessToken = getAccessToken();
-const path = "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/";
-const templatePath = path + 'FactureTEMPLATE [NE PAS MODIFIDER].dotm';
-const destinationFolder = path + 'Clients';
-const excelFilePath = "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm";
 function getAccessToken() {
     const clientId = "157dd297-447d-4592-b2d3-76b643b97132";
     const redirectUri = "https://mbibawi.github.io/ExcelInvoicingAddIn"; //!must be the same domain as the app
@@ -23,7 +18,7 @@ function getAccessToken() {
     return getTokenWithMSAL(clientId, redirectUri, msalConfig);
 }
 // Fetch OneDrive File by Path
-async function fetchOneDriveFileByPath(filePathAndName) {
+async function fetchOneDriveFileByPath(filePathAndName, accessToken) {
     try {
         const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePathAndName}:/content`;
         const response = await fetch(url, {
@@ -40,34 +35,46 @@ async function fetchOneDriveFileByPath(filePathAndName) {
         console.error("Error fetching OneDrive file:", error);
     }
 }
-// Fetch Excel Data
-async function fetchExcelData(filePath = excelFilePath) {
-    try {
-        //@ts-expect-error
-        const workbook = new ExcelJS.Workbook();
-        const data = await fetchOneDriveFileByPath(filePath);
-        if (!data)
-            return;
-        await workbook.xlsx.load(data);
-        const worksheet = workbook.getWorksheet(1);
-        //const data = worksheet.getSheetValues();
-        return data;
-    }
-    catch (error) {
-        console.error("Error fetching Excel data:", error);
-    }
-}
 // Update Word Document
 async function invoice() {
+    const accessToken = await getAccessToken() || '';
+    if (!accessToken)
+        return;
+    const excelData = await fetchExcelTable(accessToken, excelPath, 'LivreJournal');
+    if (!excelData)
+        return;
+    insertInvoiceForm(excelData, Array.from(new Set(excelData.map(row => row[0]))));
+    const inputs = Array.from(document.getElementsByTagName('input'));
+    const criteria = inputs.filter(input => Number(input.dataset.index) >= 0);
+    (function fillInputs() {
+        //!For testing only
+        criteria[0].value = 'SCI SHAMS';
+        criteria[1].value = 'Adjudication studio rue Théodore Deck';
+        criteria[2].value = 'CARPA, Honoraire, Débours/Dépens, Provision/Règlement';
+        inputs.filter(input => input.type === 'checkbox')[1].checked = true;
+    })();
+    const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.dataset.language || 'FR';
+    const filtered = filterExcelData(excelData, criteria, lang);
+    debugger;
+    const invoice = {
+        clientName: getInputValue(0, criteria),
+        matters: getArray(getInputValue(1, criteria)),
+        lang: lang,
+        adress: Array.from(new Set(filtered.map(row => row[16])))
+    };
+    const contentControls = getContentControlsValues(invoice);
+    await uploadWordDocument(filtered, contentControls, accessToken, destinationFolder, newWordFileName(new Date(), invoice.clientName, invoice.matters));
+    //const filePath = await saveWordDocumentToNewLocation(invoice, accessToken);
+    //const newDocument = await fetchOneDriveFileByPath(filePath || '', accessToken);
+    return;
     const tableData = await extractInvoiceData();
-    const lang = Array.from(document.getElementsByTagName('input')).find(input => input.type === 'checkbox' && input.checked === true)?.value;
+    //const lang = Array.from(document.getElementsByTagName('input')).find(input => input.type === 'checkbox' && input.checked === true)?.value;
     const invoiceDetails = {
         clientName: tableData.map(row => String(row[0]))[0] || 'CLIENT',
         matters: (await getUniqueValues(1, tableData)).map(el => String(el)),
         adress: (await getUniqueValues(15, tableData)).map(el => String(el)),
         lang: lang || 'FR'
     };
-    const richText = getContentControlsValues(invoiceDetails);
     if (!tableData)
         return;
     try {
@@ -85,12 +92,13 @@ async function invoice() {
         });
         // Update Rich Text Content Controls
         const contentControls = document.contentControls;
-        richText.forEach(([title, text]) => {
+        getContentControlsValues(invoice)
+            .forEach(([title, text]) => {
             const control = contentControls.getByTitle(title);
             //@ts-expect-error
             control.text = text;
         });
-        await document.save();
+        document.save();
     }
     catch (error) {
         console.error("Error updating Word document:", error);
@@ -286,7 +294,7 @@ function getContentControlsValues(invoice) {
     };
     return Object.keys(fields).map(key => [fields[key].title, fields[key].text]);
 }
-function getMSGraphClient() {
+function getMSGraphClient(accessToken) {
     //@ts-expect-error
     return MicrosoftGraph.Client.init({
         //@ts-expect-error
@@ -296,13 +304,15 @@ function getMSGraphClient() {
     });
 }
 // Save Word Document to Another Location
-async function saveWordDocumentToNewLocation(originalFilePath, newFilePath = destinationFolder, invoice) {
+async function saveWordDocumentToNewLocation(invoice, accessToken, originalFilePath = templatePath, newFilePath = destinationFolder) {
     const date = new Date();
-    const fileName = `Test_Facture_${invoice.clientName}_${Array.from(invoice.matters).join('&')}_${[date.getFullYear(), date.getMonth() + 1, date.getDate()].join('')}@${[date.getHours(), date.getMinutes()].join(':')}.docx`;
+    const fileName = newWordFileName(date, invoice.clientName, invoice.matters);
     newFilePath = `${destinationFolder} / ${fileName}`;
     try {
-        const fileContent = await fetchOneDriveFileByPath(originalFilePath);
-        await getMSGraphClient().api(`/me/drive/root:${newFilePath}:/content`).put(fileContent);
+        const fileContent = await fetchOneDriveFileByPath(originalFilePath, accessToken);
+        const resp = await getMSGraphClient(accessToken).api(`/me/drive/root:${newFilePath}:/content`).put(fileContent);
+        console.log('put response = ', resp);
+        return newFilePath;
     }
     catch (error) {
         console.error("Error saving Word document:", error);

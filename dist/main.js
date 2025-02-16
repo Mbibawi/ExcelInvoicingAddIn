@@ -1,4 +1,10 @@
 "use strict";
+const excelPath = "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm";
+const path = "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/";
+const templatePath = path + 'FactureTEMPLATE [NE PAS MODIFIDER].dotm';
+const destinationFolder = path + 'Clients';
+const excelFilePath = "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm";
+const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
 Office.onReady((info) => {
     if (info.host === Office.HostType.Excel) {
         // Excel-specific initialization code goes here
@@ -246,7 +252,7 @@ async function generateInvoice() {
         adress: (await getUniqueValues(15, visible)).map(el => String(el)),
         lang: lang
     };
-    await uploadWordDocument(getData(), invoiceDetails);
+    await uploadWordDocument(getData(), getContentControlsValues(invoiceDetails), await getAccessToken() || '', destinationFolder, newWordFileName(new Date(), invoiceDetails.clientName, invoiceDetails.matters));
     function getData() {
         const lables = {
             totalFees: {
@@ -381,66 +387,34 @@ async function getUniqueValues(index, array, tableName = 'LivreJournal') {
     return Array.from(new Set(array.map(row => row[index])));
 }
 ;
-async function uploadWordDocument(data, invoice) {
-    const clientId = "157dd297-447d-4592-b2d3-76b643b97132"; //the new one
-    const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
-    const redirectUri = "https://mbibawi.github.io/ExcelInvoicingAddIn"; //!must be the same domain as the app
-    // MSAL configuration
-    const msalConfig = {
-        auth: {
-            clientId: clientId,
-            authority: "https://login.microsoftonline.com/common",
-            redirectUri: redirectUri,
-        },
-        cache: {
-            cacheLocation: "localStorage",
-            storeAuthStateInCookie: true
-        }
-    };
-    //const accessToken = await authenticateUser();
-    const accessToken = await getTokenWithMSAL(clientId, redirectUri, msalConfig);
-    if (accessToken) {
-        console.log("Successfully retrieved token:", accessToken);
-        //Office.context.ui.messageParent(`Access token: ${accessToken}`);
-    }
-    else {
-        return console.log("Failed to retrieve token.");
-    }
-    const date = new Date();
-    const fileName = newWordFileName(date, invoice.clientName, invoice.matters);
-    const path = "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/";
-    const templatePath = path + 'FactureTEMPLATE [NE PAS MODIFIDER].dotm';
-    const destinationFolder = path + 'Clients';
-    await createWordDocumentFromTemplate(templatePath, destinationFolder, accessToken, tenantId);
-    async function createWordDocumentFromTemplate(templatePath, destinationFolder, accessToken, tenantId) {
-        if (!accessToken)
+async function uploadWordDocument(data, contentControls, accessToken, destinationFolder, fileName) {
+    if (!accessToken)
+        return;
+    return await createAndEditNewXmlDoc();
+    async function createAndEditNewXmlDoc() {
+        const blob = await fetchBlobFromFile(templatePath, accessToken);
+        if (!blob)
             return;
-        return await editOpenXML();
-        async function editOpenXML() {
-            const blob = await fetchBlobFromFile(templatePath, accessToken);
-            if (!blob)
+        const zip = await convertBlobIntoXML(blob);
+        const doc = zip.xmlDoc;
+        if (!doc)
+            return;
+        const table = getXMLTable(doc, 0);
+        data.forEach(row => {
+            const newXmlRow = addRowToXMLTable(doc, table);
+            if (!newXmlRow)
                 return;
-            const zip = await convertBlobIntoXML(blob);
-            const doc = zip.xmlDoc;
-            if (!doc)
+            row.forEach(el => addCellToXMLTableRow(doc, newXmlRow, el));
+        });
+        contentControls
+            .forEach(([title, text]) => {
+            const control = findXMLContentControlByTitle(doc, title);
+            if (!control)
                 return;
-            const table = getXMLTable(doc, 0);
-            data.forEach(row => {
-                const tblRow = addRowToXMLTable(doc, table);
-                if (!tblRow)
-                    return;
-                row.forEach(el => addCellToXMLTableRow(doc, tblRow, el));
-            });
-            getContentControlsValues(invoice.lang)
-                .forEach(el => {
-                const [title, text] = el;
-                const control = findXMLContentControlByTitle(doc, title);
-                if (!control)
-                    return;
-                editXMLContentControl(control, text);
-            });
-            uploadToOneDrive(await convertXMLIntoBlob(doc, zip.zip), destinationFolder, fileName, accessToken);
-        }
+            editXMLContentControl(control, text);
+        });
+        const newBlob = await convertXMLIntoBlob(doc, zip.zip);
+        await uploadToOneDrive(newBlob, destinationFolder, fileName, accessToken);
     }
     //await editDocumentWordJSAPI(await copyTemplate()?.id, accessToken, data, getContentControlsValues(invoice.lang))
     async function copyTemplate() {
@@ -562,55 +536,6 @@ async function uploadWordDocument(data, invoice) {
         if (!textElement)
             return;
         textElement.textContent = text;
-    }
-    function getContentControlsValues(lang = 'FR') {
-        const fields = {
-            dateLabel: {
-                title: 'LabelParisLe',
-                text: { FR: 'Paris le ', EN: 'Paris on ' }[lang] || '',
-            },
-            date: {
-                title: 'RTInvoiceDate',
-                text: [date.getDate(), date.getMonth() + 1, date.getFullYear()].join('/'),
-            },
-            numberLabel: {
-                title: 'LabelInvoiceNumber',
-                text: { FR: 'Facturen n° : ', EN: 'Invoice No.:' }[lang] || '',
-            },
-            number: {
-                title: 'RTInvoiceNumber',
-                text: [date.getDate(), date.getMonth() + 1, date.getFullYear() - 2000].join('') + '/' + [date.getHours(), date.getMinutes()].join(''),
-            },
-            subjectLable: {
-                title: 'LabelSubject',
-                text: { FR: 'Objet : ', EN: 'Subject: ' }[lang] || '',
-            },
-            subject: {
-                title: 'RTMatter',
-                text: invoice.matters.join(' & '),
-            },
-            amount: {
-                title: 'LabelTableHeadingMontantTTC',
-                text: { FR: 'Montant TTC', EN: 'Amount VAT Included' }[lang] || '',
-            },
-            vat: {
-                title: 'LabelTableHeadingTVA',
-                text: { FR: 'TVA', EN: 'VAT' }[lang] || '',
-            },
-            disclaimer: {
-                title: 'LabelDisclamer' + ['French', 'English'].find(el => !el.toUpperCase().startsWith(lang.toUpperCase())) || 'French',
-                text: '',
-            },
-            clientName: {
-                title: 'RTClient',
-                text: invoice.clientName,
-            },
-            adress: {
-                title: 'RTClientAdresse',
-                text: invoice.adress.join(' & '),
-            },
-        };
-        return Object.keys(fields).map(key => [fields[key].title, fields[key].text]);
     }
     async function uploadToOneDrive(blob, folderPath, fileName, accessToken) {
         const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${folderPath}/${fileName}:/content`;
