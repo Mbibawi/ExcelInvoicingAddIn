@@ -485,11 +485,13 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
         editXMLContentControl(control, text);
       });
 
+    console.log('doc = ', doc.children[0]);
+
     const newBlob = await convertXMLIntoBlob(doc, zip.zip);
+    
     await uploadToOneDrive(newBlob, filePath, accessToken);
 
     function adaptStyle(row: number, cell: number, isTotal: boolean = false) {
-      debugger
       if (cell === 0 || isTotal)
         style.isBold = true;
       else style.isBold = false;//If it is the 1st element (the date for example), it is always bold

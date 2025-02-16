@@ -423,10 +423,10 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
                 return;
             editXMLContentControl(control, text);
         });
+        console.log('doc = ', doc.children[0]);
         const newBlob = await convertXMLIntoBlob(doc, zip.zip);
         await uploadToOneDrive(newBlob, filePath, accessToken);
         function adaptStyle(row, cell, isTotal = false) {
-            debugger;
             if (cell === 0 || isTotal)
                 style.isBold = true;
             else
