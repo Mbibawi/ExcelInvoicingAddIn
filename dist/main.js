@@ -428,10 +428,10 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
         const newBlob = await convertXMLIntoBlob(doc, zip.zip);
         await uploadToOneDrive(newBlob, filePath, accessToken);
         function adaptStyle(row, cell, isTotal = false) {
-            if (cell === 0 || isTotal)
+            if (cell === 0 || row === data.length - 1 || isTotal) //The 1st cell of each row, the last row in the table or any row starting with "Total" all their cells are bold
                 style.isBold = true;
             else
-                style.isBold = false; //If it is the 1st element (the date for example), it is always bold
+                style.isBold = false;
             if ([1, 3].includes(cell) || isTotal)
                 style.isItalic = true;
             else

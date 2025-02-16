@@ -493,9 +493,9 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
     await uploadToOneDrive(newBlob, filePath, accessToken);
 
     function adaptStyle(row: number, cell: number, isTotal: boolean = false) {
-      if (cell === 0 || isTotal)
+      if (cell === 0 || row === data.length - 1 || isTotal)//The 1st cell of each row, the last row in the table or any row starting with "Total" all their cells are bold
         style.isBold = true;
-      else style.isBold = false;//If it is the 1st element (the date for example), it is always bold
+      else style.isBold = false;
       if ([1, 3].includes(cell) || isTotal)
         style.isItalic = true;
       else style.isItalic = false;//The second and last columns (the description and the VAT) are always italic

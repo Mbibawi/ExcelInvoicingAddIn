@@ -115,9 +115,10 @@ async function mainWithWordgraphApi() {
     inputs.filter(input => input.type === 'checkbox')[1].checked = true;
     const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.dataset.language || 'FR';
     console.log('language = ', lang);
+    const date = new Date();
     const filtered = filterExcelData(excelData, criteria, lang);
     const invoice = {
-        number: getInvoiceNumber(new Date()),
+        number: getInvoiceNumber(date),
         clientName: getInputValue(0, criteria),
         matters: getArray(getInputValue(1, criteria)),
         lang: lang,
@@ -127,7 +128,7 @@ async function mainWithWordgraphApi() {
     const templatePath = path + 'FactureTEMPLATE [NE PAS MODIFIDER].dotm';
     const fileName = newWordFileName(invoice.clientName, invoice.matters, invoice.number);
     // Define content control replacements
-    const contentControls = getContentControlsValues(invoice);
+    const contentControls = getContentControlsValues(invoice, date);
     await editWordWithGraphApi(filtered, contentControls, templatePath, fileName, accessToken);
     return;
     async function editWithAny() {
@@ -280,7 +281,7 @@ function filterExcelData(data, criteria, lang, i = 0) {
                 //@ts-ignore
                 description += `(${lables.hourlyBilled[lang]} ${time} ${lables.hourlyRate[lang]} ${Math.abs(row[rate]).toString()} €)`;
             const rowValues = [
-                [date.getDate(), date.getMonth() + 1, date.getFullYear()].join('/'), //Column Date
+                [date.getDate(), date.getMonth() + 1, date.getFullYear()].map(el => el.toString().padStart(2, '0')).join('/'), //Column Date
                 description,
                 getAmountString(Number(row[amount]) * -1), //Column "Amount": we inverse the +/- sign for all the values 
                 getAmountString(Math.abs(Number(row[vat]))), //Column VAT: always a positive value
