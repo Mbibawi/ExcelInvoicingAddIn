@@ -473,7 +473,7 @@ async function uploadWordDocument(data: string[][], contentControls: string[][],
       const newXmlRow = insertRowToXMLTable(doc, table, 0);
       if (!newXmlRow) return;
       row.forEach((text, y) => {
-        adaptStyle(x, y, row[0].startsWith('Total'));
+        //adaptStyle(x, y, row[0].startsWith('Total'));
         addCellToXMLTableRow(doc, newXmlRow, style, text)
       })
     });
@@ -489,7 +489,6 @@ async function uploadWordDocument(data: string[][], contentControls: string[][],
     await uploadToOneDrive(newBlob, filePath, accessToken);
 
     function adaptStyle(row:number, cell:number, isTotal:boolean = false) {
-      return
       cell === 0? style.isBold = true : style.isBold = false;//If it is the 1st element (the date for example), it is always bold
       [1, 3].includes(cell) ? style.isItalic = true : style.isItalic = false;//The second and last columns (the description and the VAT) are always italic
       if (row === data.length - 1 && [0, 2].includes(cell))
@@ -614,7 +613,7 @@ async function uploadWordDocument(data: string[][], contentControls: string[][],
 
     //formatText(newRun as HTMLElement, style);
 
-    setRunStyle(newRun, style, xmlDoc);
+    //setRunStyle(newRun, style, xmlDoc);
     
     const newText = createTableElement(xmlDoc, "w:t");
     newText.textContent = text;
