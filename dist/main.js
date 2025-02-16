@@ -253,7 +253,7 @@ async function generateInvoice() {
         lang: lang
     };
     const filePath = `${destinationFolder}/${newWordFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`;
-    await createAndUploadXmlDocument(getData(), getContentControlsValues(invoiceDetails, new Date()), await getAccessToken() || '', filePath);
+    await createAndUploadXmlDocument(getData(), getContentControlsValues(invoiceDetails, new Date()), await getAccessToken() || '', filePath, lang);
     function getData() {
         const lables = {
             totalFees: {
@@ -388,7 +388,7 @@ async function getUniqueValues(index, array, tableName = 'LivreJournal') {
     return Array.from(new Set(array.map(row => row[index])));
 }
 ;
-async function createAndUploadXmlDocument(data, contentControls, accessToken, filePath) {
+async function createAndUploadXmlDocument(data, contentControls, accessToken, filePath, lang) {
     if (!accessToken)
         return;
     const schema = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
@@ -406,7 +406,8 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
             isBold: false,
             isItalic: false,
             fontName: 'Times New Roman',
-            fontSize: 22
+            fontSize: 22,
+            lang: lang,
         };
         data.forEach((row, x) => {
             const newXmlRow = insertRowToXMLTable(doc, table);
@@ -428,7 +429,7 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
         const newBlob = await convertXMLIntoBlob(doc, zip.zip);
         await uploadToOneDrive(newBlob, filePath, accessToken);
         function adaptStyle(row, cell, isTotal = false) {
-            if (cell === 0 || row === data.length - 1 || isTotal) //The 1st cell of each row, the last row in the table or any row starting with "Total" all their cells are bold
+            if ([0, 2, 3].includes(cell) || row === data.length - 1 || isTotal) //The 1st cell of each row, the last row in the table or any row starting with "Total" all their cells are bold
                 style.isBold = true;
             else
                 style.isBold = false;
@@ -484,6 +485,8 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
     function setRunStyle(runElement, style, doc) {
         // Create or find the run properties element
         const styleProps = createAndAppend(runElement, "w:rPr", false);
+        //Set the language
+        createAndAppend(styleProps, "w:lang").setAttribute("w:val", style.lang.toLocaleLowerCase() + '-' + style.lang.toUpperCase());
         // Set the font name
         const fonts = createAndAppend(styleProps, "w:rFonts");
         fonts.setAttribute("w:ascii", style.fontName);

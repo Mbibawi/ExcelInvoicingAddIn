@@ -62,12 +62,12 @@ async function invoice() {
         number: getInvoiceNumber(date),
         clientName: getInputValue(0, criteria),
         matters: getArray(getInputValue(1, criteria)),
-        lang: lang,
-        adress: Array.from(new Set(filtered.map(row => row[16])))
+        adress: Array.from(new Set(filtered.map(row => row[16]))),
+        lang: lang
     };
     const contentControls = getContentControlsValues(invoice, date);
     const filePath = `${destinationFolder}/${newWordFileName(invoice.clientName, invoice.matters, invoice.number)}`;
-    await createAndUploadXmlDocument(filtered, contentControls, accessToken, filePath);
+    await createAndUploadXmlDocument(filtered, contentControls, accessToken, filePath, lang);
     (async function oldCodeToDelete() {
         return;
         //const filePath = await saveWordDocumentToNewLocation(invoice, accessToken);

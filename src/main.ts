@@ -288,11 +288,11 @@ async function generateInvoice() {
     clientName: visible.map(row => String(row[0]))[0] || 'CLIENT',
     matters: (await getUniqueValues(1, visible)).map(el => String(el)),
     adress: (await getUniqueValues(15, visible)).map(el => String(el)),
-    lang: lang
+    lang:lang
   };
 
   const filePath = `${destinationFolder}/${newWordFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`
-  await createAndUploadXmlDocument(getData(), getContentControlsValues(invoiceDetails, new Date()), await getAccessToken() || '', filePath);
+  await createAndUploadXmlDocument(getData(), getContentControlsValues(invoiceDetails, new Date()), await getAccessToken() || '', filePath, lang);
 
   function getData() {
     const lables = {
@@ -449,7 +449,7 @@ async function getUniqueValues(index: number, array?: any[][], tableName: string
 };
 
 
-async function createAndUploadXmlDocument(data: string[][], contentControls: string[][], accessToken: string, filePath: string) {
+async function createAndUploadXmlDocument(data: string[][], contentControls: string[][], accessToken: string, filePath: string, lang:string) {
 
   if (!accessToken) return;
   const schema = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
@@ -467,7 +467,8 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
       isBold: false,
       isItalic: false,
       fontName: 'Times New Roman',
-      fontSize: 22
+      fontSize: 22,
+      lang:lang,
     }
 
     data.forEach((row, x) => {
@@ -493,7 +494,7 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
     await uploadToOneDrive(newBlob, filePath, accessToken);
 
     function adaptStyle(row: number, cell: number, isTotal: boolean = false) {
-      if (cell === 0 || row === data.length - 1 || isTotal)//The 1st cell of each row, the last row in the table or any row starting with "Total" all their cells are bold
+      if ([0, 2, 3].includes(cell) || row === data.length - 1 || isTotal)//The 1st cell of each row, the last row in the table or any row starting with "Total" all their cells are bold
         style.isBold = true;
       else style.isBold = false;
       if ([1, 3].includes(cell) || isTotal)
@@ -563,9 +564,12 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
     return row;
   }
 
-  function setRunStyle(runElement: Element, style: { fontName: string; fontSize: number; isItalic: boolean; isBold: boolean }, doc: Document): void {
+  function setRunStyle(runElement: Element, style: { fontName: string; fontSize: number; isItalic: boolean; isBold: boolean; lang:string }, doc: Document): void {
     // Create or find the run properties element
     const styleProps = createAndAppend(runElement, "w:rPr", false);
+
+    //Set the language
+    createAndAppend(styleProps, "w:lang").setAttribute("w:val", style.lang.toLocaleLowerCase() + '-' + style.lang.toUpperCase());
 
     // Set the font name
     const fonts = createAndAppend(styleProps, "w:rFonts");
@@ -589,7 +593,7 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
     }
   }
 
-  function addCellToXMLTableRow(xmlDoc: XMLDocument, row: Element, style: { isBold: boolean, isItalic: boolean, fontSize: number, fontName: string }, text?: string) {
+  function addCellToXMLTableRow(xmlDoc: XMLDocument, row: Element, style: { isBold: boolean, isItalic: boolean, fontSize: number, fontName: string; lang:string }, text?: string) {
     if (!xmlDoc || !row) return;
     const cell = createTableElement(xmlDoc, "w:tc");//new table cell
     row.appendChild(cell);
