@@ -452,6 +452,7 @@ async function getUniqueValues(index: number, array?: any[][], tableName: string
 async function createAndUploadXmlDocument(data: string[][], contentControls: string[][], accessToken: string, filePath: string) {
 
   if (!accessToken) return;
+  const schema = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 
   return await createAndEditNewXmlDoc();
 
@@ -488,7 +489,7 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
     console.log('doc = ', doc.children[0]);
 
     const newBlob = await convertXMLIntoBlob(doc, zip.zip);
-    
+
     await uploadToOneDrive(newBlob, filePath, accessToken);
 
     function adaptStyle(row: number, cell: number, isTotal: boolean = false) {
@@ -581,12 +582,10 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
 
 
     function createAndAppend(parent: Element, tag: string, append: boolean = true) {
-      //let newElement =  parent.getElementsByTagNameNS("http://schemas.openxmlformats.org/wordprocessingml/2006/main", tag)[0];
-      //if (newElement) return newElement;
       const newElement = createTableElement(doc, tag);
-      append ? parent.appendChild(newElement) : parent.insertBefore(newElement, parent.firstChild);
+      if (append) parent.appendChild(newElement)
+      else parent.insertBefore(newElement, parent.firstChild);
       return newElement
-
     }
   }
 
@@ -613,7 +612,7 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
   }
 
   function createTableElement(xmlDoc: XMLDocument, tag: string) {
-    return xmlDoc.createElementNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', tag);
+    return xmlDoc.createElement(tag);
   }
 
   function findXMLContentControlByTitle(xmlDoc: XMLDocument, title: string) {

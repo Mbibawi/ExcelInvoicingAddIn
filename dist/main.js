@@ -391,6 +391,7 @@ async function getUniqueValues(index, array, tableName = 'LivreJournal') {
 async function createAndUploadXmlDocument(data, contentControls, accessToken, filePath) {
     if (!accessToken)
         return;
+    const schema = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
     return await createAndEditNewXmlDoc();
     async function createAndEditNewXmlDoc() {
         const blob = await fetchBlobFromFile(templatePath, accessToken);
@@ -496,10 +497,11 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
         if (style.isBold)
             createAndAppend(styleProps, "w:b");
         function createAndAppend(parent, tag, append = true) {
-            //let newElement =  parent.getElementsByTagNameNS("http://schemas.openxmlformats.org/wordprocessingml/2006/main", tag)[0];
-            //if (newElement) return newElement;
             const newElement = createTableElement(doc, tag);
-            append ? parent.appendChild(newElement) : parent.insertBefore(newElement, parent.firstChild);
+            if (append)
+                parent.appendChild(newElement);
+            else
+                parent.insertBefore(newElement, parent.firstChild);
             return newElement;
         }
     }
@@ -521,7 +523,7 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
         newRun.appendChild(newText);
     }
     function createTableElement(xmlDoc, tag) {
-        return xmlDoc.createElementNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', tag);
+        return xmlDoc.createElement(tag);
     }
     function findXMLContentControlByTitle(xmlDoc, title) {
         const contentControls = Array.from(xmlDoc.getElementsByTagName("w:sdt"));
