@@ -604,7 +604,7 @@ async function uploadWordDocument(data: string[][], contentControls: string[][],
 
     //formatText(newRun as HTMLElement, style);
 
-    //setRunStyle(newRun, style, xmlDoc);
+    setRunStyle(newRun, style, xmlDoc);
     
     const newText = createTableElement(xmlDoc, "w:t");
     newText.textContent = text;
