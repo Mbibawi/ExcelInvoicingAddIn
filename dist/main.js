@@ -426,6 +426,7 @@ async function uploadWordDocument(data, contentControls, accessToken, filePath) 
         const newBlob = await convertXMLIntoBlob(doc, zip.zip);
         await uploadToOneDrive(newBlob, filePath, accessToken);
         function adaptStyle(row, cell, isTotal = false) {
+            return;
             cell === 0 ? style.isBold = true : style.isBold = false; //If it is the 1st element (the date for example), it is always bold
             [1, 3].includes(cell) ? style.isItalic = true : style.isItalic = false; //The second and last columns (the description and the VAT) are always italic
             if (row === data.length - 1 && [0, 2].includes(cell))
