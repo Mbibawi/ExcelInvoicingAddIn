@@ -57,16 +57,17 @@ async function invoice() {
     })();
     const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.dataset.language || 'FR';
     const filtered = filterExcelData(excelData, criteria, lang);
+    const date = new Date();
     const invoice = {
-        number: getInvoiceNumber(new Date()),
+        number: getInvoiceNumber(date),
         clientName: getInputValue(0, criteria),
         matters: getArray(getInputValue(1, criteria)),
         lang: lang,
         adress: Array.from(new Set(filtered.map(row => row[16])))
     };
-    const contentControls = getContentControlsValues(invoice);
+    const contentControls = getContentControlsValues(invoice, date);
     const filePath = `${destinationFolder}/${newWordFileName(invoice.clientName, invoice.matters, invoice.number)}`;
-    await uploadWordDocument(filtered, contentControls, accessToken, filePath);
+    await createAndUploadXmlDocument(filtered, contentControls, accessToken, filePath);
     (async function oldCodeToDelete() {
         return;
         //const filePath = await saveWordDocumentToNewLocation(invoice, accessToken);
@@ -90,7 +91,7 @@ async function invoice() {
             });
             // Update Rich Text Content Controls
             const contentControls = document.contentControls;
-            getContentControlsValues(invoice)
+            getContentControlsValues(invoice, new Date())
                 .forEach(([title, text]) => {
                 const control = contentControls.getByTitle(title);
                 //@ts-expect-error
@@ -243,8 +244,7 @@ function dateFromExcel(excelDate) {
     const dateOffset = date.getTimezoneOffset() * 60 * 1000; //Getting the difference in milleseconds
     return new Date(date.getTime() + dateOffset);
 }
-function getContentControlsValues(invoice) {
-    const date = new Date();
+function getContentControlsValues(invoice, date) {
     const fields = {
         dateLabel: {
             title: 'LabelParisLe',
@@ -252,7 +252,7 @@ function getContentControlsValues(invoice) {
         },
         date: {
             title: 'RTInvoiceDate',
-            text: [date.getDate(), date.getMonth() + 1, date.getFullYear()].join('/'),
+            text: [date.getDate(), date.getMonth() + 1, date.getFullYear()].map(el => el.toString().padStart(2, '0')).join('/'),
         },
         numberLabel: {
             title: 'LabelInvoiceNumber',

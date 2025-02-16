@@ -292,7 +292,7 @@ async function generateInvoice() {
   };
 
   const filePath = `${destinationFolder}/${newWordFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`
-  await uploadWordDocument(getData(), getContentControlsValues(invoiceDetails), await getAccessToken() || '', filePath);
+  await createAndUploadXmlDocument(getData(), getContentControlsValues(invoiceDetails, new Date()), await getAccessToken() || '', filePath);
 
   function getData() {
     const lables = {
@@ -449,7 +449,7 @@ async function getUniqueValues(index: number, array?: any[][], tableName: string
 };
 
 
-async function uploadWordDocument(data: string[][], contentControls: string[][], accessToken: string, filePath: string) {
+async function createAndUploadXmlDocument(data: string[][], contentControls: string[][], accessToken: string, filePath: string) {
 
   if (!accessToken) return;
 
@@ -465,15 +465,15 @@ async function uploadWordDocument(data: string[][], contentControls: string[][],
     const style = {
       isBold: false,
       isItalic: false,
-      fontName:'Times New Roman',
-      fontSize:22
+      fontName: 'Times New Roman',
+      fontSize: 22
     }
 
     data.forEach((row, x) => {
       const newXmlRow = insertRowToXMLTable(doc, table);
       if (!newXmlRow) return;
       row.forEach((text, y) => {
-        //adaptStyle(x, y, row[0].startsWith('Total'));
+        adaptStyle(x, y, row[0].startsWith('Total'));
         addCellToXMLTableRow(doc, newXmlRow, style, text)
       })
     });
@@ -488,14 +488,14 @@ async function uploadWordDocument(data: string[][], contentControls: string[][],
     const newBlob = await convertXMLIntoBlob(doc, zip.zip);
     await uploadToOneDrive(newBlob, filePath, accessToken);
 
-    function adaptStyle(row:number, cell:number, isTotal:boolean = false) {
-      cell === 0? style.isBold = true : style.isBold = false;//If it is the 1st element (the date for example), it is always bold
+    function adaptStyle(row: number, cell: number, isTotal: boolean = false) {
+      cell === 0 ? style.isBold = true : style.isBold = false;//If it is the 1st element (the date for example), it is always bold
       [1, 3].includes(cell) ? style.isItalic = true : style.isItalic = false;//The second and last columns (the description and the VAT) are always italic
       if (row === data.length - 1 && [0, 2].includes(cell))
         style.isItalic = false!;
       if (isTotal) {
-          style.isItalic = true;
-          style.isBold = true;
+        style.isItalic = true;
+        style.isBold = true;
       };
     }
   }
@@ -549,49 +549,49 @@ async function uploadWordDocument(data: string[][], contentControls: string[][],
     return await zip.generateAsync({ type: "blob" });
   }
 
-  function getXMLElement(xmlDoc: XMLDocument |Element, tag:string, index: number) {
+  function getXMLElement(xmlDoc: XMLDocument | Element, tag: string, index: number) {
     const elements = xmlDoc.getElementsByTagName(tag);
     return elements[index];
   }
 
   function insertRowToXMLTable(xmlDoc: XMLDocument, table: Element, after: number = -1) {
     if (!table) return;
-    
+
     const row = createTableElement(xmlDoc, "w:tr");
     after >= 0 ? getXMLElement(table, 'w:tr', after)?.insertAdjacentElement('afterend', row) :
       table.appendChild(row);
     return row;
   }
 
-  function setRunStyle(runElement: Element, style: { fontName: string; fontSize: number; isItalic: boolean; isBold: boolean}, doc:Document): void {
+  function setRunStyle(runElement: Element, style: { fontName: string; fontSize: number; isItalic: boolean; isBold: boolean }, doc: Document): void {
     // Create or find the run properties element
-    const styleProps = createAndAppend(runElement, "w:rPr", false); 
+    const styleProps = createAndAppend(runElement, "w:rPr", false);
 
     // Set the font name
-      const fonts = createAndAppend(styleProps, "w:rFonts"); 
-      fonts.setAttribute("w:ascii", style.fontName);
-      fonts.setAttribute("w:hAnsi", style.fontName);
+    const fonts = createAndAppend(styleProps, "w:rFonts");
+    fonts.setAttribute("w:ascii", style.fontName);
+    fonts.setAttribute("w:hAnsi", style.fontName);
 
     // Set the font size (in half-points)
     createAndAppend(styleProps, "w:sz").setAttribute("w:val", style.fontSize.toString());
 
     // Set italic
-    if(style.isItalic) createAndAppend(styleProps, "w:i");
-        // Set bold
-    if(style.isBold) createAndAppend(styleProps, "w:b");
+    if (style.isItalic) createAndAppend(styleProps, "w:i");
+    // Set bold
+    if (style.isBold) createAndAppend(styleProps, "w:b");
 
-    
-    function createAndAppend(parent: Element, tag: string, append:boolean = true) {
+
+    function createAndAppend(parent: Element, tag: string, append: boolean = true) {
       //let newElement =  parent.getElementsByTagNameNS("http://schemas.openxmlformats.org/wordprocessingml/2006/main", tag)[0];
       //if (newElement) return newElement;
       const newElement = createTableElement(doc, tag);
-      append?parent.appendChild(newElement):parent.insertBefore(newElement, parent.firstChild);
+      append ? parent.appendChild(newElement) : parent.insertBefore(newElement, parent.firstChild);
       return newElement
-      
-    }
-}
 
-  function addCellToXMLTableRow(xmlDoc: XMLDocument, row: Element, style:{isBold:boolean, isItalic:boolean, fontSize:number, fontName:string}, text?: string) {
+    }
+  }
+
+  function addCellToXMLTableRow(xmlDoc: XMLDocument, row: Element, style: { isBold: boolean, isItalic: boolean, fontSize: number, fontName: string }, text?: string) {
     if (!xmlDoc || !row) return;
     const cell = createTableElement(xmlDoc, "w:tc");//new table cell
     row.appendChild(cell);
@@ -599,16 +599,16 @@ async function uploadWordDocument(data: string[][], contentControls: string[][],
     cell.appendChild(parag)
     const newRun = createTableElement(xmlDoc, "w:r");// new run
     parag.appendChild(newRun);
-    
+
     if (!text) return;
 
     //formatText(newRun as HTMLElement, style);
 
     setRunStyle(newRun, style, xmlDoc);
-    
+
     const newText = createTableElement(xmlDoc, "w:t");
     newText.textContent = text;
-    
+
     newRun.appendChild(newText);
 
   }
@@ -624,6 +624,7 @@ async function uploadWordDocument(data: string[][], contentControls: string[][],
 
   function editXMLContentControl(control: Element, text: string) {
     if (!control) return;
+    if (!text) return control.remove();
     const textElement = control.getElementsByTagName("w:t")[0];
     if (!textElement) return;
     textElement.textContent = text;

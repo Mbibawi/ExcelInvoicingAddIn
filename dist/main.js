@@ -253,7 +253,7 @@ async function generateInvoice() {
         lang: lang
     };
     const filePath = `${destinationFolder}/${newWordFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`;
-    await uploadWordDocument(getData(), getContentControlsValues(invoiceDetails), await getAccessToken() || '', filePath);
+    await createAndUploadXmlDocument(getData(), getContentControlsValues(invoiceDetails, new Date()), await getAccessToken() || '', filePath);
     function getData() {
         const lables = {
             totalFees: {
@@ -388,7 +388,7 @@ async function getUniqueValues(index, array, tableName = 'LivreJournal') {
     return Array.from(new Set(array.map(row => row[index])));
 }
 ;
-async function uploadWordDocument(data, contentControls, accessToken, filePath) {
+async function createAndUploadXmlDocument(data, contentControls, accessToken, filePath) {
     if (!accessToken)
         return;
     return await createAndEditNewXmlDoc();
@@ -412,7 +412,7 @@ async function uploadWordDocument(data, contentControls, accessToken, filePath) 
             if (!newXmlRow)
                 return;
             row.forEach((text, y) => {
-                //adaptStyle(x, y, row[0].startsWith('Total'));
+                adaptStyle(x, y, row[0].startsWith('Total'));
                 addCellToXMLTableRow(doc, newXmlRow, style, text);
             });
         });
@@ -529,6 +529,8 @@ async function uploadWordDocument(data, contentControls, accessToken, filePath) 
     function editXMLContentControl(control, text) {
         if (!control)
             return;
+        if (!text)
+            return control.remove();
         const textElement = control.getElementsByTagName("w:t")[0];
         if (!textElement)
             return;
