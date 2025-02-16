@@ -291,7 +291,7 @@ async function generateInvoice() {
     lang: lang
   };
 
-  const filePath = `${destinationFolder} / ${newWordFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`
+  const filePath = `${destinationFolder}/${newWordFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`
   await uploadWordDocument(getData(), getContentControlsValues(invoiceDetails), await getAccessToken() || '', filePath);
 
   function getData() {
@@ -573,9 +573,9 @@ async function uploadWordDocument(data: string[][], contentControls: string[][],
 
   }
 
-  function setRunStyle(element: Element, style: { fontName: string; fontSize: number; isItalic: boolean; isBold: boolean}, doc:Document): void {
+  function setRunStyle(runElement: Element, style: { fontName: string; fontSize: number; isItalic: boolean; isBold: boolean}, doc:Document): void {
     // Create or find the run properties element
-    const styleProps = createAndAppend(element, "w:rPr", false); 
+    const styleProps = createAndAppend(runElement, "w:rPr", false); 
 
     // Set the font name
       const fonts = createAndAppend(styleProps, "w:rFonts"); 
@@ -592,9 +592,9 @@ async function uploadWordDocument(data: string[][], contentControls: string[][],
 
     
     function createAndAppend(parent: Element, tag: string, append:boolean = true) {
-      let newElement =  parent.getElementsByTagNameNS("http://schemas.openxmlformats.org/wordprocessingml/2006/main", tag)[0];
-      if (newElement) return newElement;
-      newElement = doc.createElement(tag);
+      //let newElement =  parent.getElementsByTagNameNS("http://schemas.openxmlformats.org/wordprocessingml/2006/main", tag)[0];
+      //if (newElement) return newElement;
+      const newElement = doc.createElement(tag);
       append?parent.appendChild(newElement):parent.insertBefore(newElement, parent.firstChild);
       return newElement
       

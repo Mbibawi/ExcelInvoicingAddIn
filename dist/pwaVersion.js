@@ -65,7 +65,7 @@ async function invoice() {
         adress: Array.from(new Set(filtered.map(row => row[16])))
     };
     const contentControls = getContentControlsValues(invoice);
-    const filePath = `${destinationFolder} / ${newWordFileName(invoice.clientName, invoice.matters, invoice.number)}`;
+    const filePath = `${destinationFolder}/${newWordFileName(invoice.clientName, invoice.matters, invoice.number)}`;
     await uploadWordDocument(filtered, contentControls, accessToken, filePath);
     (async function oldCodeToDelete() {
         return;
@@ -306,7 +306,7 @@ function getMSGraphClient(accessToken) {
 async function saveWordDocumentToNewLocation(invoice, accessToken, originalFilePath = templatePath, newFilePath = destinationFolder) {
     const date = new Date();
     const fileName = newWordFileName(invoice.clientName, invoice.matters, invoice.number);
-    newFilePath = `${destinationFolder} / ${fileName}`;
+    newFilePath = `${destinationFolder}/${fileName}`;
     try {
         const fileContent = await fetchOneDriveFileByPath(originalFilePath, accessToken);
         const resp = await getMSGraphClient(accessToken).api(`/me/drive/root:${newFilePath}:/content`).put(fileContent);

@@ -252,7 +252,7 @@ async function generateInvoice() {
         adress: (await getUniqueValues(15, visible)).map(el => String(el)),
         lang: lang
     };
-    const filePath = `${destinationFolder} / ${newWordFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`;
+    const filePath = `${destinationFolder}/${newWordFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`;
     await uploadWordDocument(getData(), getContentControlsValues(invoiceDetails), await getAccessToken() || '', filePath);
     function getData() {
         const lables = {
@@ -490,9 +490,9 @@ async function uploadWordDocument(data, contentControls, accessToken, filePath) 
             element.style.fontFamily = style.fontName;
         return element;
     }
-    function setRunStyle(element, style, doc) {
+    function setRunStyle(runElement, style, doc) {
         // Create or find the run properties element
-        const styleProps = createAndAppend(element, "w:rPr", false);
+        const styleProps = createAndAppend(runElement, "w:rPr", false);
         // Set the font name
         const fonts = createAndAppend(styleProps, "w:rFonts");
         fonts.setAttribute("w:ascii", style.fontName);
@@ -506,10 +506,9 @@ async function uploadWordDocument(data, contentControls, accessToken, filePath) 
         if (style.isBold)
             createAndAppend(styleProps, "w:b");
         function createAndAppend(parent, tag, append = true) {
-            let newElement = parent.getElementsByTagNameNS("http://schemas.openxmlformats.org/wordprocessingml/2006/main", tag)[0];
-            if (newElement)
-                return newElement;
-            newElement = doc.createElement(tag);
+            //let newElement =  parent.getElementsByTagNameNS("http://schemas.openxmlformats.org/wordprocessingml/2006/main", tag)[0];
+            //if (newElement) return newElement;
+            const newElement = doc.createElement(tag);
             append ? parent.appendChild(newElement) : parent.insertBefore(newElement, parent.firstChild);
             return newElement;
         }
