@@ -19,7 +19,7 @@ function getAccessToken() {
     return getTokenWithMSAL(clientId, redirectUri, msalConfig)
 }
 // Fetch OneDrive File by Path
-async function fetchOneDriveFileByPath(filePathAndName: string, accessToken:string) {
+async function fetchOneDriveFileByPath(filePathAndName: string, accessToken: string) {
     try {
         const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePathAndName}:/content`;
 
@@ -62,15 +62,15 @@ async function invoice() {
         criteria[2].value = 'CARPA, Honoraire, Débours/Dépens, Provision/Règlement';
         criteria[3].value = '2015-01-01';
         criteria[4].value = '2025-01-01';
-        inputs.filter(input => input.type === 'checkbox')[1].checked = true;  
+        inputs.filter(input => input.type === 'checkbox')[1].checked = true;
     })();
 
     const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.dataset.language || 'FR';
-    
+
     const filtered = filterExcelData(excelData, criteria, lang);
-    debugger
 
     const invoice = {
+        number:getInvoiceNumber(new Date()),
         clientName: getInputValue(0, criteria),
         matters: getArray(getInputValue(1, criteria)),
         lang: lang,
@@ -78,58 +78,53 @@ async function invoice() {
     }
 
     const contentControls = getContentControlsValues(invoice);
+    
+    const filePath = `${destinationFolder} / ${newWordFileName(invoice.clientName, invoice.matters, invoice.number)}`;
 
-    await uploadWordDocument(filtered, contentControls, accessToken, destinationFolder, newWordFileName(new Date(), invoice.clientName, invoice.matters));
-
-
-
-    //const filePath = await saveWordDocumentToNewLocation(invoice, accessToken);
-
-    //const newDocument = await fetchOneDriveFileByPath(filePath || '', accessToken);
+    await uploadWordDocument(filtered, contentControls, accessToken, filePath);
 
     
-
-    return;
-
-    const tableData = await extractInvoiceData();
-    //const lang = Array.from(document.getElementsByTagName('input')).find(input => input.type === 'checkbox' && input.checked === true)?.value;
-
-    const invoiceDetails = {
-        clientName: tableData.map(row => String(row[0]))[0] || 'CLIENT',
-        matters: (await getUniqueValues(1, tableData)).map(el => String(el)),
-        adress: (await getUniqueValues(15, tableData)).map(el => String(el)),
-        lang: lang || 'FR'
-    };
-
-    if (!tableData) return;
-    try {
-        const document = new Word.Document();
-        //@ts-expect-error
-        document.load(await fetchOneDriveFileByPath(templatePath));
-
-        // Update Table
-        //@ts-expect-error
-        const table = document.body.tables[0];
-        tableData.forEach(rowData => {
-            const row = table.addRow();
-            rowData.forEach(cellData => {
-                row.addCell(cellData);
-            });
-        });
-
-        // Update Rich Text Content Controls
-        const contentControls = document.contentControls;
-        
-        getContentControlsValues(invoice)
-            .forEach(([title, text]) => {
-            const control = contentControls.getByTitle(title);
+    (async function oldCodeToDelete() { 
+        return
+        //const filePath = await saveWordDocumentToNewLocation(invoice, accessToken);
+    
+        //const newDocument = await fetchOneDriveFileByPath(filePath || '', accessToken);
+        const tableData = await extractInvoiceData();
+        //const lang = Array.from(document.getElementsByTagName('input')).find(input => input.type === 'checkbox' && input.checked === true)?.value;
+    
+   
+        if (!tableData) return;
+        try {
+            const document = new Word.Document();
             //@ts-expect-error
-            control.text = text;
-        });
-        document.save();
-    } catch (error) {
-        console.error("Error updating Word document:", error);
-    }
+            document.load(await fetchOneDriveFileByPath(templatePath));
+    
+            // Update Table
+            //@ts-expect-error
+            const table = document.body.tables[0];
+            tableData.forEach(rowData => {
+                const row = table.addRow();
+                rowData.forEach(cellData => {
+                    row.addCell(cellData);
+                });
+            });
+    
+            // Update Rich Text Content Controls
+            const contentControls = document.contentControls;
+    
+            getContentControlsValues(invoice)
+                .forEach(([title, text]) => {
+                    const control = contentControls.getByTitle(title);
+                    //@ts-expect-error
+                    control.text = text;
+                });
+            document.save();
+        } catch (error) {
+            console.error("Error updating Word document:", error);
+        }
+
+    })();
+
 }
 
 async function extractInvoiceData() {
@@ -301,7 +296,7 @@ function dateFromExcel(excelDate: number) {
     return new Date(date.getTime() + dateOffset);
 }
 
-function getContentControlsValues(invoice: { clientName: string, matters: string[], adress: string[], lang: string }): string[][] {
+function getContentControlsValues(invoice: {number:string, clientName: string, matters: string[], adress: string[], lang: string }): string[][] {
     const date = new Date();
     const fields: { [index: string]: { title: string, text: string } } = {
         dateLabel: {
@@ -318,7 +313,7 @@ function getContentControlsValues(invoice: { clientName: string, matters: string
         },
         number: {
             title: 'RTInvoiceNumber',
-            text: [date.getDate(), date.getMonth() + 1, date.getFullYear() - 2000].join('') + '/' + [date.getHours(), date.getMinutes()].join(''),
+            text: invoice.number,
         },
         subjectLable: {
             title: 'LabelSubject',
@@ -353,7 +348,7 @@ function getContentControlsValues(invoice: { clientName: string, matters: string
     return Object.keys(fields).map(key => [fields[key].title, fields[key].text]);
 }
 
-function getMSGraphClient(accessToken:string) {
+function getMSGraphClient(accessToken: string) {
     //@ts-expect-error
     return MicrosoftGraph.Client.init({
         //@ts-expect-error
@@ -363,9 +358,9 @@ function getMSGraphClient(accessToken:string) {
     });
 }
 // Save Word Document to Another Location
-async function saveWordDocumentToNewLocation(invoice: { clientName: string, matters: string[] }, accessToken:string, originalFilePath: string = templatePath, newFilePath: string = destinationFolder) {
+async function saveWordDocumentToNewLocation(invoice: { number:string, clientName: string, matters: string[] }, accessToken: string, originalFilePath: string = templatePath, newFilePath: string = destinationFolder) {
     const date = new Date();
-    const fileName = newWordFileName(date, invoice.clientName, invoice.matters);
+    const fileName = newWordFileName(invoice.clientName, invoice.matters, invoice.number);
     newFilePath = `${destinationFolder} / ${fileName}`
     try {
 
@@ -373,7 +368,7 @@ async function saveWordDocumentToNewLocation(invoice: { clientName: string, matt
         const resp = await getMSGraphClient(accessToken).api(`/me/drive/root:${newFilePath}:/content`).put(fileContent);
         console.log('put response = ', resp);
         return newFilePath
-        
+
     } catch (error) {
         console.error("Error saving Word document:", error);
     }

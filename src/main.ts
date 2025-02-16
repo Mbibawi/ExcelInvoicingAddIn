@@ -144,7 +144,7 @@ async function showForm(id?: string) {
 
 
     async function onFoucusOut(input: HTMLInputElement) {
-      debugger
+
       const i = Number(input.dataset.index);
       const criteria = [{ column: i, value: getArray(input.value) }];
       let unfilter = false;
@@ -284,13 +284,15 @@ async function generateInvoice() {
   const visible = await filterTable(undefined, undefined, false);
 
   const invoiceDetails = {
+    number: getInvoiceNumber(new Date()),
     clientName: visible.map(row => String(row[0]))[0] || 'CLIENT',
     matters: (await getUniqueValues(1, visible)).map(el => String(el)),
     adress: (await getUniqueValues(15, visible)).map(el => String(el)),
     lang: lang
   };
 
-  await uploadWordDocument(getData(), getContentControlsValues(invoiceDetails), await getAccessToken() || '', destinationFolder, newWordFileName(new Date(), invoiceDetails.clientName, invoiceDetails.matters));
+  const filePath = `${destinationFolder} / ${newWordFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`
+  await uploadWordDocument(getData(), getContentControlsValues(invoiceDetails), await getAccessToken() || '', filePath);
 
   function getData() {
     const lables = {
@@ -447,7 +449,7 @@ async function getUniqueValues(index: number, array?: any[][], tableName: string
 };
 
 
-async function uploadWordDocument(data: string[][], contentControls: string[][], accessToken: string, destinationFolder: string, fileName: string) {
+async function uploadWordDocument(data: string[][], contentControls: string[][], accessToken: string, filePath: string) {
 
   if (!accessToken) return;
 
@@ -460,11 +462,20 @@ async function uploadWordDocument(data: string[][], contentControls: string[][],
     const doc = zip.xmlDoc;
     if (!doc) return;
     const table = getXMLTable(doc, 0);
+    const style = {
+      isBold: false,
+      isItalic: false,
+      fontName:'Times New Roman',
+      fontSize:22
+    }
 
-    data.forEach(row => {
-      const newXmlRow = addRowToXMLTable(doc, table);
+    data.forEach((row, x) => {
+      const newXmlRow = insertRowToXMLTable(doc, table, 0);
       if (!newXmlRow) return;
-      row.forEach(el => addCellToXMLTableRow(doc, newXmlRow, el))
+      row.forEach((text, y) => {
+        adaptStyle(x, y, row[0].startsWith('Total'));
+        addCellToXMLTableRow(doc, newXmlRow, style, text)
+      })
     });
 
     contentControls
@@ -475,67 +486,24 @@ async function uploadWordDocument(data: string[][], contentControls: string[][],
       });
 
     const newBlob = await convertXMLIntoBlob(doc, zip.zip);
-    await uploadToOneDrive(newBlob, destinationFolder, fileName, accessToken);
+    await uploadToOneDrive(newBlob, filePath, accessToken);
+
+    function adaptStyle(row:number, cell:number, isTotal:boolean = false) {
+      cell === 0? style.isBold = true : style.isBold = false;//If it is the 1st element (the date for example), it is always bold
+      [1, 3].includes(cell) ? style.isItalic = true : style.isItalic = false;//The second and last columns (the description and the VAT) are always italic
+      if (row === data.length - 1 && [0, 2].includes(cell))
+        style.isItalic = false!;
+      if (isTotal) {
+          style.isItalic = true;
+          style.isBold = true;
+      };
+      
+    }
   }
 
   //await editDocumentWordJSAPI(await copyTemplate()?.id, accessToken, data, getContentControlsValues(invoice.lang))
 
-  async function copyTemplate() {
-    // 1. Create a new Word document from the template
-    const createResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${templatePath}:/copy`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        parentReference: { path: `/drive/root:/${destinationFolder}` },
-        name: fileName
-      })
-    });
 
-    if (!createResponse.ok)
-      throw new Error("Failed to create document");
-
-
-    // 2. Poll for the File ID (since copy is async)
-
-    const file = await getFile(0);
-
-    if (!file || !file.id)
-      throw new Error("Failed to retrieve new document ID. File may not be ready.");
-
-    return file;
-
-    async function getFile(i: number) {
-      if (i > 7) return;
-      const checkFilesResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${destinationFolder}:/children`, {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${accessToken}`
-        }
-      });
-
-      if (!checkFilesResponse.ok) {
-        await new Promise(res => setTimeout(res, 3000));
-        getFile(i + 1);
-      };
-
-      const files = await checkFilesResponse.json();
-      const file = files.value.find((f: { name: string }) => f.name === fileName)
-
-      if (file) {
-        console.log('file =', file);
-        return file
-      }
-      else {
-        await new Promise(res => setTimeout(res, 3000));
-        await getFile(i + 1)
-      }
-    }
-
-
-  }
 
   async function fetchBlobFromFile(templatePath: string, accessToken: string) {
     const response = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${templatePath}:/content`, {
@@ -564,12 +532,12 @@ async function uploadWordDocument(data: string[][], contentControls: string[][],
     const parser = new DOMParser();
 
     const xmlDoc = parser.parseFromString(documentXml, "application/xml");
-    
+
     return { xmlDoc, zip }
   }
 
   //@ts-expect-error
-  async function convertXMLIntoBlob(editedXml: XMLDocument, zip: JSZip) {      debugger
+  async function convertXMLIntoBlob(editedXml: XMLDocument, zip: JSZip) {
 
     const serializer = new XMLSerializer();
     let modifiedDocumentXml = serializer.serializeToString(editedXml);
@@ -587,26 +555,71 @@ async function uploadWordDocument(data: string[][], contentControls: string[][],
     return tables[index];
   }
 
-  function addRowToXMLTable(xmlDoc: XMLDocument, table: Element) {
+  function insertRowToXMLTable(xmlDoc: XMLDocument, table: Element, after: number = -1) {
     if (!table) return;
     const row = createTableElement(xmlDoc, "w:tr");
-    table.appendChild(row);
+    after >= 0 ? table.children[after].insertAdjacentElement('afterend', row) :
+      table.appendChild(row);
     return row;
   }
 
-  function addCellToXMLTableRow(xmlDoc: XMLDocument, row: Element, text?: string) {
+  function formatText(element: HTMLElement, style: { bold: boolean, italic: boolean, fontSize: number, fontName:string }) {
+    if (style.bold) element.style.fontWeight = "bold";
+    if (style.italic) element.style.fontStyle = "italic";
+    if (style.fontSize) element.style.fontSize = style.fontSize.toString() + 'pt';
+    if (style.fontName)
+      element.style.fontFamily = style.fontName;
+    return element
+
+  }
+
+  function setRunStyle(element: Element, style: { fontName: string; fontSize: number; isItalic: boolean; isBold: boolean}, doc:Document): void {
+    // Create or find the run properties element
+    const styleProps = createAndAppend(element, "w:rPr", false); 
+
+    // Set the font name
+      const fonts = createAndAppend(styleProps, "w:rFonts"); 
+      fonts.setAttribute("w:ascii", style.fontName);
+      fonts.setAttribute("w:hAnsi", style.fontName);
+
+    // Set the font size (in half-points)
+    createAndAppend(styleProps, "w:sz").setAttribute("w:val", style.fontSize.toString());
+
+    // Set italic
+    if(style.isItalic) createAndAppend(styleProps, "w:i");
+        // Set bold
+    if(style.isBold) createAndAppend(styleProps, "w:b");
+
+    
+    function createAndAppend(parent: Element, tag: string, append:boolean = true) {
+      let newElement = parent.querySelector(tag);
+      if (newElement) return newElement;
+      newElement = doc.createElement(tag);
+      append?parent.appendChild(newElement):parent.insertBefore(newElement, parent.firstChild);
+      return newElement
+      
+    }
+}
+
+  function addCellToXMLTableRow(xmlDoc: XMLDocument, row: Element, style:{isBold:boolean, isItalic:boolean, fontSize:number, fontName:string}, text?: string) {
     if (!xmlDoc || !row) return;
-    const cell = createTableElement(xmlDoc, "w:tc");
+    const cell = createTableElement(xmlDoc, "w:tc");//new table cell
     row.appendChild(cell);
-    const parag = createTableElement(xmlDoc, "w:p");
+    const parag = createTableElement(xmlDoc, "w:p");//new table paragraph
     cell.appendChild(parag)
-    const newRun = createTableElement(xmlDoc, "w:r");
+    const newRun = createTableElement(xmlDoc, "w:r");// new run
     parag.appendChild(newRun);
+    
     if (!text) return;
+
+    //formatText(newRun as HTMLElement, style);
+
+    setRunStyle(newRun, style, xmlDoc);
+    
     const newText = createTableElement(xmlDoc, "w:t");
     newText.textContent = text;
+    
     newRun.appendChild(newText);
-
 
   }
 
@@ -628,8 +641,9 @@ async function uploadWordDocument(data: string[][], contentControls: string[][],
 
 };
 
-async function uploadToOneDrive(blob: Blob, folderPath: string, fileName: string, accessToken: string) {
-  const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${folderPath}/${fileName}:/content`
+async function uploadToOneDrive(blob: Blob, filePath: string, accessToken: string) {
+  debugger
+  const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/content`
 
   const response = await fetch(endpoint, {
     method: 'PUT',
@@ -642,9 +656,15 @@ async function uploadToOneDrive(blob: Blob, folderPath: string, fileName: string
   response.ok ? console.log('succefully uploaded the new file') : console.log('failed to upload the file to onedrive error = ', await response.json())
 };
 
-function newWordFileName(date: Date, clientName: string, matters: string[]): string {
- // return 'test file name for now.docx'
-  return `_Test_Facture_${clientName}_${Array.from(matters).join('&')}_${[date.getFullYear(), date.getMonth() + 1, date.getDate()].join('')}@${[date.getHours(), date.getMinutes()].join(':')}.docx`;
+function newWordFileName(clientName: string, matters: string[], invoiceNumber: string): string {
+  // return 'test file name for now.docx'
+  return `_Test_Facture_${clientName}_${Array.from(matters).join('&')}_No.${invoiceNumber.replace('/', '-')}.docx`;
+}
+
+function getInvoiceNumber(date: Date): string {
+  const padStart = (n: number) => n.toString().padStart(2, '0');
+
+  return (date.getFullYear() - 2000).toString() + padStart(date.getMonth() + 1) + padStart(date.getDate()) + '/' + padStart(date.getHours()) + padStart(date.getMinutes());
 
 }
 

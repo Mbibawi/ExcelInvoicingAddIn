@@ -57,54 +57,51 @@ async function invoice() {
     })();
     const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.dataset.language || 'FR';
     const filtered = filterExcelData(excelData, criteria, lang);
-    debugger;
     const invoice = {
+        number: getInvoiceNumber(new Date()),
         clientName: getInputValue(0, criteria),
         matters: getArray(getInputValue(1, criteria)),
         lang: lang,
         adress: Array.from(new Set(filtered.map(row => row[16])))
     };
     const contentControls = getContentControlsValues(invoice);
-    await uploadWordDocument(filtered, contentControls, accessToken, destinationFolder, newWordFileName(new Date(), invoice.clientName, invoice.matters));
-    //const filePath = await saveWordDocumentToNewLocation(invoice, accessToken);
-    //const newDocument = await fetchOneDriveFileByPath(filePath || '', accessToken);
-    return;
-    const tableData = await extractInvoiceData();
-    //const lang = Array.from(document.getElementsByTagName('input')).find(input => input.type === 'checkbox' && input.checked === true)?.value;
-    const invoiceDetails = {
-        clientName: tableData.map(row => String(row[0]))[0] || 'CLIENT',
-        matters: (await getUniqueValues(1, tableData)).map(el => String(el)),
-        adress: (await getUniqueValues(15, tableData)).map(el => String(el)),
-        lang: lang || 'FR'
-    };
-    if (!tableData)
+    const filePath = `${destinationFolder} / ${newWordFileName(invoice.clientName, invoice.matters, invoice.number)}`;
+    await uploadWordDocument(filtered, contentControls, accessToken, filePath);
+    (async function oldCodeToDelete() {
         return;
-    try {
-        const document = new Word.Document();
-        //@ts-expect-error
-        document.load(await fetchOneDriveFileByPath(templatePath));
-        // Update Table
-        //@ts-expect-error
-        const table = document.body.tables[0];
-        tableData.forEach(rowData => {
-            const row = table.addRow();
-            rowData.forEach(cellData => {
-                row.addCell(cellData);
-            });
-        });
-        // Update Rich Text Content Controls
-        const contentControls = document.contentControls;
-        getContentControlsValues(invoice)
-            .forEach(([title, text]) => {
-            const control = contentControls.getByTitle(title);
+        //const filePath = await saveWordDocumentToNewLocation(invoice, accessToken);
+        //const newDocument = await fetchOneDriveFileByPath(filePath || '', accessToken);
+        const tableData = await extractInvoiceData();
+        //const lang = Array.from(document.getElementsByTagName('input')).find(input => input.type === 'checkbox' && input.checked === true)?.value;
+        if (!tableData)
+            return;
+        try {
+            const document = new Word.Document();
             //@ts-expect-error
-            control.text = text;
-        });
-        document.save();
-    }
-    catch (error) {
-        console.error("Error updating Word document:", error);
-    }
+            document.load(await fetchOneDriveFileByPath(templatePath));
+            // Update Table
+            //@ts-expect-error
+            const table = document.body.tables[0];
+            tableData.forEach(rowData => {
+                const row = table.addRow();
+                rowData.forEach(cellData => {
+                    row.addCell(cellData);
+                });
+            });
+            // Update Rich Text Content Controls
+            const contentControls = document.contentControls;
+            getContentControlsValues(invoice)
+                .forEach(([title, text]) => {
+                const control = contentControls.getByTitle(title);
+                //@ts-expect-error
+                control.text = text;
+            });
+            document.save();
+        }
+        catch (error) {
+            console.error("Error updating Word document:", error);
+        }
+    })();
 }
 async function extractInvoiceData() {
     const inputs = Array.from(document.getElementsByTagName('input'));
@@ -263,7 +260,7 @@ function getContentControlsValues(invoice) {
         },
         number: {
             title: 'RTInvoiceNumber',
-            text: [date.getDate(), date.getMonth() + 1, date.getFullYear() - 2000].join('') + '/' + [date.getHours(), date.getMinutes()].join(''),
+            text: invoice.number,
         },
         subjectLable: {
             title: 'LabelSubject',
@@ -308,7 +305,7 @@ function getMSGraphClient(accessToken) {
 // Save Word Document to Another Location
 async function saveWordDocumentToNewLocation(invoice, accessToken, originalFilePath = templatePath, newFilePath = destinationFolder) {
     const date = new Date();
-    const fileName = newWordFileName(date, invoice.clientName, invoice.matters);
+    const fileName = newWordFileName(invoice.clientName, invoice.matters, invoice.number);
     newFilePath = `${destinationFolder} / ${fileName}`;
     try {
         const fileContent = await fetchOneDriveFileByPath(originalFilePath, accessToken);

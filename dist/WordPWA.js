@@ -117,6 +117,7 @@ async function mainWithWordgraphApi() {
     console.log('language = ', lang);
     const filtered = filterExcelData(excelData, criteria, lang);
     const invoice = {
+        number: getInvoiceNumber(new Date()),
         clientName: getInputValue(0, criteria),
         matters: getArray(getInputValue(1, criteria)),
         lang: lang,
@@ -124,7 +125,7 @@ async function mainWithWordgraphApi() {
     };
     const path = "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/";
     const templatePath = path + 'FactureTEMPLATE [NE PAS MODIFIDER].dotm';
-    const fileName = newWordFileName(new Date(), invoice.clientName, invoice.matters);
+    const fileName = newWordFileName(invoice.clientName, invoice.matters, invoice.number);
     // Define content control replacements
     const contentControls = getContentControlsValues(invoice);
     await editWordWithGraphApi(filtered, contentControls, templatePath, fileName, accessToken);
@@ -249,6 +250,10 @@ function filterExcelData(data, criteria, lang, i = 0) {
                 FR: 'Total provisions reçues',
                 EN: 'Total Payments'
             },
+            totalHourlyBilled: {
+                FR: 'Total du temps facturé au taux horaire (hors prestations au forfait)',
+                EN: 'Total billable hours (other than lump-sum billed services)'
+            },
             totalDue: {
                 FR: 'Montant dû',
                 EN: 'Total Due'
@@ -262,10 +267,6 @@ function filterExcelData(data, criteria, lang, i = 0) {
                 nature: '',
                 FR: ' au taux horaire de : ',
                 EN: ' at an hourly rate of: ',
-            },
-            totalTimeSpent: {
-                FR: 'Total des heures facturables (hors prestations facturées au forfait) ',
-                EN: 'Total billable hours (other than lump-sum billed services)'
             },
             decimalSign: { FR: ',', EN: '.' }[lang] || '.',
         };
@@ -310,7 +311,7 @@ function filterExcelData(data, criteria, lang, i = 0) {
             if (totalPayments > 0)
                 pushSumRow(lables.totalPayments, totalPayments, totalPaymentsVAT);
             if (totalTimeSpent > 0)
-                pushSumRow(lables.totalTimeSpent, totalTimeSpent); //!We don't pass the vat argument in order to get the corresponding cell of the Word table empty
+                pushSumRow(lables.totalHourlyBilled, totalTimeSpent); //!We don't pass the vat argument in order to get the corresponding cell of the Word table empty
             pushSumRow(lables.totalDue, totalDue, totalDueVAT);
             function pushSumRow(label, amount, vat) {
                 if (!amount)
@@ -320,7 +321,7 @@ function filterExcelData(data, criteria, lang, i = 0) {
                     //@ts-ignore
                     label[lang],
                     '',
-                    label === lables.totalTimeSpent ? getTimeSpent(amount) || '' : getAmountString(amount) || '', //The total amount can be a negative number, that's why we use Math.abs() in order to get the absolute number without the negative sign
+                    label === lables.totalHourlyBilled ? getTimeSpent(amount) || '' : getAmountString(amount) || '', //The total amount can be a negative number, that's why we use Math.abs() in order to get the absolute number without the negative sign
                     //@ts-ignore
                     Number(vat) >= 0 ? getAmountString(Math.abs(vat)) : '' //!We must check not only that vat is a number, but that it is >=0 in order to avoid getting '' each time the vat is = 0, because we need to show 0 vat values
                 ]);

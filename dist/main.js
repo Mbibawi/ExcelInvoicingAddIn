@@ -126,7 +126,6 @@ async function showForm(id) {
             .filter(input => [4, 7].includes(Number(input?.dataset.index)))
             .forEach(input => input.style.display = 'none'); //We hide the inputs of some columns like the "Total Hours" or the "Link" column
         async function onFoucusOut(input) {
-            debugger;
             const i = Number(input.dataset.index);
             const criteria = [{ column: i, value: getArray(input.value) }];
             let unfilter = false;
@@ -247,12 +246,14 @@ async function generateInvoice() {
     const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.id.slice(0, 3).toUpperCase() || 'FR';
     const visible = await filterTable(undefined, undefined, false);
     const invoiceDetails = {
+        number: getInvoiceNumber(new Date()),
         clientName: visible.map(row => String(row[0]))[0] || 'CLIENT',
         matters: (await getUniqueValues(1, visible)).map(el => String(el)),
         adress: (await getUniqueValues(15, visible)).map(el => String(el)),
         lang: lang
     };
-    await uploadWordDocument(getData(), getContentControlsValues(invoiceDetails), await getAccessToken() || '', destinationFolder, newWordFileName(new Date(), invoiceDetails.clientName, invoiceDetails.matters));
+    const filePath = `${destinationFolder} / ${newWordFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`;
+    await uploadWordDocument(getData(), getContentControlsValues(invoiceDetails), await getAccessToken() || '', filePath);
     function getData() {
         const lables = {
             totalFees: {
@@ -387,7 +388,7 @@ async function getUniqueValues(index, array, tableName = 'LivreJournal') {
     return Array.from(new Set(array.map(row => row[index])));
 }
 ;
-async function uploadWordDocument(data, contentControls, accessToken, destinationFolder, fileName) {
+async function uploadWordDocument(data, contentControls, accessToken, filePath) {
     if (!accessToken)
         return;
     return await createAndEditNewXmlDoc();
@@ -400,11 +401,20 @@ async function uploadWordDocument(data, contentControls, accessToken, destinatio
         if (!doc)
             return;
         const table = getXMLTable(doc, 0);
-        data.forEach(row => {
-            const newXmlRow = addRowToXMLTable(doc, table);
+        const style = {
+            isBold: false,
+            isItalic: false,
+            fontName: 'Times New Roman',
+            fontSize: 22
+        };
+        data.forEach((row, x) => {
+            const newXmlRow = insertRowToXMLTable(doc, table, 0);
             if (!newXmlRow)
                 return;
-            row.forEach(el => addCellToXMLTableRow(doc, newXmlRow, el));
+            row.forEach((text, y) => {
+                adaptStyle(x, y, row[0].startsWith('Total'));
+                addCellToXMLTableRow(doc, newXmlRow, style, text);
+            });
         });
         contentControls
             .forEach(([title, text]) => {
@@ -414,55 +424,20 @@ async function uploadWordDocument(data, contentControls, accessToken, destinatio
             editXMLContentControl(control, text);
         });
         const newBlob = await convertXMLIntoBlob(doc, zip.zip);
-        await uploadToOneDrive(newBlob, destinationFolder, fileName, accessToken);
-    }
-    //await editDocumentWordJSAPI(await copyTemplate()?.id, accessToken, data, getContentControlsValues(invoice.lang))
-    async function copyTemplate() {
-        // 1. Create a new Word document from the template
-        const createResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${templatePath}:/copy`, {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${accessToken}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                parentReference: { path: `/drive/root:/${destinationFolder}` },
-                name: fileName
-            })
-        });
-        if (!createResponse.ok)
-            throw new Error("Failed to create document");
-        // 2. Poll for the File ID (since copy is async)
-        const file = await getFile(0);
-        if (!file || !file.id)
-            throw new Error("Failed to retrieve new document ID. File may not be ready.");
-        return file;
-        async function getFile(i) {
-            if (i > 7)
-                return;
-            const checkFilesResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${destinationFolder}:/children`, {
-                method: "GET",
-                headers: {
-                    "Authorization": `Bearer ${accessToken}`
-                }
-            });
-            if (!checkFilesResponse.ok) {
-                await new Promise(res => setTimeout(res, 3000));
-                getFile(i + 1);
+        await uploadToOneDrive(newBlob, filePath, accessToken);
+        function adaptStyle(row, cell, isTotal = false) {
+            cell === 0 ? style.isBold = true : style.isBold = false; //If it is the 1st element (the date for example), it is always bold
+            [1, 3].includes(cell) ? style.isItalic = true : style.isItalic = false; //The second and last columns (the description and the VAT) are always italic
+            if (row === data.length - 1 && [0, 2].includes(cell))
+                style.isItalic = false;
+            if (isTotal) {
+                style.isItalic = true;
+                style.isBold = true;
             }
             ;
-            const files = await checkFilesResponse.json();
-            const file = files.value.find((f) => f.name === fileName);
-            if (file) {
-                console.log('file =', file);
-                return file;
-            }
-            else {
-                await new Promise(res => setTimeout(res, 3000));
-                await getFile(i + 1);
-            }
         }
     }
+    //await editDocumentWordJSAPI(await copyTemplate()?.id, accessToken, data, getContentControlsValues(invoice.lang))
     async function fetchBlobFromFile(templatePath, accessToken) {
         const response = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${templatePath}:/content`, {
             method: 'GET',
@@ -486,7 +461,6 @@ async function uploadWordDocument(data, contentControls, accessToken, destinatio
     }
     //@ts-expect-error
     async function convertXMLIntoBlob(editedXml, zip) {
-        debugger;
         const serializer = new XMLSerializer();
         let modifiedDocumentXml = serializer.serializeToString(editedXml);
         //modifiedDocumentXml = `<?xml version="1.0" encoding="UTF-8"?>\n` + modifiedDocumentXml;
@@ -497,24 +471,62 @@ async function uploadWordDocument(data, contentControls, accessToken, destinatio
         const tables = xmlDoc.getElementsByTagName("w:tbl");
         return tables[index];
     }
-    function addRowToXMLTable(xmlDoc, table) {
+    function insertRowToXMLTable(xmlDoc, table, after = -1) {
         if (!table)
             return;
         const row = createTableElement(xmlDoc, "w:tr");
-        table.appendChild(row);
+        after >= 0 ? table.children[after].insertAdjacentElement('afterend', row) :
+            table.appendChild(row);
         return row;
     }
-    function addCellToXMLTableRow(xmlDoc, row, text) {
+    function formatText(element, style) {
+        if (style.bold)
+            element.style.fontWeight = "bold";
+        if (style.italic)
+            element.style.fontStyle = "italic";
+        if (style.fontSize)
+            element.style.fontSize = style.fontSize.toString() + 'pt';
+        if (style.fontName)
+            element.style.fontFamily = style.fontName;
+        return element;
+    }
+    function setRunStyle(element, style, doc) {
+        // Create or find the run properties element
+        const styleProps = createAndAppend(element, "w:rPr", false);
+        // Set the font name
+        const fonts = createAndAppend(styleProps, "w:rFonts");
+        fonts.setAttribute("w:ascii", style.fontName);
+        fonts.setAttribute("w:hAnsi", style.fontName);
+        // Set the font size (in half-points)
+        createAndAppend(styleProps, "w:sz").setAttribute("w:val", style.fontSize.toString());
+        // Set italic
+        if (style.isItalic)
+            createAndAppend(styleProps, "w:i");
+        // Set bold
+        if (style.isBold)
+            createAndAppend(styleProps, "w:b");
+        function createAndAppend(parent, tag, append = true) {
+            let newElement = parent.querySelector(tag);
+            if (newElement)
+                return newElement;
+            newElement = doc.createElement(tag);
+            append ? parent.appendChild(newElement) : parent.insertBefore(newElement, parent.firstChild);
+            return newElement;
+        }
+    }
+    function addCellToXMLTableRow(xmlDoc, row, style, text) {
         if (!xmlDoc || !row)
             return;
-        const cell = createTableElement(xmlDoc, "w:tc");
+        const cell = createTableElement(xmlDoc, "w:tc"); //new table cell
         row.appendChild(cell);
-        const parag = createTableElement(xmlDoc, "w:p");
+        const parag = createTableElement(xmlDoc, "w:p"); //new table paragraph
         cell.appendChild(parag);
-        const newRun = createTableElement(xmlDoc, "w:r");
+        const newRun = createTableElement(xmlDoc, "w:r"); // new run
         parag.appendChild(newRun);
         if (!text)
             return;
+        //formatText(newRun as HTMLElement, style);
+        setRunStyle(newRun, style, xmlDoc);
         const newText = createTableElement(xmlDoc, "w:t");
         newText.textContent = text;
         newRun.appendChild(newText);
@@ -536,8 +548,9 @@ async function uploadWordDocument(data, contentControls, accessToken, destinatio
     }
 }
 ;
-async function uploadToOneDrive(blob, folderPath, fileName, accessToken) {
-    const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${folderPath}/${fileName}:/content`;
+async function uploadToOneDrive(blob, filePath, accessToken) {
+    debugger;
+    const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/content`;
     const response = await fetch(endpoint, {
         method: 'PUT',
         headers: {
@@ -549,9 +562,13 @@ async function uploadToOneDrive(blob, folderPath, fileName, accessToken) {
     response.ok ? console.log('succefully uploaded the new file') : console.log('failed to upload the file to onedrive error = ', await response.json());
 }
 ;
-function newWordFileName(date, clientName, matters) {
+function newWordFileName(clientName, matters, invoiceNumber) {
     // return 'test file name for now.docx'
-    return `_Test_Facture_${clientName}_${Array.from(matters).join('&')}_${[date.getFullYear(), date.getMonth() + 1, date.getDate()].join('')}@${[date.getHours(), date.getMinutes()].join(':')}.docx`;
+    return `_Test_Facture_${clientName}_${Array.from(matters).join('&')}_No.${invoiceNumber.replace('/', '-')}.docx`;
+}
+function getInvoiceNumber(date) {
+    const padStart = (n) => n.toString().padStart(2, '0');
+    return (date.getFullYear() - 2000).toString() + padStart(date.getMonth() + 1) + padStart(date.getDate()) + '/' + padStart(date.getHours()) + padStart(date.getMinutes());
 }
 async function editDocumentWordJSAPI(id, accessToken, data, controlsData) {
     if (!id || !accessToken || !data)
