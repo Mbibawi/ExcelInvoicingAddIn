@@ -202,7 +202,7 @@ async function showForm(id?: string) {
   };
 
 
-  
+
 }
 /**
  * Creates a dataList with the provided id from the unique values of the column which index is passed as parameter
@@ -290,7 +290,7 @@ async function generateInvoice() {
     lang: lang
   };
 
-  await uploadWordDocument(getData(), getContentControlsValues(invoiceDetails), await getAccessToken() ||'', destinationFolder, newWordFileName(new Date(), invoiceDetails.clientName, invoiceDetails.matters));
+  await uploadWordDocument(getData(), getContentControlsValues(invoiceDetails), await getAccessToken() || '', destinationFolder, newWordFileName(new Date(), invoiceDetails.clientName, invoiceDetails.matters));
 
   function getData() {
     const lables = {
@@ -447,37 +447,37 @@ async function getUniqueValues(index: number, array?: any[][], tableName: string
 };
 
 
-async function uploadWordDocument(data: string[][], contentControls:string[][], accessToken:string, destinationFolder:string, fileName:string) {
+async function uploadWordDocument(data: string[][], contentControls: string[][], accessToken: string, destinationFolder: string, fileName: string) {
 
   if (!accessToken) return;
 
   return await createAndEditNewXmlDoc();
 
   async function createAndEditNewXmlDoc() {
-       const blob = await fetchBlobFromFile(templatePath, accessToken);
-      if (!blob) return;
-      const zip = await convertBlobIntoXML(blob);
-      const doc = zip.xmlDoc;
-      if (!doc) return;
-      const table = getXMLTable(doc, 0);
+    const blob = await fetchBlobFromFile(templatePath, accessToken);
+    if (!blob) return;
+    const zip = await convertBlobIntoXML(blob);
+    const doc = zip.xmlDoc;
+    if (!doc) return;
+    const table = getXMLTable(doc, 0);
 
-      data.forEach(row => {
-        const newXmlRow = addRowToXMLTable(doc, table);
-        if (!newXmlRow) return;
-        row.forEach(el => addCellToXMLTableRow(doc, newXmlRow, el))
+    data.forEach(row => {
+      const newXmlRow = addRowToXMLTable(doc, table);
+      if (!newXmlRow) return;
+      row.forEach(el => addCellToXMLTableRow(doc, newXmlRow, el))
+    });
+
+    contentControls
+      .forEach(([title, text]) => {
+        const control = findXMLContentControlByTitle(doc, title);
+        if (!control) return;
+        editXMLContentControl(control, text);
       });
 
-      contentControls
-        .forEach(([title, text]) => {
-          const control = findXMLContentControlByTitle(doc, title);
-          if (!control) return;
-          editXMLContentControl(control, text);
-        });
-      
-      const newBlob = await convertXMLIntoBlob(doc, zip.zip);
-      await uploadToOneDrive(newBlob, destinationFolder, fileName, accessToken);  
+    const newBlob = await convertXMLIntoBlob(doc, zip.zip);
+    await uploadToOneDrive(newBlob, destinationFolder, fileName, accessToken);
   }
-  
+
   //await editDocumentWordJSAPI(await copyTemplate()?.id, accessToken, data, getContentControlsValues(invoice.lang))
 
   async function copyTemplate() {
@@ -493,48 +493,48 @@ async function uploadWordDocument(data: string[][], contentControls:string[][], 
         name: fileName
       })
     });
-    
-        if (!createResponse.ok)
-          throw new Error("Failed to create document");
-    
-    
-        // 2. Poll for the File ID (since copy is async)
-    
-        const file = await getFile(0);
-    
-      if (!file || !file.id)
+
+    if (!createResponse.ok)
+      throw new Error("Failed to create document");
+
+
+    // 2. Poll for the File ID (since copy is async)
+
+    const file = await getFile(0);
+
+    if (!file || !file.id)
       throw new Error("Failed to retrieve new document ID. File may not be ready.");
 
     return file;
-        
-        async function getFile(i: number) {
-          if (i > 7) return;
-          const checkFilesResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${destinationFolder}:/children`, {
-            method: "GET",
-            headers: {
-              "Authorization": `Bearer ${accessToken}`
-            }
-          });
-    
-          if (!checkFilesResponse.ok) {
-            await new Promise(res => setTimeout(res, 3000));
-            getFile(i + 1);
-          };
-    
-          const files = await checkFilesResponse.json();
-          const file = files.value.find((f: { name: string }) => f.name === fileName)
-    
-          if (file) {
-            console.log('file =', file);
-            return file
-          }
-          else {
-            await new Promise(res => setTimeout(res, 3000));
-            await getFile(i + 1)
-          }
+
+    async function getFile(i: number) {
+      if (i > 7) return;
+      const checkFilesResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${destinationFolder}:/children`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`
+        }
+      });
+
+      if (!checkFilesResponse.ok) {
+        await new Promise(res => setTimeout(res, 3000));
+        getFile(i + 1);
+      };
+
+      const files = await checkFilesResponse.json();
+      const file = files.value.find((f: { name: string }) => f.name === fileName)
+
+      if (file) {
+        console.log('file =', file);
+        return file
+      }
+      else {
+        await new Promise(res => setTimeout(res, 3000));
+        await getFile(i + 1)
+      }
     }
-    
-    
+
+
   }
 
   async function fetchBlobFromFile(templatePath: string, accessToken: string) {
@@ -552,13 +552,14 @@ async function uploadWordDocument(data: string[][], contentControls:string[][], 
   }
 
   async function convertBlobIntoXML(blob: Blob) {
-    const arrayBuffer = await blob.arrayBuffer();
     //@ts-ignore
     const zip = new JSZip();
-    //zip.support.nodebuffer = false;
+
+    const arrayBuffer = await blob.arrayBuffer();
 
     await zip.loadAsync(arrayBuffer);
-
+    
+    debugger
     const documentXml = await zip.file("word/document.xml").async("string");
 
     const parser = new DOMParser();
@@ -571,7 +572,7 @@ async function uploadWordDocument(data: string[][], contentControls:string[][], 
   async function convertXMLIntoBlob(xmlDoc: XMLDocument, zip: JSZip) {
     //@ts-expect-error
     if (!zip) zip = new JSZip();
-    
+
     const serializer = new XMLSerializer();
     let modifiedDocumentXml = serializer.serializeToString(xmlDoc);
 
@@ -689,7 +690,7 @@ async function editDocumentWordJSAPI(id: string, accessToken: string, data: stri
       if (!controlsData || contentControls) return;
 
       controlsData.forEach(control => edit(control));
-      
+
       async function edit(control: string[]) {
         const [title, text] = control;
         const field = contentControls.getByTitle(title).getFirst();

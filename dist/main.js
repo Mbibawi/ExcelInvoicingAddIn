@@ -475,11 +475,11 @@ async function uploadWordDocument(data, contentControls, accessToken, destinatio
         return await response.blob();
     }
     async function convertBlobIntoXML(blob) {
-        const arrayBuffer = await blob.arrayBuffer();
         //@ts-ignore
         const zip = new JSZip();
-        //zip.support.nodebuffer = false;
+        const arrayBuffer = await blob.arrayBuffer();
         await zip.loadAsync(arrayBuffer);
+        debugger;
         const documentXml = await zip.file("word/document.xml").async("string");
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(documentXml, "application/xml");

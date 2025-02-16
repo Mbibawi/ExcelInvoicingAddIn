@@ -51,6 +51,8 @@ async function invoice() {
         criteria[0].value = 'SCI SHAMS';
         criteria[1].value = 'Adjudication studio rue Théodore Deck';
         criteria[2].value = 'CARPA, Honoraire, Débours/Dépens, Provision/Règlement';
+        criteria[3].value = '2015-01-01';
+        criteria[4].value = '2025-01-01';
         inputs.filter(input => input.type === 'checkbox')[1].checked = true;
     })();
     const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.dataset.language || 'FR';

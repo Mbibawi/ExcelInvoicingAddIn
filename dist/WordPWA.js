@@ -110,8 +110,8 @@ async function mainWithWordgraphApi() {
     criteria[0].value = 'SCI SHAMS';
     criteria[1].value = 'Adjudication studio rue Théodore Deck';
     criteria[2].value = ['CARPA', 'Honoraire', 'Débours/Dépens', 'Provision/Règlement'].join(', ');
-    criteria[3].value = '01/01/2015';
-    criteria[4].value = '01/01/2025';
+    criteria[3].value = '2015-01-01';
+    criteria[4].value = '2025-01-01';
     inputs.filter(input => input.type === 'checkbox')[1].checked = true;
     const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.dataset.language || 'FR';
     console.log('language = ', lang);
@@ -232,7 +232,7 @@ function filterExcelData(data, criteria, lang, i = 0) {
             return dateFromExcel(Number(date)).getTime();
         }
     }
-    function getData(tableData) {
+    function getData(filteredTable) {
         const lables = {
             totalFees: {
                 nature: 'Honoraire',
@@ -270,7 +270,7 @@ function filterExcelData(data, criteria, lang, i = 0) {
             decimalSign: { FR: ',', EN: '.' }[lang] || '.',
         };
         const amount = 9, vat = 10, hours = 7, rate = 8, nature = 2, descr = 14;
-        const data = tableData.map(row => {
+        const data = filteredTable.map(row => {
             const date = dateFromExcel(Number(row[3]));
             const time = getTimeSpent(Number(row[hours]));
             let description = `${String(row[nature])} : ${String(row[descr])}`; //Column Nature + Column Description;
@@ -326,7 +326,7 @@ function filterExcelData(data, criteria, lang, i = 0) {
                 ]);
             }
             function getTotals(index, nature) {
-                const total = tableData.filter(row => nature ? row[2] === nature : row[2] === row[2])
+                const total = filteredTable.filter(row => nature ? row[2] === nature : row[2] === row[2])
                     .map(row => Number(row[index]));
                 let sum = 0;
                 for (let i = 0; i < total.length; i++) {
