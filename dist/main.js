@@ -415,8 +415,7 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
             if (!newXmlRow)
                 return;
             row.forEach((text, y) => {
-                adaptStyle(x, y, row[0].startsWith('Total'));
-                addCellToXMLTableRow(doc, newXmlRow, style, text);
+                addCellToXMLTableRow(doc, newXmlRow, getStyle(x, y, row[0].startsWith('Total')), text);
             });
         });
         contentControls
@@ -429,32 +428,23 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
         console.log('doc = ', doc.children[0]);
         const newBlob = await convertXMLIntoBlob(doc, zip.zip);
         await uploadToOneDrive(newBlob, filePath, accessToken);
-        function adaptStyle(row, cell, isTotal = false) {
-            style.style = 'Invoice';
+        function getStyle(row, cell, isTotal = false) {
+            let style = 'Invoice';
             if (cell === 0 && isTotal)
-                style.style += 'BoldItalicLeft';
+                style += 'BoldItalicLeft';
             else if (cell === 0)
-                style.style += 'BoldLeft';
+                style += 'BoldLeft';
             else if (cell === 1)
-                style.style += 'NotBoldItalicLeft';
+                style += 'NotBoldItalicLeft';
             else if (cell === 2 && isTotal)
-                style.style += 'BoldItalicCentered';
+                style += 'BoldItalicCentered';
             else if (cell === 2)
-                style.style += 'BoldCentered';
+                style += 'BoldCentered';
             else if (cell === 3)
-                style.style += 'BoldItalicCentered';
+                style += 'BoldItalicCentered';
             else
-                style.style = '';
-            if ([0, 2, 3].includes(cell) || row === data.length - 1 || isTotal) //The 1st cell of each row, the last row in the table or any row starting with "Total" all their cells are bold
-                style.isBold = true;
-            else
-                style.isBold = false;
-            if ([1, 3].includes(cell) || isTotal)
-                style.isItalic = true;
-            else
-                style.isItalic = false; //The second and last columns (the description and the VAT) are always italic
-            if (row === data.length - 1 && [0, 2].includes(cell))
-                style.isItalic = false;
+                style = '';
+            return style;
         }
     }
     //await editDocumentWordJSAPI(await copyTemplate()?.id, accessToken, data, getContentControlsValues(invoice.lang))
@@ -506,25 +496,10 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
             createAndAppend(cellProp, 'w:vAlign').setAttribute('w:val', "center");
             return;
         }
-        const props = createAndAppend(targetElement, "w:pPr", false);
-        if (style.style) {
-            createAndAppend(props, "w:pStyle").setAttribute("w:val", style.style);
+        if (!style)
             return;
-        }
-        //Set the language
-        createAndAppend(props, "w:lang").setAttribute("w:val", style.lang.toLocaleLowerCase() + '-' + style.lang.toUpperCase());
-        // Set the font name
-        const fonts = createAndAppend(props, "w:rFonts");
-        fonts.setAttribute("w:ascii", style.fontName);
-        fonts.setAttribute("w:hAnsi", style.fontName);
-        // Set the font size (in half-points)
-        createAndAppend(props, "w:sz").setAttribute("w:val", style.fontSize.toString());
-        // Set italic
-        if (style.isItalic)
-            ['w:i', 'w:iCs'].forEach(tag => createAndAppend(props, tag));
-        // Set bold
-        if (style.isBold)
-            ['w:b', 'w:bCs'].forEach(tag => createAndAppend(props, tag));
+        const props = createAndAppend(targetElement, "w:pPr", false);
+        createAndAppend(props, "w:pStyle").setAttribute("w:val", style);
         function createAndAppend(parent, tag, append = true) {
             const newElement = createTableElement(doc, tag);
             if (append)

@@ -63,7 +63,7 @@ async function invoice() {
         number: getInvoiceNumber(date),
         clientName: getInputValue(0, criteria),
         matters: getArray(getInputValue(1, criteria)),
-        adress: Array.from(new Set(filtered.map(row => row[13]))),
+        adress: Array.from(new Set(filtered.map(row => row[16]))),
         lang: lang
     };
     const contentControls = getContentControlsValues(invoice, date);
