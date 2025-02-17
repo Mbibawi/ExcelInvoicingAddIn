@@ -575,10 +575,16 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
     return row;
   }
 
-  function setRunStyle(runElement: Element, style: { style: string; fontName: string; fontSize: number; isItalic: boolean; isBold: boolean; lang: string }, doc: Document): void {
+  function setRunStyle(targetElement: Element, style: { style: string; fontName: string; fontSize: number; isItalic: boolean; isBold: boolean; lang: string }, doc: Document): void {
     // Create or find the run properties element
     //const styleProps = createAndAppend(runElement, "w:rPr", false);
-    const props = createAndAppend(runElement, "w:pPr", false);
+
+    if (targetElement.tagName.toLowerCase() === 'tc') {
+      const cellProp = createAndAppend(targetElement, 'w:tcPr', false);
+      createAndAppend(cellProp, 'w:vAlign').setAttribute('w:val', "center");
+      return
+    }
+    const props = createAndAppend(targetElement, "w:pPr", false);
 
     if (style.style) {
       createAndAppend(props, "w:pStyle").setAttribute("w:val", style.style);
@@ -624,6 +630,7 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
     //formatText(newRun as HTMLElement, style);
 
     //setRunStyle(newRun, style, xmlDoc);
+    setRunStyle(cell, style, xmlDoc);
     setRunStyle(parag, style, xmlDoc);
 
     const newText = createTableElement(xmlDoc, "w:t");

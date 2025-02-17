@@ -498,10 +498,15 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
             table.appendChild(row);
         return row;
     }
-    function setRunStyle(runElement, style, doc) {
+    function setRunStyle(targetElement, style, doc) {
         // Create or find the run properties element
         //const styleProps = createAndAppend(runElement, "w:rPr", false);
-        const props = createAndAppend(runElement, "w:pPr", false);
+        if (targetElement.tagName.toLowerCase() === 'tc') {
+            const cellProp = createAndAppend(targetElement, 'w:tcPr', false);
+            createAndAppend(cellProp, 'w:vAlign').setAttribute('w:val', "center");
+            return;
+        }
+        const props = createAndAppend(targetElement, "w:pPr", false);
         if (style.style) {
             createAndAppend(props, "w:pStyle").setAttribute("w:val", style.style);
             return;
@@ -542,6 +547,7 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
             return;
         //formatText(newRun as HTMLElement, style);
         //setRunStyle(newRun, style, xmlDoc);
+        setRunStyle(cell, style, xmlDoc);
         setRunStyle(parag, style, xmlDoc);
         const newText = createTableElement(xmlDoc, "w:t");
         newText.textContent = text;
