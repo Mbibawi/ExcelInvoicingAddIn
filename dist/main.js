@@ -481,7 +481,7 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
             table.appendChild(row);
         return row;
     }
-    function setRunStyle(targetElement, style, backGroundColor = '', doc) {
+    function setStyle(targetElement, style, backGroundColor = '', doc) {
         // Create or find the run properties element
         //const styleProps = createAndAppend(runElement, "w:rPr", false);
         const tag = targetElement.tagName.toLocaleLowerCase();
@@ -489,7 +489,7 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
             if (tag !== 'w:tc')
                 return;
             const cellProp = createAndAppend(targetElement, 'w:tcPr', false);
-            createAndAppend(cellProp, 'w:vAlign').setAttribute('w:val', "center");
+            //createAndAppend(cellProp, 'w:vAlign').setAttribute('w:val', "center");
             createAndAppend(cellProp, 'w:tcStyle').setAttribute('w:val', 'InvoiceCellCentered');
             if (!backGroundColor)
                 return;
@@ -520,12 +520,12 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
         const cell = createTableElement(xmlDoc, "w:tc"); //new table cell
         row.appendChild(cell);
         if (isTotal)
-            setRunStyle(cell, style, 'D9D9D9', xmlDoc);
+            setStyle(cell, style, 'D9D9D9', xmlDoc);
         else
-            setRunStyle(cell, style, '', xmlDoc);
+            setStyle(cell, style, '', xmlDoc);
         const parag = createTableElement(xmlDoc, "w:p"); //new table paragraph
         cell.appendChild(parag);
-        setRunStyle(parag, style, '', xmlDoc);
+        setStyle(parag, style, '', xmlDoc);
         const newRun = createTableElement(xmlDoc, "w:r"); // new run
         parag.appendChild(newRun);
         if (!text)
