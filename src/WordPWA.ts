@@ -191,7 +191,12 @@ function insertInvoiceForm(excelTable: string[][]) {
         .map(input => input.onchange = () => inputOnChange(Number(input.dataset.index), excelTable));
 
     insertInputsAndLables(['Français', 'English'], true); //Inserting langauges checkboxes
-    form.innerHTML += `<button onclick="generateInvoice()"> Generate Invoice</button>`; //Inserting the button that generates the invoice
+    (function addBtn() {
+        const btnIssue = document.createElement('button');
+        btnIssue.innerText = 'Generate Invoice';
+        btnIssue.onclick = ()=>invoice(true);
+        form.appendChild(btnIssue);     
+    })();
 
     function insertInputsAndLables(indexes: (number | string)[], checkBox: boolean = false): HTMLInputElement[] {
         const id = 'input';
