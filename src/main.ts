@@ -469,7 +469,7 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
       fontName: 'Times New Roman',
       fontSize: 22,
       lang: lang,
-      style: 'Invoice_',
+      style: '',
     }
 
     data.forEach((row, x) => {
@@ -495,6 +495,7 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
     await uploadToOneDrive(newBlob, filePath, accessToken);
 
     function adaptStyle(row: number, cell: number, isTotal: boolean = false) {
+      style.style = 'Invoice';
       if (cell === 0 && isTotal) style.style += 'BoldItalicLeft';
       else if (cell === 0) style.style += 'BoldLeft';
       else if (cell === 1) style.style += 'NotBoldItalicLeft';
