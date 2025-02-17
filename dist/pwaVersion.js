@@ -36,73 +36,47 @@ async function fetchOneDriveFileByPath(filePathAndName, accessToken) {
     }
 }
 // Update Word Document
-async function invoice() {
-    const accessToken = await getAccessToken() || '';
+async function invoice(issue = false) {
+    accessToken = await getAccessToken() || '';
     if (!accessToken)
-        return;
-    const excelData = await fetchExcelTable(accessToken, excelPath, 'LivreJournal');
-    if (!excelData)
-        return;
-    insertInvoiceForm(excelData, Array.from(new Set(excelData.map(row => row[0]))));
-    const inputs = Array.from(document.getElementsByTagName('input'));
-    const criteria = inputs.filter(input => Number(input.dataset.index) >= 0);
-    (function fillInputs() {
-        //!For testing only
-        criteria[0].value = 'SARL MARTHA';
-        criteria[1].value = 'Redressement Judiciaire';
-        criteria[2].value = 'CARPA, Honoraire, Débours/Dépens, Provision/Règlement';
-        criteria[3].value = '2015-01-01';
-        criteria[4].value = '2025-01-01';
-        inputs.filter(input => input.type === 'checkbox')[1].checked = true;
-    })();
-    const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.dataset.language || 'FR';
-    const filtered = filterExcelData(excelData, criteria, lang);
-    console.log('filtered table = ', filtered);
-    const date = new Date();
-    const invoice = {
-        number: getInvoiceNumber(date),
-        clientName: getInputValue(0, criteria),
-        matters: getArray(getInputValue(1, criteria)),
-        adress: Array.from(new Set(filtered.map(row => row[16]))),
-        lang: lang
-    };
-    const contentControls = getContentControlsValues(invoice, date);
-    const filePath = `${destinationFolder}/${newWordFileName(invoice.clientName, invoice.matters, invoice.number)}`;
-    await createAndUploadXmlDocument(filtered, contentControls, accessToken, filePath, lang);
-    (async function oldCodeToDelete() {
-        return;
-        //const filePath = await saveWordDocumentToNewLocation(invoice, accessToken);
-        //const newDocument = await fetchOneDriveFileByPath(filePath || '', accessToken);
-        const tableData = await extractInvoiceData(lang);
-        //const lang = Array.from(document.getElementsByTagName('input')).find(input => input.type === 'checkbox' && input.checked === true)?.value;
-        if (!tableData)
+        return alert('No accessToken');
+    (async function show() {
+        if (issue)
+            return alert('No accessToken');
+        excelData = await fetchExcelTable(accessToken, excelPath, 'LivreJournal');
+        if (!excelData)
             return;
-        try {
-            const document = new Word.Document();
-            //@ts-expect-error
-            document.load(await fetchOneDriveFileByPath(templatePath));
-            // Update Table
-            //@ts-expect-error
-            const table = document.body.tables[0];
-            tableData.forEach(rowData => {
-                const row = table.addRow();
-                rowData.forEach(cellData => {
-                    row.addCell(cellData);
-                });
-            });
-            // Update Rich Text Content Controls
-            const contentControls = document.contentControls;
-            getContentControlsValues(invoice, new Date())
-                .forEach(([title, text]) => {
-                const control = contentControls.getByTitle(title);
-                //@ts-expect-error
-                control.text = text;
-            });
-            document.save();
-        }
-        catch (error) {
-            console.error("Error updating Word document:", error);
-        }
+        insertInvoiceForm(excelData);
+    })();
+    (async function issueInvoice() {
+        if (!issue || !accessToken)
+            return alert('No accessToken');
+        const inputs = Array.from(document.getElementsByTagName('input'));
+        const criteria = inputs.filter(input => Number(input.dataset.index) >= 0);
+        (function fillInputs() {
+            return;
+            //!For testing only
+            criteria[0].value = 'SARL MARTHA';
+            criteria[1].value = 'Redressement Judiciaire';
+            criteria[2].value = 'CARPA, Honoraire, Débours/Dépens, Provision/Règlement';
+            criteria[3].value = '2015-01-01';
+            criteria[4].value = '2025-01-01';
+            inputs.filter(input => input.type === 'checkbox')[1].checked = true;
+        })();
+        const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.dataset.language || 'FR';
+        const filtered = filterExcelData(excelData, criteria, lang);
+        console.log('filtered table = ', filtered);
+        const date = new Date();
+        const invoice = {
+            number: getInvoiceNumber(date),
+            clientName: getInputValue(0, criteria),
+            matters: getArray(getInputValue(1, criteria)),
+            adress: Array.from(new Set(filtered.map(row => row[16]))),
+            lang: lang
+        };
+        const contentControls = getContentControlsValues(invoice, date);
+        const filePath = `${destinationFolder}/${newWordFileName(invoice.clientName, invoice.matters, invoice.number)}`;
+        await createAndUploadXmlDocument(filtered, contentControls, accessToken, filePath, lang);
     })();
 }
 async function extractInvoiceData(lang) {

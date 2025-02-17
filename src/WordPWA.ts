@@ -129,7 +129,7 @@ async function mainWithWordgraphApi() {
 
     if (!excelData) return;
 
-    insertInvoiceForm(excelData, Array.from(new Set(excelData.map(row => row[0]))));
+    insertInvoiceForm(excelData);
 
     const inputs = Array.from(document.getElementsByTagName('input'));
 
@@ -179,14 +179,12 @@ function getInputValue(index: number, inputs: HTMLInputElement[]) {
     return inputs.find(input => Number(input.dataset.index) === index)?.value || ''
 }
 
-function insertInvoiceForm(excelTable: string[][], clientUniqueValues: string[]) {
+function insertInvoiceForm(excelTable: string[][]) {
     const form = document.getElementById('form');
     if (!form) return;
     form.innerHTML = '';
     const title = excelTable[0];
     const inputs = insertInputsAndLables([0, 1, 2, 3, 3]);//Inserting the fields inputs (Client, Matter, Nature, Date). We insert the date twice
-
-    inputs.forEach(input => input?.addEventListener('focusout', async () => await inputOnChange(input), { passive: true }));
 
     insertInputsAndLables(['Français', 'English'], true); //Inserting langauges checkboxes
     form.innerHTML += `<button onclick="generateInvoice()"> Generate Invoice</button>`; //Inserting the button that generates the invoice
@@ -206,47 +204,41 @@ function insertInvoiceForm(excelTable: string[][], clientUniqueValues: string[])
                 input.autocomplete = "on";
             }
 
+            if (Number(index) < 3) input.onchange = () => inputOnChange(index as number, excelTable);
+
             const label = document.createElement('label');
             checkBox ? label.innerText = index.toString() : label.innerText = title[Number(index)];
             label.htmlFor = input.id;
 
             form?.appendChild(label);
             form?.appendChild(input);
-            if (Number(index) === 0) createDataList(input?.id, clientUniqueValues);//We create a unique values dataList for the 'Client' input
+            if (Number(index) < 1) createDataList(input?.id, Array.from(new Set(excelData.map(row => row[0]))));//We create a unique values dataList for the 'Client' input
             return input
         });
     };
 
-    async function inputOnChange(input: HTMLInputElement, unfilter: boolean = false) {
-        return console.log('filter table on input change was called')
-        const index = Number(input.dataset.index);
+    function inputOnChange(index:number, excelData:any[][]) {
+       // return console.log('filter table on input change was called')   
+        const inputs =
+            Array.from(document.getElementsByTagName('input') as HTMLCollectionOf<HTMLInputElement>)
+                .filter(el => el.dataset.index && Number(el.dataset.index) < 3); 
+        
+        const nextInputs = inputs.filter(el => Number(el.dataset.index) > index).map(el => Number(el.dataset.index));
 
-        if (index === 0) unfilter = true;//If this is the 'Client' column, we remove any filter from the table;
+        let filtered = filterOnInput(inputs, nextInputs , excelData);
+        
+        if (filtered.length < 1) return;
 
-        //We filter the table accordin to the input's value and return the visible cells
-        const visibleCells = await filterTable(undefined, [{ column: index, value: getArray(input.value) }], unfilter);
-
-        if (visibleCells.length < 1) return alert('There are no visible cells in the filtered table');
-
-        //We create (or update) the unique values dataList for the next input 
-        const nextInput = getNextInput(input);
+        const nextInput = inputs.find(input => Number(input.dataset.index) > index);
         if (!nextInput) return;
-        createDataList(nextInput?.id || '', await getUniqueValues(Number(nextInput.dataset.index), visibleCells));
+        createDataList(nextInput.id, Array.from(new Set(filtered.map(row => row[index + 1]))));
 
-
-        function getNextInput(input: HTMLInputElement) {
-            let nextInput: Element | null = input.nextElementSibling;
-            while (nextInput?.tagName !== 'INPUT' && nextInput?.nextElementSibling) {
-                nextInput = nextInput.nextElementSibling
-            };
-
-            return nextInput as HTMLInputElement
-        }
-
-        if (index === 1) {
-            //!Need to figuer out how to create a multiple choice input for nature
-            const nature = new Set((await filterTable(undefined, undefined, false)).map(row => row[index]));
-            //nature.forEach(el => form?.appendChild(createCheckBox(undefined, el)));
+        function filterOnInput(inputs:HTMLInputElement[], indexes: number[], table:any[][]) {
+            let filtered: any[][] = table;
+            for (let x = 0; x < indexes.length; x++){
+                filtered = filtered.filter(row => row[x].toString() === inputs.find(input=>Number(input.dataset.index) === x)?.value)
+            }
+            return filtered
         }
 
     };
@@ -291,6 +283,7 @@ function filterExcelData(data: string[][], criteria: HTMLInputElement[], lang: s
     }
 
 }
+
 
 //main().catch(console.error);
 

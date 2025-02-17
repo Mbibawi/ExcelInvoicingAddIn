@@ -4,6 +4,7 @@ const templatePath = path + 'FactureTEMPLATE [NE PAS MODIFIDER].docx';
 const destinationFolder = path + 'Clients';
 const excelFilePath = "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm"
 const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
+var excelData: string[][], accessToken: string;
 
 Office.onReady((info) => {
   if (info.host === Office.HostType.Excel) {
