@@ -408,6 +408,7 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
             fontName: 'Times New Roman',
             fontSize: 22,
             lang: lang,
+            style: 'Invoice_',
         };
         data.forEach((row, x) => {
             const newXmlRow = insertRowToXMLTable(doc, table);
@@ -429,6 +430,20 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
         const newBlob = await convertXMLIntoBlob(doc, zip.zip);
         await uploadToOneDrive(newBlob, filePath, accessToken);
         function adaptStyle(row, cell, isTotal = false) {
+            if (cell === 0 && isTotal)
+                style.style += 'BoldItalicLeft';
+            else if (cell === 0)
+                style.style += 'BoldLeft';
+            else if (cell === 1)
+                style.style += 'NotBoldItalicLeft';
+            else if (cell === 2 && isTotal)
+                style.style += 'BoldItalicCentered';
+            else if (cell === 2)
+                style.style += 'BoldCentered';
+            else if (cell === 3)
+                style.style += 'BoldItalicCentered';
+            else
+                style.style = '';
             if ([0, 2, 3].includes(cell) || row === data.length - 1 || isTotal) //The 1st cell of each row, the last row in the table or any row starting with "Total" all their cells are bold
                 style.isBold = true;
             else
@@ -484,21 +499,26 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
     }
     function setRunStyle(runElement, style, doc) {
         // Create or find the run properties element
-        const styleProps = createAndAppend(runElement, "w:rPr", false);
+        //const styleProps = createAndAppend(runElement, "w:rPr", false);
+        const props = createAndAppend(runElement, "w:pPr", false);
+        if (style.style) {
+            createAndAppend(props, "w:pStyle").setAttribute("w:val", style.style);
+            return;
+        }
         //Set the language
-        createAndAppend(styleProps, "w:lang").setAttribute("w:val", style.lang.toLocaleLowerCase() + '-' + style.lang.toUpperCase());
+        createAndAppend(props, "w:lang").setAttribute("w:val", style.lang.toLocaleLowerCase() + '-' + style.lang.toUpperCase());
         // Set the font name
-        const fonts = createAndAppend(styleProps, "w:rFonts");
+        const fonts = createAndAppend(props, "w:rFonts");
         fonts.setAttribute("w:ascii", style.fontName);
         fonts.setAttribute("w:hAnsi", style.fontName);
         // Set the font size (in half-points)
-        createAndAppend(styleProps, "w:sz").setAttribute("w:val", style.fontSize.toString());
+        createAndAppend(props, "w:sz").setAttribute("w:val", style.fontSize.toString());
         // Set italic
         if (style.isItalic)
-            ['w:i', 'w:iCs'].forEach(tag => createAndAppend(styleProps, tag));
+            ['w:i', 'w:iCs'].forEach(tag => createAndAppend(props, tag));
         // Set bold
         if (style.isBold)
-            ['w:b', 'w:bCs'].forEach(tag => createAndAppend(styleProps, tag));
+            ['w:b', 'w:bCs'].forEach(tag => createAndAppend(props, tag));
         function createAndAppend(parent, tag, append = true) {
             const newElement = createTableElement(doc, tag);
             if (append)
@@ -520,7 +540,8 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
         if (!text)
             return;
         //formatText(newRun as HTMLElement, style);
-        setRunStyle(newRun, style, xmlDoc);
+        //setRunStyle(newRun, style, xmlDoc);
+        setRunStyle(parag, style, xmlDoc);
         const newText = createTableElement(xmlDoc, "w:t");
         newText.textContent = text;
         newRun.appendChild(newText);

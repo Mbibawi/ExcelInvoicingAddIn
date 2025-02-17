@@ -288,7 +288,7 @@ async function generateInvoice() {
     clientName: visible.map(row => String(row[0]))[0] || 'CLIENT',
     matters: (await getUniqueValues(1, visible)).map(el => String(el)),
     adress: (await getUniqueValues(15, visible)).map(el => String(el)),
-    lang:lang
+    lang: lang
   };
 
   const filePath = `${destinationFolder}/${newWordFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`
@@ -449,7 +449,7 @@ async function getUniqueValues(index: number, array?: any[][], tableName: string
 };
 
 
-async function createAndUploadXmlDocument(data: string[][], contentControls: string[][], accessToken: string, filePath: string, lang:string) {
+async function createAndUploadXmlDocument(data: string[][], contentControls: string[][], accessToken: string, filePath: string, lang: string) {
 
   if (!accessToken) return;
   const schema = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
@@ -468,7 +468,8 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
       isItalic: false,
       fontName: 'Times New Roman',
       fontSize: 22,
-      lang:lang,
+      lang: lang,
+      style: 'Invoice_',
     }
 
     data.forEach((row, x) => {
@@ -494,6 +495,15 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
     await uploadToOneDrive(newBlob, filePath, accessToken);
 
     function adaptStyle(row: number, cell: number, isTotal: boolean = false) {
+      if (cell === 0 && isTotal) style.style += 'BoldItalicLeft';
+      else if (cell === 0) style.style += 'BoldLeft';
+      else if (cell === 1) style.style += 'NotBoldItalicLeft';
+      else if (cell === 2 && isTotal) style.style += 'BoldItalicCentered';
+      else if (cell === 2) style.style += 'BoldCentered';
+      else if (cell === 3) style.style += 'BoldItalicCentered';
+      else style.style = ''
+
+
       if ([0, 2, 3].includes(cell) || row === data.length - 1 || isTotal)//The 1st cell of each row, the last row in the table or any row starting with "Total" all their cells are bold
         style.isBold = true;
       else style.isBold = false;
@@ -564,25 +574,31 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
     return row;
   }
 
-  function setRunStyle(runElement: Element, style: { fontName: string; fontSize: number; isItalic: boolean; isBold: boolean; lang:string }, doc: Document): void {
+  function setRunStyle(runElement: Element, style: { style: string; fontName: string; fontSize: number; isItalic: boolean; isBold: boolean; lang: string }, doc: Document): void {
     // Create or find the run properties element
-    const styleProps = createAndAppend(runElement, "w:rPr", false);
+    //const styleProps = createAndAppend(runElement, "w:rPr", false);
+    const props = createAndAppend(runElement, "w:pPr", false);
+
+    if (style.style) {
+      createAndAppend(props, "w:pStyle").setAttribute("w:val", style.style);
+      return;
+    }
 
     //Set the language
-    createAndAppend(styleProps, "w:lang").setAttribute("w:val", style.lang.toLocaleLowerCase() + '-' + style.lang.toUpperCase());
+    createAndAppend(props, "w:lang").setAttribute("w:val", style.lang.toLocaleLowerCase() + '-' + style.lang.toUpperCase());
 
     // Set the font name
-    const fonts = createAndAppend(styleProps, "w:rFonts");
+    const fonts = createAndAppend(props, "w:rFonts");
     fonts.setAttribute("w:ascii", style.fontName);
     fonts.setAttribute("w:hAnsi", style.fontName);
 
     // Set the font size (in half-points)
-    createAndAppend(styleProps, "w:sz").setAttribute("w:val", style.fontSize.toString());
+    createAndAppend(props, "w:sz").setAttribute("w:val", style.fontSize.toString());
 
     // Set italic
-    if (style.isItalic) ['w:i', 'w:iCs'].forEach(tag=>createAndAppend(styleProps, tag));
+    if (style.isItalic) ['w:i', 'w:iCs'].forEach(tag => createAndAppend(props, tag));
     // Set bold
-    if (style.isBold) ['w:b', 'w:bCs'].forEach(tag=>createAndAppend(styleProps, tag));
+    if (style.isBold) ['w:b', 'w:bCs'].forEach(tag => createAndAppend(props, tag));
 
 
     function createAndAppend(parent: Element, tag: string, append: boolean = true) {
@@ -593,7 +609,7 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
     }
   }
 
-  function addCellToXMLTableRow(xmlDoc: XMLDocument, row: Element, style: { isBold: boolean, isItalic: boolean, fontSize: number, fontName: string; lang:string }, text?: string) {
+  function addCellToXMLTableRow(xmlDoc: XMLDocument, row: Element, style: { style: string;  isBold: boolean, isItalic: boolean, fontSize: number, fontName: string; lang: string }, text?: string) {
     if (!xmlDoc || !row) return;
     const cell = createTableElement(xmlDoc, "w:tc");//new table cell
     row.appendChild(cell);
@@ -606,7 +622,8 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
 
     //formatText(newRun as HTMLElement, style);
 
-    setRunStyle(newRun, style, xmlDoc);
+    //setRunStyle(newRun, style, xmlDoc);
+    setRunStyle(parag, style, xmlDoc);
 
     const newText = createTableElement(xmlDoc, "w:t");
     newText.textContent = text;
