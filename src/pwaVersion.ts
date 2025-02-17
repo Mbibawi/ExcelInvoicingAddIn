@@ -55,7 +55,7 @@ async function invoice(issue: boolean = false) {
     })();
 
     (async function issueInvoice() {
-        if (!issue || !accessToken) return alert('No accessToken');
+        if (!issue) return ;
         const inputs = Array.from(document.getElementsByTagName('input'));
     
         const criteria = inputs.filter(input => Number(input.dataset.index) >= 0);

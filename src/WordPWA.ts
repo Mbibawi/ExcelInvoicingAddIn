@@ -144,7 +144,7 @@ async function mainWithWordgraphApi() {
 
     inputs.filter(input => input.type === 'checkbox')[1].checked = true;
 
-    const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.dataset.language || 'FR';
+    const lang = inputs.find(input => input.dataset.language && input.checked === true)?.dataset.language || 'FR';
     console.log('language = ', lang)
     const date = new Date();
     const filtered = filterExcelData(excelData, criteria, lang);
@@ -211,6 +211,7 @@ function insertInvoiceForm(excelTable: string[][]) {
                 if (Number(index) < 2)
                     input.onchange = () => inputOnChange(Number(input.dataset.index), excelTable.slice(1));
             }
+            else if (checkBox) input.dataset.language = index.toString().slice(0, 2).toUpperCase();
 
             const label = document.createElement('label');
             checkBox ? label.innerText = index.toString() : label.innerText = title[Number(index)];

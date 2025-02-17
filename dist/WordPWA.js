@@ -113,7 +113,7 @@ async function mainWithWordgraphApi() {
     criteria[3].value = '2015-01-01';
     criteria[4].value = '2025-01-01';
     inputs.filter(input => input.type === 'checkbox')[1].checked = true;
-    const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.dataset.language || 'FR';
+    const lang = inputs.find(input => input.dataset.language && input.checked === true)?.dataset.language || 'FR';
     console.log('language = ', lang);
     const date = new Date();
     const filtered = filterExcelData(excelData, criteria, lang);
@@ -172,6 +172,8 @@ function insertInvoiceForm(excelTable) {
                 if (Number(index) < 2)
                     input.onchange = () => inputOnChange(Number(input.dataset.index), excelTable.slice(1));
             }
+            else if (checkBox)
+                input.dataset.language = index.toString().slice(0, 2).toUpperCase();
             const label = document.createElement('label');
             checkBox ? label.innerText = index.toString() : label.innerText = title[Number(index)];
             label.htmlFor = input.id;
