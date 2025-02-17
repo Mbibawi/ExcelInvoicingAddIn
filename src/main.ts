@@ -563,6 +563,7 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
       if (tag !== 'w:tc') return;
       const cellProp = createAndAppend(targetElement, 'w:tcPr', false);
       createAndAppend(cellProp, 'w:vAlign').setAttribute('w:val', "center");
+      createAndAppend(cellProp, 'w:tcStyle').setAttribute('w:val', 'InvoiceCellCentered');
       if (!backGroundColor) return;
       const background = createAndAppend(cellProp, 'w:shd');//Adding background color to cell
       background.setAttribute('w:val', "clear");
