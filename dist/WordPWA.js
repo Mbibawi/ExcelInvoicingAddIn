@@ -197,6 +197,10 @@ function insertInvoiceForm(excelTable) {
         if (filtered.length < 1)
             return;
         nextInputs.map(input => createDataList(input.id, getUniqueValues(Number(input.dataset.index), filtered)));
+        const nature = getInputByIndex(inputs, 2); //We get the nature input in order to fill automaticaly its values by a ', ' separated string
+        if (!nature)
+            return;
+        nature.value = Array.from(document.getElementById(nature?.id + 's')?.children)?.map((option) => option.value).join(', ');
         function filterOnInput(inputs, filled, table) {
             let filtered = table;
             for (let i = 0; i < filled.length; i++) {

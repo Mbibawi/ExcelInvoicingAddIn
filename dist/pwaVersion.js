@@ -38,8 +38,6 @@ async function fetchOneDriveFileByPath(filePathAndName, accessToken) {
 // Update Word Document
 async function invoice(issue = false) {
     accessToken = await getAccessToken() || '';
-    if (!accessToken)
-        return alert('No accessToken');
     (async function show() {
         if (issue)
             return alert('No accessToken');
