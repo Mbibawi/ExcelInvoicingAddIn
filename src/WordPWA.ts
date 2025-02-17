@@ -182,6 +182,7 @@ function getInputValue(index: number, inputs: HTMLInputElement[]) {
 function insertInvoiceForm(excelTable: string[][], clientUniqueValues: string[]) {
     const form = document.getElementById('form');
     if (!form) return;
+    form.innerHTML = '';
     const title = excelTable[0];
     const inputs = insertInputsAndLables([0, 1, 2, 3, 3]);//Inserting the fields inputs (Client, Matter, Nature, Date). We insert the date twice
 

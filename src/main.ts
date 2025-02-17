@@ -579,11 +579,12 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
     // Create or find the run properties element
     //const styleProps = createAndAppend(runElement, "w:rPr", false);
 
-    if (targetElement.tagName.toLowerCase() === 'tc') {
+    if (targetElement.tagName.toLowerCase() === 'w:tc') {
       const cellProp = createAndAppend(targetElement, 'w:tcPr', false);
       createAndAppend(cellProp, 'w:vAlign').setAttribute('w:val', "center");
       return
     }
+
     const props = createAndAppend(targetElement, "w:pPr", false);
 
     if (style.style) {
@@ -620,18 +621,14 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
     if (!xmlDoc || !row) return;
     const cell = createTableElement(xmlDoc, "w:tc");//new table cell
     row.appendChild(cell);
+    setRunStyle(cell, style, xmlDoc);
     const parag = createTableElement(xmlDoc, "w:p");//new table paragraph
     cell.appendChild(parag)
+    setRunStyle(parag, style, xmlDoc);
     const newRun = createTableElement(xmlDoc, "w:r");// new run
     parag.appendChild(newRun);
 
     if (!text) return;
-
-    //formatText(newRun as HTMLElement, style);
-
-    //setRunStyle(newRun, style, xmlDoc);
-    setRunStyle(cell, style, xmlDoc);
-    setRunStyle(parag, style, xmlDoc);
 
     const newText = createTableElement(xmlDoc, "w:t");
     newText.textContent = text;

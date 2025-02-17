@@ -143,6 +143,7 @@ function insertInvoiceForm(excelTable, clientUniqueValues) {
     const form = document.getElementById('form');
     if (!form)
         return;
+    form.innerHTML = '';
     const title = excelTable[0];
     const inputs = insertInputsAndLables([0, 1, 2, 3, 3]); //Inserting the fields inputs (Client, Matter, Nature, Date). We insert the date twice
     inputs.forEach(input => input?.addEventListener('focusout', async () => await inputOnChange(input), { passive: true }));
