@@ -12,6 +12,10 @@ section.samples .ms-Button, section.setup .ms-Button {
     background-color: lightseagreen;
 }
 
+.hidden{
+    display: none;
+}
+
 input{
     margin: 2px;
     display: block;
