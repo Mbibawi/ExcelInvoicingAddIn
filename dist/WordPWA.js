@@ -146,9 +146,6 @@ function insertInvoiceForm(excelTable) {
     form.innerHTML = '';
     const title = excelTable[0];
     const inputs = insertInputsAndLables([0, 1, 2, 3, 3]); //Inserting the fields inputs (Client, Matter, Nature, Date). We insert the date twice
-    inputs
-        .filter((input) => Number(input.dataset.index) < 3)
-        .map(input => input.onchange = () => inputOnChange(Number(input.dataset.index), excelTable));
     insertInputsAndLables(['Français', 'English'], true); //Inserting langauges checkboxes
     (function addBtn() {
         const btnIssue = document.createElement('button');
@@ -172,6 +169,8 @@ function insertInvoiceForm(excelTable) {
                 input.dataset.index = index.toString();
                 input.setAttribute('list', input.id + 's');
                 input.autocomplete = "on";
+                if (Number(index) < 2)
+                    input.onchange = () => inputOnChange(Number(input.dataset.index), excelTable.slice(1));
             }
             const label = document.createElement('label');
             checkBox ? label.innerText = index.toString() : label.innerText = title[Number(index)];
@@ -187,24 +186,32 @@ function insertInvoiceForm(excelTable) {
     function inputOnChange(index, excelData) {
         // return console.log('filter table on input change was called')   
         const inputs = Array.from(document.getElementsByTagName('input'))
-            .filter(el => el.dataset.index && Number(el.dataset.index) < 3); //Those are all the inputs that serve to filter the table (first 3 columns only)
-        const filledInputs = inputs.filter(input => Number(input.dataset.index) <= index && input.value).map(input => Number(input.dataset.index)); //Those are all the inputs that the user filled with data
-        const nextInputs = inputs.filter(input => Number(input.dataset.index) > index); //Those are the inputs for which we want to create  or update their data lists
+            .filter(input => input.dataset.index && Number(input.dataset.index) < 3); //Those are all the inputs that serve to filter the table (first 3 columns only)
+        const filledInputs = inputs
+            .filter(input => input.value && getIndex(input) <= index)
+            .map(input => getIndex(input)); //Those are all the inputs that the user filled with data
+        const nextInputs = inputs.filter(input => getIndex(input) > index); //Those are the inputs for which we want to create  or update their data lists
         if (nextInputs.length < 1)
             return;
         let filtered = filterOnInput(inputs, filledInputs, excelData); //We filter the table based on the filled inputs
         if (filtered.length < 1)
             return;
-        nextInputs.map(async (input) => createDataList(input.id, await getUniqueValues(Number(input.dataset.index), filtered)));
-        function filterOnInput(inputs, indexes, table) {
+        nextInputs.map(input => createDataList(input.id, getUniqueValues(Number(input.dataset.index), filtered)));
+        function filterOnInput(inputs, filled, table) {
             let filtered = table;
-            for (let index = 0; index < indexes.length; index++) {
-                filtered = filtered.filter(row => row[indexes[index]].toString() === inputs.find(input => Number(input.dataset.index) === indexes[index])?.value);
+            for (let i = 0; i < filled.length; i++) {
+                filtered = filtered.filter(row => row[filled[i]].toString() === getInputByIndex(inputs, filled[i])?.value);
             }
             return filtered;
         }
     }
     ;
+}
+function getInputByIndex(inputs, index) {
+    return inputs.find(input => Number(input.dataset.index) === index);
+}
+function getIndex(input) {
+    return Number(input.dataset.index);
 }
 function filterExcelData(data, criteria, lang, i = 0) {
     while (i < 2) {
