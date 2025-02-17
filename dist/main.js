@@ -339,9 +339,9 @@ function getRowsData(tableData, lang) {
             pushSumRow(lables.totalFees, totalFee, totalFeeVAT);
         if (totalExpenses > 0)
             pushSumRow(lables.totalExpenses, totalExpenses, totalExpensesVAT);
-        if (totalPayments < 0)
-            pushSumRow(lables.totalPayments, totalPayments, totalPaymentsVAT);
-        if (Math.abs(totalTimeSpent) !== 0)
+        if (Math.abs(totalPayments) > 0)
+            pushSumRow(lables.totalPayments, Math.abs(totalPayments), totalPaymentsVAT);
+        if (Math.abs(totalTimeSpent) > 0)
             pushSumRow(lables.totalTimeSpent, Math.abs(totalTimeSpent)); //!We don't pass the vat argument in order to get the corresponding cell of the Word table empty
         if (totalDue >= 0)
             pushSumRow(lables.totalDue, totalDue, totalDueVAT);
@@ -402,14 +402,6 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
         if (!doc)
             return;
         const table = getXMLElement(doc, "w:tbl", 0);
-        const style = {
-            isBold: false,
-            isItalic: false,
-            fontName: 'Times New Roman',
-            fontSize: 22,
-            lang: lang,
-            style: '',
-        };
         data.forEach((row, x) => {
             const newXmlRow = insertRowToXMLTable(doc, table);
             if (!newXmlRow)
@@ -488,18 +480,27 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
             table.appendChild(row);
         return row;
     }
-    function setRunStyle(targetElement, style, doc) {
+    function setRunStyle(targetElement, style, backGroundColor = '', doc) {
         // Create or find the run properties element
         //const styleProps = createAndAppend(runElement, "w:rPr", false);
-        if (targetElement.tagName.toLowerCase() === 'w:tc') {
+        const tag = targetElement.tagName.toLocaleLowerCase();
+        (function cell() {
+            if (tag !== 'w:tc')
+                return;
             const cellProp = createAndAppend(targetElement, 'w:tcPr', false);
             createAndAppend(cellProp, 'w:vAlign').setAttribute('w:val', "center");
-            return;
-        }
-        if (!style)
-            return;
-        const props = createAndAppend(targetElement, "w:pPr", false);
-        createAndAppend(props, "w:pStyle").setAttribute("w:val", style);
+            const background = createAndAppend(cellProp, 'w:shd'); //Adding background color to cell
+            background.setAttribute('w:val', "clear");
+            background.setAttribute('w:fill', backGroundColor);
+        })();
+        (function parag() {
+            if (tag !== 'w:p')
+                return;
+            if (!style)
+                return;
+            const props = createAndAppend(targetElement, "w:pPr", false);
+            createAndAppend(props, "w:pStyle").setAttribute("w:val", style);
+        })();
         function createAndAppend(parent, tag, append = true) {
             const newElement = createTableElement(doc, tag);
             if (append)
@@ -514,10 +515,10 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
             return;
         const cell = createTableElement(xmlDoc, "w:tc"); //new table cell
         row.appendChild(cell);
-        setRunStyle(cell, style, xmlDoc);
+        setRunStyle(cell, style, 'D9D9D9', xmlDoc);
         const parag = createTableElement(xmlDoc, "w:p"); //new table paragraph
         cell.appendChild(parag);
-        setRunStyle(parag, style, xmlDoc);
+        setRunStyle(parag, style, '', xmlDoc);
         const newRun = createTableElement(xmlDoc, "w:r"); // new run
         parag.appendChild(newRun);
         if (!text)
