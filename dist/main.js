@@ -310,7 +310,7 @@ function getRowsData(tableData, lang) {
             //@ts-ignore
             description += `(${lables.hourlyBilled[lang]} ${time} ${lables.hourlyRate[lang]} ${Math.abs(row[rate]).toString()} €)`;
         const rowValues = [
-            [date.getDate(), date.getMonth() + 1, date.getFullYear()].join('/'), //Column Date
+            [date.getDate(), date.getMonth() + 1, date.getFullYear()].map(el => el.toString().padStart(2, '0')).join('/'), //Column Date
             description,
             getAmountString(Number(row[amount]) * -1), //Column "Amount": we inverse the +/- sign for all the values 
             getAmountString(Math.abs(Number(row[vat]))), //Column VAT: always a positive value
@@ -335,15 +335,15 @@ function getRowsData(tableData, lang) {
         const totalDueVAT = getTotals(vat, null);
         const totalDue = totalFee + totalExpenses + totalPayments;
         debugger;
-        if (totalFee > 0)
+        if (Math.abs(totalFee) > 0)
             pushSumRow(lables.totalFees, totalFee, totalFeeVAT);
-        if (totalExpenses > 0)
+        if (Math.abs(totalExpenses) > 0)
             pushSumRow(lables.totalExpenses, totalExpenses, totalExpensesVAT);
         if (Math.abs(totalPayments) > 0)
             pushSumRow(lables.totalPayments, Math.abs(totalPayments), totalPaymentsVAT);
         if (Math.abs(totalTimeSpent) > 0)
             pushSumRow(lables.totalTimeSpent, Math.abs(totalTimeSpent)); //!We don't pass the vat argument in order to get the corresponding cell of the Word table empty
-        if (totalDue >= 0)
+        if (Math.abs(totalDue) >= 0)
             pushSumRow(lables.totalDue, totalDue, totalDueVAT);
         else
             pushSumRow(lables.totalReinbursement, totalDue, totalDueVAT);
@@ -406,8 +406,10 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
             const newXmlRow = insertRowToXMLTable(doc, table);
             if (!newXmlRow)
                 return;
+            const isTotal = row[0].startsWith('Total');
+            const isLast = x === data.length - 1;
             row.forEach((text, y) => {
-                addCellToXMLTableRow(doc, newXmlRow, getStyle(x, y, row[0].startsWith('Total')), text);
+                addCellToXMLTableRow(doc, newXmlRow, getStyle(x, y, isTotal), [isTotal, isLast].includes(true), text);
             });
         });
         contentControls
@@ -420,7 +422,7 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
         console.log('doc = ', doc.children[0]);
         const newBlob = await convertXMLIntoBlob(doc, zip.zip);
         await uploadToOneDrive(newBlob, filePath, accessToken);
-        function getStyle(row, cell, isTotal = false) {
+        function getStyle(row, cell, isTotal) {
             let style = 'Invoice';
             if (cell === 0 && isTotal)
                 style += 'BoldItalicLeft';
@@ -510,12 +512,13 @@ async function createAndUploadXmlDocument(data, contentControls, accessToken, fi
             return newElement;
         }
     }
-    function addCellToXMLTableRow(xmlDoc, row, style, text) {
+    function addCellToXMLTableRow(xmlDoc, row, style, isTotal = false, text) {
         if (!xmlDoc || !row)
             return;
         const cell = createTableElement(xmlDoc, "w:tc"); //new table cell
         row.appendChild(cell);
-        setRunStyle(cell, style, 'D9D9D9', xmlDoc);
+        if (isTotal)
+            setRunStyle(cell, style, 'D9D9D9', xmlDoc);
         const parag = createTableElement(xmlDoc, "w:p"); //new table paragraph
         cell.appendChild(parag);
         setRunStyle(parag, style, '', xmlDoc);
