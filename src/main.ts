@@ -49,7 +49,7 @@ async function showForm(id?: string) {
     body.load('text');
     await context.sync();
     const headers = header.text[0];
-    const clientUniqueValues: string[] = await getUniqueValues(0, body.text);
+    const clientUniqueValues: string[] = getUniqueValues(0, body.text);
 
     if (id === 'entry') await addingEntry(headers, clientUniqueValues);
     else if (id === 'invoice') await invoice(headers, clientUniqueValues);
@@ -103,7 +103,7 @@ async function showForm(id?: string) {
       //We create (or update) the unique values dataList for the next input 
       const nextInput = getNextInput(input);
       if (!nextInput) return;
-      createDataList(nextInput?.id || '', await getUniqueValues(Number(nextInput.dataset.index), visibleCells));
+      createDataList(nextInput?.id || '', getUniqueValues(Number(nextInput.dataset.index), visibleCells));
 
 
       function getNextInput(input: HTMLInputElement) {
@@ -152,7 +152,7 @@ async function showForm(id?: string) {
       if (i === 0) unfilter = true;
       await filterTable(undefined, criteria, unfilter);
       if (i < 1)
-        createDataList('input' + String(i + 1), await getUniqueValues(i + 1));
+        createDataList('input' + String(i + 1), getUniqueValues(i + 1, await filterTable(undefined, undefined)));
     }
 
     form.innerHTML += `<button onclick="addEntry()"> Ajouter </button>`;
@@ -287,8 +287,8 @@ async function generateInvoice() {
   const invoiceDetails = {
     number: getInvoiceNumber(new Date()),
     clientName: visible.map(row => String(row[0]))[0] || 'CLIENT',
-    matters: (await getUniqueValues(1, visible)).map(el => String(el)),
-    adress: (await getUniqueValues(15, visible)).map(el => String(el)),
+    matters: (getUniqueValues(1, visible)).map(el => String(el)),
+    adress: (getUniqueValues(15, visible)).map(el => String(el)),
     lang: lang
   };
 
@@ -438,8 +438,7 @@ function getRowsData(tableData: string[][], lang:string) {
 
 }
 
-async function getUniqueValues(index: number, array?: any[][], tableName: string = 'LivreJournal'): Promise<any[]> {
-  if (!array) array = await filterTable(tableName, undefined, false);
+function getUniqueValues(index: number, array: any[][], tableName: string = 'LivreJournal'): any[]{
   if (!array) array = [];
   return Array.from(new Set(array.map(row => row[index])))
 };

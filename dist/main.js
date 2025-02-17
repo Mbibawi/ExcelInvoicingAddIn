@@ -42,7 +42,7 @@ async function showForm(id) {
         body.load('text');
         await context.sync();
         const headers = header.text[0];
-        const clientUniqueValues = await getUniqueValues(0, body.text);
+        const clientUniqueValues = getUniqueValues(0, body.text);
         if (id === 'entry')
             await addingEntry(headers, clientUniqueValues);
         else if (id === 'invoice')
@@ -93,7 +93,7 @@ async function showForm(id) {
             const nextInput = getNextInput(input);
             if (!nextInput)
                 return;
-            createDataList(nextInput?.id || '', await getUniqueValues(Number(nextInput.dataset.index), visibleCells));
+            createDataList(nextInput?.id || '', getUniqueValues(Number(nextInput.dataset.index), visibleCells));
             function getNextInput(input) {
                 let nextInput = input.nextElementSibling;
                 while (nextInput?.tagName !== 'INPUT' && nextInput?.nextElementSibling) {
@@ -134,7 +134,7 @@ async function showForm(id) {
                 unfilter = true;
             await filterTable(undefined, criteria, unfilter);
             if (i < 1)
-                createDataList('input' + String(i + 1), await getUniqueValues(i + 1));
+                createDataList('input' + String(i + 1), getUniqueValues(i + 1, await filterTable(undefined, undefined)));
         }
         form.innerHTML += `<button onclick="addEntry()"> Ajouter </button>`;
         function createLable(i) {
@@ -249,8 +249,8 @@ async function generateInvoice() {
     const invoiceDetails = {
         number: getInvoiceNumber(new Date()),
         clientName: visible.map(row => String(row[0]))[0] || 'CLIENT',
-        matters: (await getUniqueValues(1, visible)).map(el => String(el)),
-        adress: (await getUniqueValues(15, visible)).map(el => String(el)),
+        matters: (getUniqueValues(1, visible)).map(el => String(el)),
+        adress: (getUniqueValues(15, visible)).map(el => String(el)),
         lang: lang
     };
     const filePath = `${destinationFolder}/${newWordFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`;
@@ -380,9 +380,7 @@ function getRowsData(tableData, lang) {
             .join(':');
     }
 }
-async function getUniqueValues(index, array, tableName = 'LivreJournal') {
-    if (!array)
-        array = await filterTable(tableName, undefined, false);
+function getUniqueValues(index, array, tableName = 'LivreJournal') {
     if (!array)
         array = [];
     return Array.from(new Set(array.map(row => row[index])));

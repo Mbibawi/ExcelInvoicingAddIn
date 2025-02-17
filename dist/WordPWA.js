@@ -179,7 +179,7 @@ function insertInvoiceForm(excelTable) {
             form?.appendChild(label);
             form?.appendChild(input);
             if (Number(index) < 1)
-                createDataList(input?.id, Array.from(new Set(excelData.map(row => row[0])))); //We create a unique values dataList for the 'Client' input
+                createDataList(input?.id, Array.from(new Set(excelData.slice(1).map(row => row[0])))); //We create a unique values dataList for the 'Client' input
             return input;
         });
     }
@@ -187,19 +187,19 @@ function insertInvoiceForm(excelTable) {
     function inputOnChange(index, excelData) {
         // return console.log('filter table on input change was called')   
         const inputs = Array.from(document.getElementsByTagName('input'))
-            .filter(el => el.dataset.index && Number(el.dataset.index) < 3);
-        const nextInputs = inputs.filter(el => Number(el.dataset.index) > index).map(el => Number(el.dataset.index));
-        let filtered = filterOnInput(inputs, nextInputs, excelData);
+            .filter(el => el.dataset.index && Number(el.dataset.index) < 3); //Those are all the inputs that serve to filter the table (first 3 columns only)
+        const filledInputs = inputs.filter(input => Number(input.dataset.index) <= index && input.value).map(input => Number(input.dataset.index)); //Those are all the inputs that the user filled with data
+        const nextInputs = inputs.filter(input => Number(input.dataset.index) > index); //Those are the inputs for which we want to create  or update their data lists
+        if (nextInputs.length < 1)
+            return;
+        let filtered = filterOnInput(inputs, filledInputs, excelData); //We filter the table based on the filled inputs
         if (filtered.length < 1)
             return;
-        const nextInput = inputs.find(input => Number(input.dataset.index) > index);
-        if (!nextInput)
-            return;
-        createDataList(nextInput.id, Array.from(new Set(filtered.map(row => row[index + 1]))));
+        nextInputs.map(async (input) => createDataList(input.id, await getUniqueValues(Number(input.dataset.index), filtered)));
         function filterOnInput(inputs, indexes, table) {
             let filtered = table;
-            for (let x = 0; x < indexes.length; x++) {
-                filtered = filtered.filter(row => row[x].toString() === inputs.find(input => Number(input.dataset.index) === x)?.value);
+            for (let index = 0; index < indexes.length; index++) {
+                filtered = filtered.filter(row => row[indexes[index]].toString() === inputs.find(input => Number(input.dataset.index) === indexes[index])?.value);
             }
             return filtered;
         }
