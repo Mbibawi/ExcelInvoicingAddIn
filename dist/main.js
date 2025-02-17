@@ -341,8 +341,8 @@ function getRowsData(tableData, lang) {
             pushSumRow(lables.totalExpenses, totalExpenses, totalExpensesVAT);
         if (totalPayments < 0)
             pushSumRow(lables.totalPayments, totalPayments, totalPaymentsVAT);
-        if (totalTimeSpent !== 0)
-            pushSumRow(lables.totalTimeSpent, totalTimeSpent); //!We don't pass the vat argument in order to get the corresponding cell of the Word table empty
+        if (Math.abs(totalTimeSpent) !== 0)
+            pushSumRow(lables.totalTimeSpent, Math.abs(totalTimeSpent)); //!We don't pass the vat argument in order to get the corresponding cell of the Word table empty
         if (totalDue >= 0)
             pushSumRow(lables.totalDue, totalDue, totalDueVAT);
         else
@@ -354,7 +354,7 @@ function getRowsData(tableData, lang) {
                 //@ts-ignore
                 label[lang],
                 '',
-                label === lables.totalTimeSpent ? getTimeSpent(Math.abs(amount)) : getAmountString(amount), //The total amount can be a negative number, that's why we use Math.abs() in order to get the absolute number without the negative sign
+                label === lables.totalTimeSpent ? getTimeSpent(amount) : getAmountString(amount), //The total amount can be a negative number, that's why we use Math.abs() in order to get the absolute number without the negative sign
                 //@ts-ignore
                 Number(vat) >= 0 ? getAmountString(Math.abs(vat)) : '' //!We must check not only that vat is a number, but that it is >=0 in order to avoid getting '' each time the vat is = 0, because we need to show 0 vat values
             ]);
