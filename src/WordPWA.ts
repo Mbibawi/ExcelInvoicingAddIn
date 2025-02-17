@@ -186,6 +186,10 @@ function insertInvoiceForm(excelTable: string[][]) {
     const title = excelTable[0];
     const inputs = insertInputsAndLables([0, 1, 2, 3, 3]);//Inserting the fields inputs (Client, Matter, Nature, Date). We insert the date twice
 
+    inputs
+        .filter((input) => Number(input.dataset.index) < 3)
+        .map(input => input.onchange = () => inputOnChange(Number(input.dataset.index), excelTable));
+
     insertInputsAndLables(['Français', 'English'], true); //Inserting langauges checkboxes
     form.innerHTML += `<button onclick="generateInvoice()"> Generate Invoice</button>`; //Inserting the button that generates the invoice
 
@@ -203,8 +207,6 @@ function insertInvoiceForm(excelTable: string[][]) {
                 input.setAttribute('list', input.id + 's');
                 input.autocomplete = "on";
             }
-
-            if (Number(index) < 3) input.onchange = () => inputOnChange(index as number, excelTable);
 
             const label = document.createElement('label');
             checkBox ? label.innerText = index.toString() : label.innerText = title[Number(index)];
