@@ -384,8 +384,6 @@ function getRowsData(tableData: string[][], lang:string) {
       const totalDueVAT = getTotals(vat, null);
       const totalDue = totalFee + totalExpenses + totalPayments;
 
-      debugger;
-
       if (Math.abs(totalFee) > 0)
           pushSumRow(lables.totalFees, totalFee, totalFeeVAT)
       if (Math.abs(totalExpenses) > 0)
@@ -565,6 +563,7 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
       if (tag !== 'w:tc') return;
       const cellProp = createAndAppend(targetElement, 'w:tcPr', false);
       createAndAppend(cellProp, 'w:vAlign').setAttribute('w:val', "center");
+      if (!backGroundColor) return;
       const background = createAndAppend(cellProp, 'w:shd');//Adding background color to cell
       background.setAttribute('w:val', "clear");
       background.setAttribute('w:fill', backGroundColor);
@@ -591,7 +590,9 @@ async function createAndUploadXmlDocument(data: string[][], contentControls: str
     if (!xmlDoc || !row) return;
     const cell = createTableElement(xmlDoc, "w:tc");//new table cell
     row.appendChild(cell);
-    if(isTotal) setRunStyle(cell, style, 'D9D9D9', xmlDoc);
+    if (isTotal)
+      setRunStyle(cell, style, 'D9D9D9', xmlDoc);
+    else setRunStyle(cell, style, '', xmlDoc);
     const parag = createTableElement(xmlDoc, "w:p");//new table paragraph
     cell.appendChild(parag)
     setRunStyle(parag, style, '', xmlDoc);
@@ -1020,6 +1021,19 @@ function getTokenWithMSAL(clientId: string, redirectUri: string, msalConfig: Obj
       console.error("Token silent acquisition error:", error);
     }
   }
+}
+
+function sortByColumn(data: any[][], columnIndex: number): any[][] {
+  return data.slice().sort((a, b) => {
+      const valA = a[columnIndex];
+      const valB = b[columnIndex];
+
+      if (typeof valA === "number" && typeof valB === "number") {
+          return valA - valB; // Numeric sorting
+      }
+
+      return String(valA).localeCompare(String(valB)); // String sorting
+  });
 }
 
 
