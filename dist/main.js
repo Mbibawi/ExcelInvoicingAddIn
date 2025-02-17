@@ -253,131 +253,131 @@ async function generateInvoice() {
         lang: lang
     };
     const filePath = `${destinationFolder}/${newWordFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`;
-    await createAndUploadXmlDocument(getData(), getContentControlsValues(invoiceDetails, new Date()), await getAccessToken() || '', filePath, lang);
-    function getData() {
-        const lables = {
-            totalFees: {
-                nature: 'Honoraire',
-                FR: 'Total honoraires',
-                EN: 'Total Fees'
-            },
-            totalExpenses: {
-                nature: 'Débours/Dépens',
-                FR: 'Total débours et frais',
-                EN: 'Total Expenses'
-            },
-            totalPayments: {
-                nature: 'Provision/Règlement',
-                FR: 'Total provisions reçues',
-                EN: 'Total Payments'
-            },
-            totalDue: {
-                FR: 'Montant dû',
-                EN: 'Total Due'
-            },
-            hourlyBilled: {
-                nature: '',
-                FR: 'facturation au temps passé : ',
-                EN: 'hourly billed: ',
-            },
-            hourlyRate: {
-                nature: '',
-                FR: ' au taux horaire de : ',
-                EN: ' at an hourly rate of: ',
-            },
-            totalTimeSpent: {
-                FR: 'Total des heures facturables (hors prestations facturées au forfait) ',
-                EN: 'Total billable hours (other than lump-sum billed services)'
-            },
-            decimal: {
-                nature: '',
-                FR: ',',
-                EN: '.'
-            },
-        };
-        const amount = 9, vat = 10, hours = 7, rate = 8, nature = 2, descr = 14;
-        const data = visible.map(row => {
-            const date = dateFromExcel(row[3]);
-            const time = getTimeSpent(row[hours]);
-            let description = `${String(row[nature])} : ${String(row[descr])}`; //Column Nature + Column Description;
-            //If the billable hours are > 0
-            if (time)
-                //@ts-ignore
-                description += `(${lables.hourlyBilled[lang]} ${time} ${lables.hourlyRate[lang]} ${Math.abs(row[rate]).toString()} €)`;
-            const rowValues = [
-                [date.getDate(), date.getMonth() + 1, date.getFullYear()].join('/'), //Column Date
-                description,
-                getAmountString(row[amount] * -1), //Column "Amount": we inverse the +/- sign for all the values 
-                getAmountString(Math.abs(row[vat])), //Column VAT: always a positive value
-            ];
-            return rowValues;
-        });
-        pushTotalsRows();
-        return data;
-        function getAmountString(value) {
+    await createAndUploadXmlDocument(getRowsData(visible, lang), getContentControlsValues(invoiceDetails, new Date()), await getAccessToken() || '', filePath, lang);
+}
+function getRowsData(tableData, lang) {
+    const lables = {
+        totalFees: {
+            nature: 'Honoraire',
+            FR: 'Total honoraires',
+            EN: 'Total Fees'
+        },
+        totalExpenses: {
+            nature: 'Débours/Dépens',
+            FR: 'Total débours et frais',
+            EN: 'Total Expenses'
+        },
+        totalPayments: {
+            nature: 'Provision/Règlement',
+            FR: 'Total provisions reçues',
+            EN: 'Total Payments'
+        },
+        totalTimeSpent: {
+            FR: 'Total des heures facturables (hors prestations facturées au forfait) ',
+            EN: 'Total billable hours (other than lump-sum billed services)'
+        },
+        totalDue: {
+            FR: 'Montant dû',
+            EN: 'Total Due'
+        },
+        totalReinbursement: {
+            FR: 'A rembourser',
+            EN: 'To reimburse'
+        },
+        hourlyBilled: {
+            nature: '',
+            FR: 'facturation au temps passé : ',
+            EN: 'hourly billed: ',
+        },
+        hourlyRate: {
+            nature: '',
+            FR: ' au taux horaire de : ',
+            EN: ' at an hourly rate of: ',
+        },
+        decimal: {
+            nature: '',
+            FR: ',',
+            EN: '.'
+        },
+    };
+    const amount = 9, vat = 10, hours = 7, rate = 8, nature = 2, descr = 14;
+    const data = tableData.map(row => {
+        const date = dateFromExcel(Number(row[3]));
+        const time = getTimeSpent(Number(row[hours]));
+        let description = `${String(row[nature])} : ${String(row[descr])}`; //Column Nature + Column Description;
+        //If the billable hours are > 0
+        if (time)
             //@ts-ignore
-            return value.toFixed(2).replace('.', lables.decimal[lang] || '.') + ' €' || '';
-        }
-        function pushTotalsRows() {
-            //Adding rows for the totals of the different categories and amounts
-            const totalFee = getTotals(amount, lables.totalFees.nature);
-            const totalFeeVAT = getTotals(vat, lables.totalFees.nature);
-            const totalPayments = getTotals(amount, lables.totalPayments.nature);
-            const totalPaymentsVAT = getTotals(vat, lables.totalPayments.nature);
-            const totalExpenses = getTotals(amount, lables.totalExpenses.nature);
-            const totalExpensesVAT = getTotals(vat, lables.totalExpenses.nature);
-            const totalTimeSpent = getTotals(hours, null);
-            const totalDueVAT = getTotals(vat, null);
-            const totalDue = totalFee + totalExpenses - totalPayments;
-            if (totalFee > 0)
-                pushSumRow(lables.totalFees, totalFee, totalFeeVAT);
-            if (totalExpenses > 0)
-                pushSumRow(lables.totalExpenses, totalExpenses, totalExpensesVAT);
-            if (totalPayments > 0)
-                pushSumRow(lables.totalPayments, totalPayments, totalPaymentsVAT);
-            if (totalTimeSpent > 0)
-                pushSumRow(lables.totalTimeSpent, totalTimeSpent); //!We don't pass the vat argument in order to get the corresponding cell of the Word table empty
+            description += `(${lables.hourlyBilled[lang]} ${time} ${lables.hourlyRate[lang]} ${Math.abs(row[rate]).toString()} €)`;
+        const rowValues = [
+            [date.getDate(), date.getMonth() + 1, date.getFullYear()].join('/'), //Column Date
+            description,
+            getAmountString(Number(row[amount]) * -1), //Column "Amount": we inverse the +/- sign for all the values 
+            getAmountString(Math.abs(Number(row[vat]))), //Column VAT: always a positive value
+        ];
+        return rowValues;
+    });
+    pushTotalsRows();
+    return data;
+    function getAmountString(value) {
+        //@ts-ignore
+        return value.toFixed(2).replace('.', lables.decimal[lang] || '.') + ' €' || '';
+    }
+    function pushTotalsRows() {
+        //Adding rows for the totals of the different categories and amounts
+        const totalFee = getTotals(amount, lables.totalFees.nature);
+        const totalFeeVAT = getTotals(vat, lables.totalFees.nature);
+        const totalPayments = getTotals(amount, lables.totalPayments.nature);
+        const totalPaymentsVAT = getTotals(vat, lables.totalPayments.nature);
+        const totalExpenses = getTotals(amount, lables.totalExpenses.nature);
+        const totalExpensesVAT = getTotals(vat, lables.totalExpenses.nature);
+        const totalTimeSpent = getTotals(hours, null); //by passing the nature = null, we do not filter the "Total Time" column by any crieteria. We will get the sum of all the column.
+        const totalDueVAT = getTotals(vat, null);
+        const totalDue = totalFee + totalExpenses + totalPayments;
+        debugger;
+        if (totalFee > 0)
+            pushSumRow(lables.totalFees, totalFee, totalFeeVAT);
+        if (totalExpenses > 0)
+            pushSumRow(lables.totalExpenses, totalExpenses, totalExpensesVAT);
+        if (totalPayments < 0)
+            pushSumRow(lables.totalPayments, totalPayments, totalPaymentsVAT);
+        if (totalTimeSpent !== 0)
+            pushSumRow(lables.totalTimeSpent, totalTimeSpent); //!We don't pass the vat argument in order to get the corresponding cell of the Word table empty
+        if (totalDue >= 0)
             pushSumRow(lables.totalDue, totalDue, totalDueVAT);
-            function pushSumRow(label, amount, vat) {
-                if (!amount)
-                    return;
-                amount = Math.abs(amount);
-                data.push([
-                    //@ts-ignore
-                    label[lang],
-                    '',
-                    label === lables.totalTimeSpent ? getTimeSpent(amount) || '' : getAmountString(amount) || '', //The total amount can be a negative number, that's why we use Math.abs() in order to get the absolute number without the negative sign
-                    //@ts-ignore
-                    Number(vat) >= 0 ? getAmountString(Math.abs(vat)) : '' //!We must check not only that vat is a number, but that it is >=0 in order to avoid getting '' each time the vat is = 0, because we need to show 0 vat values
-                ]);
+        else
+            pushSumRow(lables.totalReinbursement, totalDue, totalDueVAT);
+        function pushSumRow(label, amount, vat) {
+            if (!amount)
+                return;
+            data.push([
+                //@ts-ignore
+                label[lang],
+                '',
+                label === lables.totalTimeSpent ? getTimeSpent(Math.abs(amount)) : getAmountString(amount), //The total amount can be a negative number, that's why we use Math.abs() in order to get the absolute number without the negative sign
+                //@ts-ignore
+                Number(vat) >= 0 ? getAmountString(Math.abs(vat)) : '' //!We must check not only that vat is a number, but that it is >=0 in order to avoid getting '' each time the vat is = 0, because we need to show 0 vat values
+            ]);
+        }
+        function getTotals(index, nature) {
+            const total = tableData.filter(row => nature ? row[2] === nature : row === row)
+                .map(row => Number(row[index]));
+            let sum = 0;
+            for (let i = 0; i < total.length; i++) {
+                sum += total[i];
             }
-            function getTotals(index, nature) {
-                const total = visible.filter(row => nature ? row[2] === nature : row[2] === row[2])
-                    .map(row => Number(row[index]));
-                let sum = 0;
-                for (let i = 0; i < total.length; i++) {
-                    sum += total[i];
-                }
-                if (index === 7)
-                    console.log('this is the hourly rate'); //!need to something to adjust the time spent format
-                return sum;
-            }
+            return sum * -1; //We reverse the sign of any other amount
         }
-        function getTimeSpent(time) {
-            if (!time || time <= 0)
-                return undefined;
-            time = time * (60 * 60 * 24); //84600 is the number in seconds per day. Excel stores the time as fraction number of days like "1.5" which is = 36 hours 0 minutes 0 seconds;
-            const minutes = Math.floor(time / 60);
-            const hours = Math.floor(minutes / 60);
-            return [hours, minutes % 60, 0]
-                .map(el => el.toString().padStart(2, '0'))
-                .join(':');
-        }
-        function dateFromExcel(excelDate) {
-            const date = new Date((excelDate - 25569) * (60 * 60 * 24) * 1000); //This gives the days converted from milliseconds. 
-            const dateOffset = date.getTimezoneOffset() * 60 * 1000; //Getting the difference in milleseconds
-            return new Date(date.getTime() + dateOffset);
-        }
+    }
+    function getTimeSpent(time) {
+        if (!time || time <= 0)
+            return '';
+        time = time * (60 * 60 * 24); //84600 is the number in seconds per day. Excel stores the time as fraction number of days like "1.5" which is = 36 hours 0 minutes 0 seconds;
+        const minutes = Math.floor(time / 60);
+        const hours = Math.floor(minutes / 60);
+        return [hours, minutes % 60, 0]
+            .map(el => el.toString().padStart(2, '0'))
+            .join(':');
     }
 }
 async function getUniqueValues(index, array, tableName = 'LivreJournal') {
