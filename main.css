@@ -14,6 +14,7 @@ section.samples .ms-Button, section.setup .ms-Button {
 #form{
     background-color: #11728c;
     justify-self: center;
+    width: 100%;
     align-self: center;
 }
 
