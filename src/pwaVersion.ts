@@ -38,17 +38,16 @@ async function fetchOneDriveFileByPath(filePathAndName: string, accessToken: str
     }
 }
 
-async function addNewEntry(add:boolean = false) {
+async function addNewEntry(add: boolean = false) {
     accessToken = await getAccessToken() || '';
 
     (async function show() {
         if (add) return;
         excelData = await fetchExcelTable(accessToken, excelPath, 'LivreJournal');
-        
+
         if (!excelData) return;
-    
+
         showForm(excelData[0]);
-        
     })();
 
     (async function addEntry() {
@@ -66,12 +65,14 @@ async function addNewEntry(add:boolean = false) {
                 return getTime([input]) || 0;//time start and time end
             else if (index === 7)
                 return getTime([getInputByIndex(inputs, 5), getInputByIndex(inputs, 6)], true);//Total time
+            else if (index === 15)
+                return ''//'Link to a file' column
             else return input.value;
         });
-        
-          await addRowToExcelTable([row] as any[][], excelFilePath, 'LivreJournal', accessToken);
 
-        function getISODate(date: Date |undefined | null) {
+        await addRowToExcelTable([row] as any[][], excelFilePath, 'LivreJournal', accessToken);
+
+        function getISODate(date: Date | undefined | null) {
             if (!date) return;
             return [date.getFullYear(), date.getMonth() + 1, date.getDate()]
                 .map(d => d.toString().padStart(2, '0'))
@@ -80,9 +81,9 @@ async function addNewEntry(add:boolean = false) {
         }
 
         function getTime(inputs: (HTMLInputElement | undefined)[], total: boolean = false) {
-            const day =  (1000 * 60 *60*24);
+            const day = (1000 * 60 * 60 * 24);
             if (!total && inputs[0]) return inputs[0].valueAsNumber / day;
-            
+
             const from = inputs[0]?.valueAsNumber;
             const to = inputs[1]?.valueAsNumber;
 
@@ -97,89 +98,91 @@ async function addNewEntry(add:boolean = false) {
     function showForm(title: string[]) {
         const form = document.getElementById('form');
         if (!form) return;
+        form.innerHTML = '';
+
+        title.forEach((title, index) => {
+            if (![4, 7].includes(index)) form.appendChild(createLable(title, index));//We exclued the labels for "Total Time" and for "Year"
+            form.appendChild(createInput(index));
+        });
 
         for (const t of title) {//!We could not use for(let i=0; i<title.length; i++) because the await does not work properly inside this loop
-            const i = title.indexOf(t);
-            if (![4, 7].includes(i)) form.appendChild(createLable(i));//We exclued the labels for "Total Time" and for "Year"
-            form.appendChild(createInput(i));
-          };
-      
-          (function addBtn() {
+        };
+
+        (function addBtn() {
             const btnIssue = document.createElement('button');
             btnIssue.innerText = 'Add Entry';
             btnIssue.classList.add('button');
-            btnIssue.onclick = ()=>addNewEntry(true);
-            form.appendChild(btnIssue);     
+            btnIssue.onclick = () => addNewEntry(true);
+            form.appendChild(btnIssue);
         })();
-        
-            function createLable(i: number) {
-                const label = document.createElement('label');
-                label.htmlFor = 'input' + i.toString();
-                label.innerHTML = title[i] + ':';
-                return label
-              }
-          
-              
-        function createInput(i: number) {
-            const css = 'field';
-           const input = document.createElement('input');
-            const id = 'input';
-            input.classList.add(css)
-            input.name = id + i.toString();
-            input.id = input.name;
-            input.autocomplete = "on";
-            input.dataset.index = i.toString();
-            input.type = 'text';
-            if ([8, 9, 10].includes(i))
-            input.type = 'number';
-            else if (i === 3)
-            input.type = 'date';
-            else if ([5, 6].includes(i))
-                input.type = 'time';
-            else if ([4, 7].includes(i)) input.style.display = 'none';//We hide those 2 columns: 'Total Time' and the 'Year'
-            else if ([0, 1, 2, 11, 12, 13, 16].includes(i)) {
-                  //We add a dataList for those fields
-                input.setAttribute('list', input.id + 's');
-                createDataList(input.id, getUniqueValues(i, excelData.slice(1, -2)));
-                input.onchange = ()=>inputOnChange(i, excelData.slice(1, -1), false)
-                }
-          
-                return input
-          
+
+        function createLable(title: string, i: number) {
+            const label = document.createElement('label');
+            label.htmlFor = 'input' + i.toString();
+            label.innerHTML = title + ':';
+            return label
         }
 
-        
+
+        function createInput(index: number) {
+            const css = 'field';
+            const input = document.createElement('input');
+            const id = 'input' + index.toString();
+            input.classList.add(css);
+            input.id = id;
+            input.name = id;
+            input.autocomplete = "on";
+            input.dataset.index = index.toString();
+            input.type = 'text';
+            if ([8, 9, 10].includes(index))
+                input.type = 'number';
+            else if (index === 3)
+                input.type = 'date';
+            else if ([5, 6].includes(index))
+                input.type = 'time';
+            else if ([4, 7, 15].includes(index)) input.style.display = 'none';//We hide those 3 columns: 'Total Time' and the 'Year' and 'Link to a File'
+            else if ([0, 1, 2, 11, 12, 13, 16].includes(index)) {
+                //We add a dataList for those fields
+                input.setAttribute('list', input.id + 's');
+                if (index !== 1) createDataList(input.id, getUniqueValues(index, excelData.slice(1, -1)));//We do not create a list for the matters because this list will be populated when the 'Client' field is changed.
+                input.onchange = () => inputOnChange(index, excelData.slice(1, -1), false)
+            }
+
+            return input
+        }
+
+
     }
-} 
+}
 
 // Update Word Document
 async function invoice(issue: boolean = false) {
     accessToken = await getAccessToken() || '';
-    
+
     (async function show() {
         if (issue) return;
-    
+
         excelData = await fetchExcelTable(accessToken, excelPath, 'LivreJournal');
-    
+
         if (!excelData) return;
-    
+
         insertInvoiceForm(excelData);
-        
+
     })();
 
     (async function issueInvoice() {
-        if (!issue) return ;
+        if (!issue) return;
         const inputs = Array.from(document.getElementsByTagName('input'));
-    
+
         const criteria = inputs.filter(input => Number(input.dataset.index) >= 0);
-       
+
         const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.dataset.language || 'FR';
-        
+
         const filtered = filterExcelData(excelData, criteria, lang);
         console.log('filtered table = ', filtered);
-    
+
         const date = new Date();
-    
+
         const invoice = {
             number: getInvoiceNumber(date),
             clientName: getInputValue(0, criteria),
@@ -188,9 +191,9 @@ async function invoice(issue: boolean = false) {
             lang: lang
         }
         const contentControls = getContentControlsValues(invoice, date);
-    
+
         const filePath = `${destinationFolder}/${newWordFileName(invoice.clientName, invoice.matters, invoice.number)}`;
-    
+
         await createAndUploadXmlDocument(filtered, contentControls, accessToken, filePath, lang);
 
     })();
@@ -204,50 +207,49 @@ async function invoice(issue: boolean = false) {
  * @param {boolean} invoice - If true, it means that we called the function in order to generate an invoice. If false, we called it in order to add a new entry in the table
  * @returns 
  */
-function inputOnChange(index:number, table:any[][], invoice:boolean) {
+function inputOnChange(index: number, table: any[][], invoice: boolean) {
     let inputs = Array.from(document.getElementsByTagName('input') as HTMLCollectionOf<HTMLInputElement>);
 
-    if (invoice) 
+    if (invoice)
         inputs = inputs.filter(input => input.dataset.index && Number(input.dataset.index) < 3); //Those are all the inputs that serve to filter the table (first 3 columns only)
     else
-        inputs = inputs.filter(input => input.list); //Those are all the inputs that have data lists associated with them
-     
-    
+        inputs = inputs.filter(input => input.list && getIndex(input) < 2); //Those are all the inputs that have data lists associated with them
+
     const filledInputs =
         inputs
-        .filter(input => input.value && getIndex(input) <= index)
-        .map(input => getIndex(input));//Those are all the inputs that the user filled with data
-             
-    
-    const nextInputs = inputs.filter(input => getIndex(input) > index);//Those are the inputs for which we want to create  or update their data lists
-    
-    
-    if (filledInputs.length < 1 || nextInputs.length < 1) return;
-        
-    nextInputs.forEach(input => input.value = '');
-     
+            .filter(input => input.value && getIndex(input) <= index)
+            .map(input => getIndex(input));//Those are all the inputs that the user filled with data
+
+
+    const boundInputs = inputs.filter(input => getIndex(input) > index);//Those are the inputs for which we want to create  or update their data lists
+
+
+    if (filledInputs.length < 1 || boundInputs.length < 1) return;
+
+    boundInputs.forEach(input => input.value = '');
+
     const filtered = filterOnInput(inputs, filledInputs, table);//We filter the table based on the filled inputs
-             
+
     if (filtered.length < 1) return;
 
-    nextInputs.map(input => createDataList(input?.id, getUniqueValues(getIndex(input), filtered), invoice));
-    
-    if (invoice) {  
+    boundInputs.map(input => createDataList(input?.id, getUniqueValues(getIndex(input), filtered), invoice));
+
+    if (invoice) {
         const nature = getInputByIndex(inputs, 2);//We get the nature input in order to fill automaticaly its values by a ', ' separated string
         if (!nature) return;
-        nature.value = Array.from(document.getElementById(nature?.id+'s')?.children as HTMLCollectionOf<HTMLOptionElement>)?.map((option) => option.value).join(', ');
+        nature.value = Array.from(document.getElementById(nature?.id + 's')?.children as HTMLCollectionOf<HTMLOptionElement>)?.map((option) => option.value).join(', ');
     }
-     
-    function filterOnInput(inputs:HTMLInputElement[], filled:number[], table:any[][]) {
-         let filtered: any[][] = table;
-         for (let i = 0; i < filled.length; i++){
-             filtered = filtered.filter(row => row[filled[i]].toString() === getInputByIndex(inputs, filled[i])?.value)
-         }
-         return filtered
-     }        
- }; 
 
-async function extractInvoiceData(lang:string) {
+    function filterOnInput(inputs: HTMLInputElement[], filled: number[], table: any[][]) {
+        let filtered: any[][] = table;
+        for (let i = 0; i < filled.length; i++) {
+            filtered = filtered.filter(row => row[filled[i]].toString() === getInputByIndex(inputs, filled[i])?.value)
+        }
+        return filtered
+    }
+};
+
+async function extractInvoiceData(lang: string) {
     const inputs = Array.from(document.getElementsByTagName('input'));
     const criteria = inputs.filter(input => input.dataset.index);
 
@@ -298,7 +300,7 @@ function getContentControlsValues(invoice: { number: string, clientName: string,
             title: 'LabelSubject',
             text: { FR: 'Objet : ', EN: 'Subject: ' }[invoice.lang] || '',
         },
-        subject: {  
+        subject: {
             title: 'RTMatter',
             text: invoice.matters.join(' & '),
         },
@@ -360,12 +362,12 @@ async function saveWordDocumentToNewLocation(invoice: { number: string, clientNa
 function getNewExcelRow(inputs: HTMLInputElement[]) {
     return inputs.map(input => {
         input.value
-        
-    }) 
-    
+
+    })
+
 }
 
-async function addRowToExcelTable(row:any[][], filePath:string, tableName:string = 'LivreJournal', accessToken:string) {
+async function addRowToExcelTable(row: any[][], filePath: string, tableName: string = 'LivreJournal', accessToken: string) {
     const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/rows/add`;
 
     const body = {
