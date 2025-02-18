@@ -51,16 +51,6 @@ async function invoice(issue = false) {
             return;
         const inputs = Array.from(document.getElementsByTagName('input'));
         const criteria = inputs.filter(input => Number(input.dataset.index) >= 0);
-        (function fillInputs() {
-            return;
-            //!For testing only
-            criteria[0].value = 'SARL MARTHA';
-            criteria[1].value = 'Redressement Judiciaire';
-            criteria[2].value = 'CARPA, Honoraire, Débours/Dépens, Provision/Règlement';
-            criteria[3].value = '2015-01-01';
-            criteria[4].value = '2025-01-01';
-            inputs.filter(input => input.type === 'checkbox')[1].checked = true;
-        })();
         const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.dataset.language || 'FR';
         const filtered = filterExcelData(excelData, criteria, lang);
         console.log('filtered table = ', filtered);

@@ -355,7 +355,7 @@ function getRowsData(tableData, lang) {
                 '',
                 label === lables.totalTimeSpent ? getTimeSpent(amount) : getAmountString(amount), //The total amount can be a negative number, that's why we use Math.abs() in order to get the absolute number without the negative sign
                 //@ts-ignore
-                getAmountString(Math.abs(row[vat])), //Column VAT: always a positive value
+                getAmountString(Math.abs(vat)), //Column VAT: always a positive value
             ]);
         }
         function getTotals(index, nature) {
@@ -561,7 +561,7 @@ async function uploadToOneDrive(blob, filePath, accessToken) {
         },
         body: blob, // Use the template's content as the new document's content
     });
-    response.ok ? console.log('succefully uploaded the new file') : console.log('failed to upload the file to onedrive error = ', await response.json());
+    response.ok ? alert('succefully uploaded the new file') : console.log('failed to upload the file to onedrive error = ', await response.json());
 }
 ;
 function newWordFileName(clientName, matters, invoiceNumber) {
