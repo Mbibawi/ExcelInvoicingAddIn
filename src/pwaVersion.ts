@@ -364,11 +364,12 @@ function getNewExcelRow(inputs: HTMLInputElement[]) {
 
 async function addRowToExcelTable(row: any[][], index: number, filePath: string, tableName: string = 'LivreJournal', accessToken: string) {
     row = [['test']];
-    tableName = 'test';
-    const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/rows`;
+    tableName = 'Test';
+    index = 1;
+    const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/rows/add`;
 
+    //index: index, // Example row
     const body = {
-        index: index, // Example row
         values: row, // Example row
     };
 
