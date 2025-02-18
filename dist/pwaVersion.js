@@ -52,28 +52,21 @@ async function addNewEntry(add = false) {
         const row = inputs.map(input => {
             const index = getIndex(input);
             if (index === 3)
-                return getISODate(input.valueAsDate); //The date
+                return getISODate(input.value); //The date
             else if (index === 4)
-                return getISODate(getInputByIndex(inputs, 3)?.valueAsDate); //the Year - we return the full date of the date input
+                return getISODate(getInputByIndex(inputs, 3)?.value || ''); //the Year - we return the full date of the date input
             else if ([5, 6].includes(index))
                 return getTime([input]) || 0; //time start and time end
             else if (index === 7)
-                return getTime([getInputByIndex(inputs, 5), getInputByIndex(inputs, 6)], true); //Total time
+                return Math.abs(getTime([getInputByIndex(inputs, 5), getInputByIndex(inputs, 6)], true) || 0); //Total time
             else if ([8, 9, 10].includes(index))
                 return input.valueAsNumber; //Hourly Rate, Amount, VAT
-            else if (index === 15)
-                return ''; //'Link to a file' column
             else
                 return input.value;
         });
         await addRowToExcelTable([row], excelData.length - 1, excelFilePath, 'LivreJournal', accessToken);
         function getISODate(date) {
-            if (!date)
-                return;
-            return [date.getFullYear(), date.getMonth() + 1, date.getDate()]
-                .map(d => d.toString().padStart(2, '0'))
-                .join('-'); //This returns the date in the iso format : "YYYY-mm-dd"
-            //return date?.toISOString().split('T')[0]
+            new Date(date)?.toISOString();
         }
         function getTime(inputs, total = false) {
             const day = (1000 * 60 * 60 * 24);
@@ -315,6 +308,8 @@ function getNewExcelRow(inputs) {
     });
 }
 async function addRowToExcelTable(row, index, filePath, tableName = 'LivreJournal', accessToken) {
+    row = [['test']];
+    tableName = 'test';
     const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/rows`;
     const body = {
         index: index, // Example row
