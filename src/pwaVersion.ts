@@ -145,8 +145,8 @@ async function addNewEntry(add: boolean = false) {
                 //We add a dataList for those fields
                 input.setAttribute('list', input.id + 's');
                 input.onchange = () => inputOnChange(index, excelData.slice(1, -1), false);
-                if (index !== 1)
-                    createDataList(input.id, getUniqueValues(index, excelData.slice(1, -1)));//We don't create the data list for column 'Matter' because it will be created when the 'Client' field is updated
+                if (![1,16].includes(index))
+                    createDataList(input.id, getUniqueValues(index, excelData.slice(1, -1)));//We don't create the data list for columns 'Matter' (1) and 'Adress' (16) because it will be created when the 'Client' field is updated
             }
 
             return input
