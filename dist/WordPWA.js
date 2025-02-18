@@ -150,13 +150,18 @@ function insertInvoiceForm(excelTable) {
     (function addBtn() {
         const btnIssue = document.createElement('button');
         btnIssue.innerText = 'Generate Invoice';
+        btnIssue.classList.add('button');
         btnIssue.onclick = () => invoice(true);
         form.appendChild(btnIssue);
     })();
     function insertInputsAndLables(indexes, checkBox = false) {
         const id = 'input';
+        let css = 'field';
+        if (checkBox)
+            css = 'checkBox';
         return indexes.map(index => {
             const input = document.createElement('input');
+            input.classList.add(css);
             if (checkBox)
                 input.type = 'checkbox';
             else if (Number(index) < 3)

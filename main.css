@@ -4,22 +4,46 @@ section.samples {
 
 section.samples .ms-Button, section.setup .ms-Button {
     display: block;
-    margin-bottom: 5px;
+    margin-bottom: 10px;
+    justify-self: center;
     margin-left: 20px;
     min-width: 80px;
+    background-color: #e6b812;
+    font-size: 12pt;
 }
 #form{
-    background-color: lightseagreen;
+    background-color: #11728c;
+    justify-self: center;
+    align-self: center;
 }
 
 .hidden{
     display: none;
 }
 
-input{
+.button{
+    display: block;
+    background-color: #e6b812;
+    min-width: 20%;
+    min-height: 10px;
+    justify-self: center;
+    margin-top: 20px;
+}
+.checkBox{
+    display: inline;
+}
+.field{
     margin: 2px;
     display: block;
+    width: fit-content;
+    min-width: 90%;
+    min-height: 4vh;
+    font-size: 12pt;
+    font-family: serif;
   }
   label{
-    display: block
+    display: block;
+    font-weight: bold;
+    margin-bottom: 3px;
+    font-family: serif;
   }

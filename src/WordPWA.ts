@@ -191,14 +191,18 @@ function insertInvoiceForm(excelTable: string[][]) {
     (function addBtn() {
         const btnIssue = document.createElement('button');
         btnIssue.innerText = 'Generate Invoice';
+        btnIssue.classList.add('button');
         btnIssue.onclick = ()=>invoice(true);
         form.appendChild(btnIssue);     
     })();
 
     function insertInputsAndLables(indexes: (number | string)[], checkBox: boolean = false): HTMLInputElement[] {
         const id = 'input';
+        let css = 'field';
+        if(checkBox) css = 'checkBox'
         return indexes.map(index => {
             const input = document.createElement('input');
+            input.classList.add(css);
             if (checkBox) input.type = 'checkbox';
             else if (Number(index) < 3) input.type = 'text';
             else input.type = 'date';
@@ -212,6 +216,7 @@ function insertInvoiceForm(excelTable: string[][]) {
                     input.onchange = () => inputOnChange(Number(input.dataset.index), excelTable.slice(1));
             }
             else if (checkBox) input.dataset.language = index.toString().slice(0, 2).toUpperCase();
+
 
             const label = document.createElement('label');
             checkBox ? label.innerText = index.toString() : label.innerText = title[Number(index)];
