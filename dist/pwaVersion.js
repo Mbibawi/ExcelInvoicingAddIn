@@ -48,7 +48,7 @@ async function addNewEntry(add = false) {
     (async function addEntry() {
         if (!add)
             return;
-        const inputs = Array.from(document.getElementsByTagName('input'));
+        const inputs = Array.from(document.getElementsByTagName('input')); //all inputs
         const row = inputs.map(input => {
             const index = getIndex(input);
             if (index === 3)

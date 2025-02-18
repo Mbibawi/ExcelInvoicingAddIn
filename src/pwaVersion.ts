@@ -52,7 +52,7 @@ async function addNewEntry(add: boolean = false) {
 
     (async function addEntry() {
         if (!add) return;
-        const inputs = Array.from(document.getElementsByTagName('input')) as HTMLInputElement[];
+        const inputs = Array.from(document.getElementsByTagName('input')) as HTMLInputElement[];//all inputs
 
         const row = inputs.map(input => {
             const index = getIndex(input);
