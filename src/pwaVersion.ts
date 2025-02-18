@@ -52,7 +52,7 @@ async function addNewEntry(add: boolean = false) {
 
     (async function addEntry() {
         if (!add) return;
-        const inputs = Array.from(document.getElementsByName('input')) as HTMLInputElement[];
+        const inputs = Array.from(document.getElementsByTagName('input')) as HTMLInputElement[];
 
         const row = inputs.map(input => {
             const index = getIndex(input);
@@ -141,11 +141,12 @@ async function addNewEntry(add: boolean = false) {
             else if ([5, 6].includes(index))
                 input.type = 'time';
             else if ([4, 7, 15].includes(index)) input.style.display = 'none';//We hide those 3 columns: 'Total Time' and the 'Year' and 'Link to a File'
-            else if ([0, 2, 11, 12, 13, 16].includes(index)) {
+            else if ([0, 1, 2, 11, 12, 13, 16].includes(index)) {
                 //We add a dataList for those fields
                 input.setAttribute('list', input.id + 's');
-                createDataList(input.id, getUniqueValues(index, excelData.slice(1, -1)));//We do not create a list for the matters because this list will be populated when the 'Client' field is changed.
-                input.onchange = () => inputOnChange(index, excelData.slice(1, -1), false)
+                input.onchange = () => inputOnChange(index, excelData.slice(1, -1), false);
+                if (index !== 1)
+                    createDataList(input.id, getUniqueValues(index, excelData.slice(1, -1)));//We don't create the data list for column 'Matter' because it will be created when the 'Client' field is updated
             }
 
             return input
