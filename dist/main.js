@@ -194,7 +194,7 @@ function createDataList(id, uniqueValues, multiple = false) {
     dataList.id = id;
     // Append options to the datalist
     uniqueValues.forEach(option => addOption(option));
-    if (multiple)
+    if (multiple && uniqueValues.length > 1)
         addOption(uniqueValues.join(', '));
     // Attach the datalist to the body or a specific element
     document.body.appendChild(dataList);
