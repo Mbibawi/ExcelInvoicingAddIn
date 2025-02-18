@@ -53,18 +53,21 @@ async function addNewEntry(add: boolean = false) {
     (async function addEntry() {
         if (!add) return;
         const inputs = Array.from(document.getElementsByTagName('input')) as HTMLInputElement[];//all inputs
+        const date = getInputByIndex(inputs, 3)?.valueAsDate; 
+
+        if (!date)
+            return alert('You must provide the date');
 
         const row = inputs.map(input => {
-            const index = getIndex(input);
 
-            if (index === 3)
-                return getISODate(input.value);//The date
-            else if (index === 4)
-                return getISODate(getInputByIndex(inputs, 3)?.value || '');//the Year - we return the full date of the date input
+            const index = getIndex(input);
+        
+            if ([3,4].includes(index))
+                return getISODate(date);
             else if ([5, 6].includes(index))
-                return getTime([input]) || 0;//time start and time end
+                return getTime([input]);//time start and time end
             else if (index === 7)
-                return Math.abs(getTime([getInputByIndex(inputs, 5), getInputByIndex(inputs, 6)], true) ||0);//Total time
+                return getTime([getInputByIndex(inputs, 5), getInputByIndex(inputs, 6)]);//Total time
             else if ([8, 9, 10].includes(index))
                 return input.valueAsNumber;//Hourly Rate, Amount, VAT
             else return input.value;
@@ -72,20 +75,23 @@ async function addNewEntry(add: boolean = false) {
         
         await addRowToExcelTable([row], excelData.length - 1, excelFilePath, 'LivreJournal', accessToken);
 
-        function getISODate(date: string) {
-            new Date(date)?.toISOString();
+        function getISODate(date: Date) {
+            return [date.getFullYear(), date.getMonth() +1, date.getDate()].map(el=>el.toString().padStart(2, '0')).join('-');
         }
 
-        function getTime(inputs: (HTMLInputElement | undefined)[], total: boolean = false) {
+        function getTime(inputs: (HTMLInputElement | undefined)[]) {
             const day = (1000 * 60 * 60 * 24);
-            if (!total && inputs[0]) return inputs[0].valueAsNumber / day;
+            if (inputs.length ===1 && inputs[0])
+                return inputs[0].valueAsNumber / day || 0;
 
-            const from = inputs[0]?.valueAsNumber;
+            const from = inputs[0]?.valueAsNumber;//this gives the time in milliseconds
             const to = inputs[1]?.valueAsNumber;
+            
+            if (!from || !to) return 0;
 
-            if (!from || !to) return;
-
-            return (to - from) / day;
+            let time = (to - from)/day;
+            if (time < 0) time = (to  + day - from)/day//It means we started on one day and finished the next day 
+            return time;
         }
 
     })()
