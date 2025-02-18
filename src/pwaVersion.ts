@@ -372,7 +372,7 @@ async function addRowToExcelTable(row: any[][], index: number, filePath: string,
     const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/rows/add`;
 
     const body = {
-        index: index, // Example row
+        //index: index, // Example row
         values: row, // Example row
     };
 

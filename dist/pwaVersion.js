@@ -317,7 +317,7 @@ function getNewExcelRow(inputs) {
 async function addRowToExcelTable(row, index, filePath, tableName = 'LivreJournal', accessToken) {
     const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/rows/add`;
     const body = {
-        index: index, // Example row
+        //index: index, // Example row
         values: row, // Example row
     };
     const response = await fetch(url, {
