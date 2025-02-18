@@ -40,7 +40,7 @@ async function invoice(issue = false) {
     accessToken = await getAccessToken() || '';
     (async function show() {
         if (issue)
-            return alert('No accessToken');
+            return;
         excelData = await fetchExcelTable(accessToken, excelPath, 'LivreJournal');
         if (!excelData)
             return;
