@@ -65,12 +65,14 @@ async function addNewEntry(add: boolean = false) {
                 return getTime([input]) || 0;//time start and time end
             else if (index === 7)
                 return getTime([getInputByIndex(inputs, 5), getInputByIndex(inputs, 6)], true);//Total time
+            else if ([8, 9, 10].includes(index))
+                return input.valueAsNumber;//Hourly Rate, Amount, VAT
             else if (index === 15)
                 return ''//'Link to a file' column
             else return input.value;
         });
         
-        await addRowToExcelTable([row] as any[][], excelData.length - 1, excelFilePath, 'LivreJournal', accessToken);
+        await addRowToExcelTable([row], excelData.length - 1, excelFilePath, 'LivreJournal', accessToken);
 
         function getISODate(date: Date | undefined | null) {
             if (!date) return;

@@ -59,6 +59,8 @@ async function addNewEntry(add = false) {
                 return getTime([input]) || 0; //time start and time end
             else if (index === 7)
                 return getTime([getInputByIndex(inputs, 5), getInputByIndex(inputs, 6)], true); //Total time
+            else if ([8, 9, 10].includes(index))
+                return input.valueAsNumber; //Hourly Rate, Amount, VAT
             else if (index === 15)
                 return ''; //'Link to a file' column
             else
