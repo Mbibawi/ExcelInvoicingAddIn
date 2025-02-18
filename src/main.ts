@@ -297,7 +297,7 @@ async function generateInvoice() {
 
 }
 
-function getRowsData(tableData: string[][], lang:string) {
+function getRowsData(tableData: any[][], lang:string) {
   const lables = {
       totalFees: {
           nature: 'Honoraire',
@@ -359,8 +359,8 @@ function getRowsData(tableData: string[][], lang:string) {
       const rowValues: string[] = [
           [date.getDate(), date.getMonth() + 1, date.getFullYear()].map(el=>el.toString().padStart(2, '0')).join('/'),//Column Date
           description,
-          getAmountString(Number(row[amount]) * -1), //Column "Amount": we inverse the +/- sign for all the values 
-          getAmountString(Math.abs(Number(row[vat]))), //Column VAT: always a positive value
+          getAmountString(row[amount] * -1), //Column "Amount": we inverse the +/- sign for all the values 
+          getAmountString(Math.abs(row[vat])), //Column VAT: always a positive value
       ];
       return rowValues;
   });
@@ -368,9 +368,11 @@ function getRowsData(tableData: string[][], lang:string) {
   pushTotalsRows();
   return data
 
-  function getAmountString(value: number): string {
-      //@ts-ignore
-      return value.toFixed(2).replace('.', lables.decimal[lang] || '.') + ' €' || ''
+  function getAmountString(value: string | number): string {
+    if (Math.abs(Number(value)) >= 0)
+      //@ts-expect-error
+      return '€\u00A0' + Number(value).toFixed(2).replace('.', lables.decimal[lang]);
+    return ''
   }
 
   function pushTotalsRows() {
@@ -384,22 +386,17 @@ function getRowsData(tableData: string[][], lang:string) {
       const totalTimeSpent = getTotals(hours, null);//by passing the nature = null, we do not filter the "Total Time" column by any crieteria. We will get the sum of all the column.
       const totalDueVAT = getTotals(vat, null);
       const totalDue = totalFee + totalExpenses + totalPayments;
+    const insert = (sum: number) => Math.abs(sum) > 0;
 
-      if (Math.abs(totalFee) > 0)
-          pushSumRow(lables.totalFees, totalFee, totalFeeVAT)
-      if (Math.abs(totalExpenses) > 0)
-          pushSumRow(lables.totalExpenses, totalExpenses, totalExpensesVAT);
-      if (Math.abs(totalPayments) > 0)
-          pushSumRow(lables.totalPayments, Math.abs(totalPayments), totalPaymentsVAT);
-      if (Math.abs(totalTimeSpent) > 0)
-          pushSumRow(lables.totalTimeSpent, Math.abs(totalTimeSpent))//!We don't pass the vat argument in order to get the corresponding cell of the Word table empty
-      if (Math.abs(totalDue) >= 0)
-          pushSumRow(lables.totalDue, totalDue, totalDueVAT);
-      else
-          pushSumRow(lables.totalReinbursement, totalDue, totalDueVAT);
+    push(insert(totalFee), lables.totalFees, totalFee, totalFeeVAT);
+    push(insert(totalExpenses), lables.totalExpenses, totalExpenses, totalExpensesVAT);
+    push(insert(totalPayments), lables.totalPayments, Math.abs(totalPayments), totalPaymentsVAT);
+    push(insert(totalTimeSpent), lables.totalTimeSpent, Math.abs(totalTimeSpent), undefined)//!We don't pass the vat argument in order to get the corresponding cell of the Word table empty
+            
+    totalDue >= 0? push(true, lables.totalDue, totalDue, totalDueVAT) : push(true, lables.totalReinbursement, totalDue, totalDueVAT);
 
-      function pushSumRow(label: { FR: string, EN: string }, amount: number, vat?: number) {
-          if (!amount) return;
+    function push(insert: boolean, label: { FR: string, EN: string }, amount: number, vat?: number) {
+      if (!insert || !amount) return;
           data.push(
               [
                   //@ts-ignore
@@ -407,7 +404,7 @@ function getRowsData(tableData: string[][], lang:string) {
                   '',
                   label === lables.totalTimeSpent ? getTimeSpent(amount) : getAmountString(amount),//The total amount can be a negative number, that's why we use Math.abs() in order to get the absolute number without the negative sign
                   //@ts-ignore
-                  Number(vat) >= 0 ? getAmountString(Math.abs(vat)) : '' //!We must check not only that vat is a number, but that it is >=0 in order to avoid getting '' each time the vat is = 0, because we need to show 0 vat values
+                  getAmountString(Math.abs(row[vat])), //Column VAT: always a positive value
               ]);
       }
 
@@ -434,7 +431,6 @@ function getRowsData(tableData: string[][], lang:string) {
           .map(el => el.toString().padStart(2, '0'))
           .join(':');
   }
-
 
 }
 
