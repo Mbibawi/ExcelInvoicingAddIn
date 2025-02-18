@@ -35,6 +35,76 @@ async function fetchOneDriveFileByPath(filePathAndName, accessToken) {
         console.error("Error fetching OneDrive file:", error);
     }
 }
+async function addNewEntry(add = false) {
+    accessToken = await getAccessToken() || '';
+    (async function show() {
+        if (add)
+            return;
+        excelData = await fetchExcelTable(accessToken, excelPath, 'LivreJournal');
+        if (!excelData)
+            return;
+        showForm(excelData[0]);
+    })();
+    (async function addEntry() {
+        if (!add)
+            return;
+        const inputs = document.getElementsByName('input');
+        const row = inputs.map(input => {
+        });
+        await addRowToExcelTable(row, excelFilePath, 'LivreJournal', accessToken);
+    })();
+    function showForm(title) {
+        const form = document.getElementById('form');
+        if (!form)
+            return;
+        for (const t of title) { //!We could not use for(let i=0; i<title.length; i++) because the await does not work properly inside this loop
+            const i = title.indexOf(t);
+            if (![4, 7].includes(i))
+                form.appendChild(createLable(i)); //We exclued the labels for "Total Time" and for "Year"
+            form.appendChild(createInput(i));
+        }
+        ;
+        (function addBtn() {
+            const btnIssue = document.createElement('button');
+            btnIssue.innerText = 'Generate Invoice';
+            btnIssue.classList.add('button');
+            btnIssue.onclick = () => addEntry(true);
+            form.appendChild(btnIssue);
+        })();
+        function createLable(i) {
+            const label = document.createElement('label');
+            label.htmlFor = 'input' + i.toString();
+            label.innerHTML = title[i] + ':';
+            return label;
+        }
+        function createInput(i) {
+            const css = 'field';
+            const input = document.createElement('input');
+            const id = 'input';
+            input.classList.add(css);
+            input.name = id + i.toString();
+            input.id = input.name;
+            input.autocomplete = "on";
+            input.dataset.index = i.toString();
+            input.type = 'text';
+            if ([8, 9, 10].includes(i))
+                input.type = 'number';
+            else if (i === 3)
+                input.type = 'date';
+            else if ([5, 6].includes(i))
+                input.type = 'time';
+            else if ([4, 7].includes(i))
+                input.style.display = 'none'; //We hide those 2 columns: 'Total Time' and the 'Year'
+            else if ([0, 1, 2, 11, 12, 13, 16].includes(i)) {
+                //We add a dataList for those fields
+                input.setAttribute('list', input.id + 's');
+                createDataList(input.id, getUniqueValues(i, excelData.slice(1, -2)));
+                input.onchange = () => inputOnChange(i, excelData.slice(1, -1), false);
+            }
+            return input;
+        }
+    }
+}
 // Update Word Document
 async function invoice(issue = false) {
     accessToken = await getAccessToken() || '';
@@ -67,6 +137,45 @@ async function invoice(issue = false) {
         await createAndUploadXmlDocument(filtered, contentControls, accessToken, filePath, lang);
     })();
 }
+/**
+ * Updates the data list of the other fields according to the value of the input that has been changed
+ * @param {number} index - the dataset.index of the input that has been changed
+ * @param {any[][]} table - the table that will be filtered
+ * @param {boolean} invoice - If true, it means that we called the function in order to generate an invoice. If false, we called it in order to add a new entry in the table
+ * @returns
+ */
+function inputOnChange(index, table, invoice) {
+    let inputs = Array.from(document.getElementsByTagName('input'));
+    if (invoice)
+        inputs = inputs.filter(input => input.dataset.index && Number(input.dataset.index) < 3); //Those are all the inputs that serve to filter the table (first 3 columns only)
+    else
+        inputs = inputs.filter(input => input.list); //Those are all the inputs that have data lists associated with them
+    const filledInputs = inputs
+        .filter(input => input.value && getIndex(input) <= index)
+        .map(input => getIndex(input)); //Those are all the inputs that the user filled with data
+    const nextInputs = inputs.filter(input => getIndex(input) > index); //Those are the inputs for which we want to create  or update their data lists
+    if (filledInputs.length < 1 || nextInputs.length < 1)
+        return;
+    nextInputs.forEach(input => input.value = '');
+    const filtered = filterOnInput(inputs, filledInputs, table); //We filter the table based on the filled inputs
+    if (filtered.length < 1)
+        return;
+    nextInputs.map(input => createDataList(input?.id, getUniqueValues(getIndex(input), filtered), invoice));
+    if (invoice) {
+        const nature = getInputByIndex(inputs, 2); //We get the nature input in order to fill automaticaly its values by a ', ' separated string
+        if (!nature)
+            return;
+        nature.value = Array.from(document.getElementById(nature?.id + 's')?.children)?.map((option) => option.value).join(', ');
+    }
+    function filterOnInput(inputs, filled, table) {
+        let filtered = table;
+        for (let i = 0; i < filled.length; i++) {
+            filtered = filtered.filter(row => row[filled[i]].toString() === getInputByIndex(inputs, filled[i])?.value);
+        }
+        return filtered;
+    }
+}
+;
 async function extractInvoiceData(lang) {
     const inputs = Array.from(document.getElementsByTagName('input'));
     const criteria = inputs.filter(input => input.dataset.index);
@@ -162,6 +271,32 @@ async function saveWordDocumentToNewLocation(invoice, accessToken, originalFileP
     }
     catch (error) {
         console.error("Error saving Word document:", error);
+    }
+}
+function getNewExcelRow(inputs) {
+    return inputs.map(input => {
+        input.value;
+    });
+}
+async function addRowToExcelTable(row, filePath, tableName = 'LivreJournal', accessToken) {
+    const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/rows/add`;
+    const body = {
+        values: row // Example row
+    };
+    const response = await fetch(url, {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(body)
+    });
+    if (response.ok) {
+        console.log("Row added successfully!");
+        return await response.json();
+    }
+    else {
+        console.error("Error adding row:", await response.text());
     }
 }
 //# sourceMappingURL=pwaVersion.js.map

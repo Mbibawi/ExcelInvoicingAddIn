@@ -175,7 +175,7 @@ function insertInvoiceForm(excelTable) {
                 input.setAttribute('list', input.id + 's');
                 input.autocomplete = "on";
                 if (Number(index) < 2)
-                    input.onchange = () => inputOnChange(Number(input.dataset.index), excelTable.slice(1));
+                    input.onchange = () => inputOnChange(Number(input.dataset.index), excelTable.slice(1), true);
             }
             else if (checkBox)
                 input.dataset.language = index.toString().slice(0, 2).toUpperCase();
@@ -185,36 +185,9 @@ function insertInvoiceForm(excelTable) {
             form?.appendChild(label);
             form?.appendChild(input);
             if (Number(index) < 1)
-                createDataList(input, Array.from(new Set(excelData.slice(1).map(row => row[0])))); //We create a unique values dataList for the 'Client' input
+                createDataList(input?.id, Array.from(new Set(excelData.slice(1, -1).map(row => row[0])))); //We create a unique values dataList for the 'Client' input
             return input;
         });
-    }
-    ;
-    function inputOnChange(index, excelData) {
-        // return console.log('filter table on input change was called')   
-        const inputs = Array.from(document.getElementsByTagName('input'))
-            .filter(input => input.dataset.index && Number(input.dataset.index) < 3); //Those are all the inputs that serve to filter the table (first 3 columns only)
-        const filledInputs = inputs
-            .filter(input => input.value && getIndex(input) <= index)
-            .map(input => getIndex(input)); //Those are all the inputs that the user filled with data
-        const nextInputs = inputs.filter(input => getIndex(input) > index); //Those are the inputs for which we want to create  or update their data lists
-        if (nextInputs.length < 1)
-            return;
-        let filtered = filterOnInput(inputs, filledInputs, excelData); //We filter the table based on the filled inputs
-        if (filtered.length < 1)
-            return;
-        nextInputs.map(input => createDataList(input, getUniqueValues(Number(input.dataset.index), filtered), true));
-        const nature = getInputByIndex(inputs, 2); //We get the nature input in order to fill automaticaly its values by a ', ' separated string
-        if (!nature)
-            return;
-        nature.value = Array.from(document.getElementById(nature?.id + 's')?.children)?.map((option) => option.value).join(', ');
-        function filterOnInput(inputs, filled, table) {
-            let filtered = table;
-            for (let i = 0; i < filled.length; i++) {
-                filtered = filtered.filter(row => row[filled[i]].toString() === getInputByIndex(inputs, filled[i])?.value);
-            }
-            return filtered;
-        }
     }
     ;
 }
