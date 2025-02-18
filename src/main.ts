@@ -85,7 +85,7 @@ async function showForm(id?: string) {
 
         form.appendChild(label);
         form.appendChild(input);
-        if (Number(index) === 0) createDataList(input?.id, clientUniqueValues);//We create a unique values dataList for the 'Client' input
+        if (Number(index) === 0) createDataList(input, clientUniqueValues);//We create a unique values dataList for the 'Client' input
         return input
       });
     };
@@ -103,7 +103,7 @@ async function showForm(id?: string) {
       //We create (or update) the unique values dataList for the next input 
       const nextInput = getNextInput(input);
       if (!nextInput) return;
-      createDataList(nextInput?.id || '', getUniqueValues(Number(nextInput.dataset.index), visibleCells));
+      createDataList(nextInput || '', getUniqueValues(Number(nextInput.dataset.index), visibleCells));
 
 
       function getNextInput(input: HTMLInputElement) {
@@ -151,8 +151,7 @@ async function showForm(id?: string) {
       let unfilter = false;
       if (i === 0) unfilter = true;
       await filterTable(undefined, criteria, unfilter);
-      if (i < 1)
-        createDataList('input' + String(i + 1), getUniqueValues(i + 1, await filterTable(undefined, undefined)));
+      //if (i < 1) createDataList('input' + String(i + 1), getUniqueValues(i + 1, await filterTable(undefined, undefined)));
     }
 
     form.innerHTML += `<button onclick="addEntry()"> Ajouter </button>`;
@@ -182,7 +181,7 @@ async function showForm(id?: string) {
       else if ([0, 1, 2, 11, 12, 13, 16].includes(i)) {
         //We add a dataList for those fields
         input.setAttribute('list', input.id + 's');
-        createDataList(input.id, uniqueValues);
+        createDataList(input, uniqueValues);
       }
 
       return input
@@ -212,11 +211,12 @@ async function showForm(id?: string) {
  * 
 */
 
-function createDataList(id: string, uniqueValues: string[], multiple:boolean = false) {
+function createDataList(input: HTMLInputElement, uniqueValues: string[], multiple:boolean = false) {
   //const uniqueValues = Array.from(new Set(visible.map(row => row[i])));
-  if (!id || !uniqueValues || uniqueValues.length < 1) return;
-  id += 's';
-
+  if (!input || !uniqueValues || uniqueValues.length < 1) return;
+  const id = input.id += 's';
+  input.value = '';//We empty the input
+  
   // Create a new datalist element
   let dataList = Array.from(document.getElementsByTagName('datalist')).find(list => list.id === id);
   if (dataList) dataList.remove();

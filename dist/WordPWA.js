@@ -185,7 +185,7 @@ function insertInvoiceForm(excelTable) {
             form?.appendChild(label);
             form?.appendChild(input);
             if (Number(index) < 1)
-                createDataList(input?.id, Array.from(new Set(excelData.slice(1).map(row => row[0])))); //We create a unique values dataList for the 'Client' input
+                createDataList(input, Array.from(new Set(excelData.slice(1).map(row => row[0])))); //We create a unique values dataList for the 'Client' input
             return input;
         });
     }
@@ -203,7 +203,7 @@ function insertInvoiceForm(excelTable) {
         let filtered = filterOnInput(inputs, filledInputs, excelData); //We filter the table based on the filled inputs
         if (filtered.length < 1)
             return;
-        nextInputs.map(input => createDataList(input.id, getUniqueValues(Number(input.dataset.index), filtered), true));
+        nextInputs.map(input => createDataList(input, getUniqueValues(Number(input.dataset.index), filtered), true));
         const nature = getInputByIndex(inputs, 2); //We get the nature input in order to fill automaticaly its values by a ', ' separated string
         if (!nature)
             return;
