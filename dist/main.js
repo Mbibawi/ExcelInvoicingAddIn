@@ -183,7 +183,7 @@ function createDataList(input, uniqueValues, multiple = false) {
     //const uniqueValues = Array.from(new Set(visible.map(row => row[i])));
     if (!input || !uniqueValues || uniqueValues.length < 1)
         return;
-    const id = input.id += 's';
+    const id = input.id + 's';
     input.value = ''; //We empty the input
     // Create a new datalist element
     let dataList = Array.from(document.getElementsByTagName('datalist')).find(list => list.id === id);
