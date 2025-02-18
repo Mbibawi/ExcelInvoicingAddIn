@@ -182,7 +182,7 @@ function inputOnChange(index, table, invoice) {
     if (invoice)
         inputs = inputs.filter(input => input.dataset.index && Number(input.dataset.index) < 3); //Those are all the inputs that serve to filter the table (first 3 columns only)
     else
-        inputs = inputs.filter(input => input.list && getIndex(input) < 2); //Those are all the inputs that have data lists associated with them
+        inputs = inputs.filter(input => [0, 1, 16].includes(getIndex(input))); //Those are all the inputs that have data lists associated with them
     const filledInputs = inputs
         .filter(input => input.value && getIndex(input) <= index)
         .map(input => getIndex(input)); //Those are all the inputs that the user filled with data
