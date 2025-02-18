@@ -46,7 +46,7 @@ async function showForm(id) {
         if (id === 'entry')
             await addingEntry(headers, clientUniqueValues);
         else if (id === 'invoice')
-            await invoice(headers, clientUniqueValues);
+            invoice(headers, clientUniqueValues);
     });
     function invoice(title, clientUniqueValues) {
         const inputs = insertInputsAndLables([0, 1, 2, 3]); //Inserting the fields inputs (Client, Matter, Nature, Date)
@@ -76,7 +76,7 @@ async function showForm(id) {
                 form.appendChild(label);
                 form.appendChild(input);
                 if (Number(index) === 0)
-                    createDataList(input, clientUniqueValues); //We create a unique values dataList for the 'Client' input
+                    createDataList(input?.id, clientUniqueValues); //We create a unique values dataList for the 'Client' input
                 return input;
             });
         }
@@ -93,7 +93,7 @@ async function showForm(id) {
             const nextInput = getNextInput(input);
             if (!nextInput)
                 return;
-            createDataList(nextInput || '', getUniqueValues(Number(nextInput.dataset.index), visibleCells));
+            createDataList(nextInput?.id || '', getUniqueValues(Number(nextInput.dataset.index), visibleCells));
             function getNextInput(input) {
                 let nextInput = input.nextElementSibling;
                 while (nextInput?.tagName !== 'INPUT' && nextInput?.nextElementSibling) {
@@ -159,7 +159,7 @@ async function showForm(id) {
             else if ([0, 1, 2, 11, 12, 13, 16].includes(i)) {
                 //We add a dataList for those fields
                 input.setAttribute('list', input.id + 's');
-                createDataList(input, uniqueValues);
+                createDataList(input?.id, uniqueValues);
             }
             return input;
         }
@@ -179,12 +179,11 @@ async function showForm(id) {
  * @param {number} index - the index of the column from which the unique values of the datalist will be retrieved
  *
 */
-function createDataList(input, uniqueValues, multiple = false) {
+function createDataList(id, uniqueValues, multiple = false) {
     //const uniqueValues = Array.from(new Set(visible.map(row => row[i])));
-    if (!input || !uniqueValues || uniqueValues.length < 1)
+    if (!id || !uniqueValues || uniqueValues.length < 1)
         return;
-    const id = input.id + 's';
-    input.value = ''; //We empty the input
+    id += 's';
     // Create a new datalist element
     let dataList = Array.from(document.getElementsByTagName('datalist')).find(list => list.id === id);
     if (dataList)
