@@ -149,6 +149,10 @@ function getContentControlsValues(invoice: { number: string, clientName: string,
             title: 'RTMatter',
             text: invoice.matters.join(' & '),
         },
+        fee: {
+            title: 'LabelTableHeadingHonoraire',
+            text: { FR: 'Honoraire/Débours', EN: 'Fees/Expenses' }[invoice.lang] || '',
+        },
         amount: {
             title: 'LabelTableHeadingMontantTTC',
             text: { FR: 'Montant TTC', EN: 'Amount VAT Included' }[invoice.lang] || '',
