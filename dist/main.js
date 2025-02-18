@@ -180,7 +180,7 @@ async function showForm(id) {
  * @param {number} index - the index of the column from which the unique values of the datalist will be retrieved
  *
 */
-function createDataList(id, uniqueValues) {
+function createDataList(id, uniqueValues, multiple = false) {
     //const uniqueValues = Array.from(new Set(visible.map(row => row[i])));
     if (!id || !uniqueValues || uniqueValues.length < 1)
         return;
@@ -193,13 +193,16 @@ function createDataList(id, uniqueValues) {
     //@ts-ignore
     dataList.id = id;
     // Append options to the datalist
-    uniqueValues.forEach(option => {
+    uniqueValues.forEach(option => addOption(option));
+    if (multiple)
+        addOption(uniqueValues.join(', '));
+    // Attach the datalist to the body or a specific element
+    document.body.appendChild(dataList);
+    function addOption(option) {
         const optionElement = document.createElement('option');
         optionElement.value = option;
         dataList?.appendChild(optionElement);
-    });
-    // Attach the datalist to the body or a specific element
-    document.body.appendChild(dataList);
+    }
 }
 ;
 /**

@@ -212,7 +212,7 @@ async function showForm(id?: string) {
  * 
 */
 
-function createDataList(id: string, uniqueValues: string[]) {
+function createDataList(id: string, uniqueValues: string[], multiple:boolean = false) {
   //const uniqueValues = Array.from(new Set(visible.map(row => row[i])));
   if (!id || !uniqueValues || uniqueValues.length < 1) return;
   id += 's';
@@ -224,13 +224,18 @@ function createDataList(id: string, uniqueValues: string[]) {
   //@ts-ignore
   dataList.id = id;
   // Append options to the datalist
-  uniqueValues.forEach(option => {
+  uniqueValues.forEach(option => addOption(option));
+  
+  if (multiple)
+    addOption(uniqueValues.join(', '));
+
+  // Attach the datalist to the body or a specific element
+    document.body.appendChild(dataList);
+  function addOption(option: string) {
     const optionElement = document.createElement('option');
     optionElement.value = option;
     dataList?.appendChild(optionElement);
-  });
-  // Attach the datalist to the body or a specific element
-  document.body.appendChild(dataList);
+  }
 };
 
 /**
