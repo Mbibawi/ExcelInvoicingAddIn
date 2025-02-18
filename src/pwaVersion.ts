@@ -101,7 +101,7 @@ async function addNewEntry(add: boolean = false) {
         form.innerHTML = '';
 
         title.forEach((title, index) => {
-            if (![4, 7].includes(index)) form.appendChild(createLable(title, index));//We exclued the labels for "Total Time" and for "Year"
+            if (![4, 7, 15].includes(index)) form.appendChild(createLable(title, index));//We exclued the labels for "Total Time" and for "Year"
             form.appendChild(createInput(index));
         });
 
@@ -141,10 +141,10 @@ async function addNewEntry(add: boolean = false) {
             else if ([5, 6].includes(index))
                 input.type = 'time';
             else if ([4, 7, 15].includes(index)) input.style.display = 'none';//We hide those 3 columns: 'Total Time' and the 'Year' and 'Link to a File'
-            else if ([0, 1, 2, 11, 12, 13, 16].includes(index)) {
+            else if ([0, 2, 11, 12, 13, 16].includes(index)) {
                 //We add a dataList for those fields
                 input.setAttribute('list', input.id + 's');
-                if (index !== 1) createDataList(input.id, getUniqueValues(index, excelData.slice(1, -1)));//We do not create a list for the matters because this list will be populated when the 'Client' field is changed.
+                createDataList(input.id, getUniqueValues(index, excelData.slice(1, -1)));//We do not create a list for the matters because this list will be populated when the 'Client' field is changed.
                 input.onchange = () => inputOnChange(index, excelData.slice(1, -1), false)
             }
 
