@@ -244,7 +244,7 @@ function insertInvoiceForm(excelTable: string[][]) {
             if (filtered.length < 1) return;
 
 
-        nextInputs.map((input, i) => createDataList(input.id, getUniqueValues(Number(input.dataset.index), filtered), i > 0));
+        nextInputs.map(input => createDataList(input.id, getUniqueValues(Number(input.dataset.index), filtered), true));
         
         const nature = getInputByIndex(inputs, 2);//We get the nature input in order to fill automaticaly its values by a ', ' separated string
         if (!nature) return;
