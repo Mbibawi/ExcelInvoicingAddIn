@@ -69,8 +69,8 @@ async function addNewEntry(add: boolean = false) {
                 return ''//'Link to a file' column
             else return input.value;
         });
-
-        await addRowToExcelTable([row] as any[][], excelFilePath, 'LivreJournal', accessToken);
+        
+        await addRowToExcelTable([row] as any[][], excelData.length - 1, excelFilePath, 'LivreJournal', accessToken);
 
         function getISODate(date: Date | undefined | null) {
             if (!date) return;
@@ -367,11 +367,12 @@ function getNewExcelRow(inputs: HTMLInputElement[]) {
 
 }
 
-async function addRowToExcelTable(row: any[][], filePath: string, tableName: string = 'LivreJournal', accessToken: string) {
+async function addRowToExcelTable(row: any[][], index: number, filePath: string, tableName: string = 'LivreJournal', accessToken: string) {
     const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/rows/add`;
 
     const body = {
-        values: row // Example row
+        index: index, // Example row
+        values: row, // Example row
     };
 
     const response = await fetch(url, {
