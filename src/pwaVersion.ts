@@ -151,8 +151,6 @@ async function addNewEntry(add: boolean = false) {
 
             return input
         }
-
-
     }
 }
 
