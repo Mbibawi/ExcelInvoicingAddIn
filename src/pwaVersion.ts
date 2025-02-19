@@ -65,14 +65,14 @@ async function addNewEntry(add: boolean = false) {
 
         const row = inputs.map(input => {
             const index = getIndex(input);
-            if (debit && index === 1)
-                return Number(input.value) * -1;
-            else if ([3, 4].includes(index))
-                return getISODate(date);
+            if ([3, 4].includes(index))
+                return getISODate(date);//Those are the 2 date columns
             else if ([5, 6].includes(index))
-                return getTime([input]);//time start and time end
+                return getTime([input]);//time start and time end columns
             else if (index === 7)
-                return getTime([getInputByIndex(inputs, 5), getInputByIndex(inputs, 6)]);//Total time
+                return getTime([getInputByIndex(inputs, 5), getInputByIndex(inputs, 6)]);//Total time column
+            else if (debit && index === 9)
+                return input.valueAsNumber * -1 || 0 ;//This is the amount if negative
             else if ([8, 9, 10].includes(index))
                 return input.valueAsNumber || 0;//Hourly Rate, Amount, VAT
             else return input.value;
