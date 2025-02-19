@@ -74,8 +74,8 @@ async function addNewEntry(add: boolean = false) {
             else if (index === 7)
                 return getTime([getInputByIndex(inputs, 5), getInputByIndex(inputs, 6)]);//Total time
             else if ([8, 9, 10].includes(index))
-                return input.valueAsNumber;//Hourly Rate, Amount, VAT
-            else return input.value || 0;
+                return input.valueAsNumber || 0;//Hourly Rate, Amount, VAT
+            else return input.value;
         });
 
         await addRowToExcelTable([row], excelData.length - 2, excelFilePath, tableName, accessToken);
