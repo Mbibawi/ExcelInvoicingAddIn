@@ -412,7 +412,7 @@ async function addRowToExcelTable(row: any[][], index: number, filePath: string,
     });
 
     if (response.ok) {
-        alert("Row added successfully!");
+        console.log("Row added successfully!");
         return await response.json();
     } else {
         alert(`Error adding row: ${await response.text()}`);
@@ -452,7 +452,7 @@ async function filterExcelTable(filePath:string, tableName:string, columnName:st
     });
 
     if (filterResponse.ok) {
-        alert(`Filter applied to column ${columnName} successfully!`);
+        console.log(`Filter applied to column ${columnName} successfully!`);
     } else {
         alert(`Error applying filter: ${await filterResponse.text()}`);
     }

@@ -348,7 +348,7 @@ async function addRowToExcelTable(row, index, filePath, tableName, accessToken) 
         body: JSON.stringify(body)
     });
     if (response.ok) {
-        alert("Row added successfully!");
+        console.log("Row added successfully!");
         return await response.json();
     }
     else {
@@ -383,7 +383,7 @@ async function filterExcelTable(filePath, tableName, columnName, filterValue, ac
         body: JSON.stringify(body)
     });
     if (filterResponse.ok) {
-        alert(`Filter applied to column ${columnName} successfully!`);
+        console.log(`Filter applied to column ${columnName} successfully!`);
     }
     else {
         alert(`Error applying filter: ${await filterResponse.text()}`);
