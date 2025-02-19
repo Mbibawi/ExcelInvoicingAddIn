@@ -50,11 +50,16 @@ async function addNewEntry(add = false) {
             return;
         const inputs = Array.from(document.getElementsByTagName('input')); //all inputs
         const date = getInputByIndex(inputs, 3)?.valueAsDate;
-        if (!date)
-            return alert('You must provide the date');
+        const nature = getInputByIndex(inputs, 2)?.value;
+        const amount = getInputByIndex(inputs, 9);
+        if (!date || !nature)
+            return alert('You must provide the date and the nature');
+        const debit = ['Honoraire', 'Débours/Dépens', 'Débours/Dépens non facturables', 'Rétrocession d\'honoraires'].includes(nature); //We check if we need to change the value sign 
         const row = inputs.map(input => {
             const index = getIndex(input);
-            if ([3, 4].includes(index))
+            if (debit && index === 1)
+                return Number(input.value) * -1;
+            else if ([3, 4].includes(index))
                 return getISODate(date);
             else if ([5, 6].includes(index))
                 return getTime([input]); //time start and time end
@@ -312,12 +317,6 @@ function getNewExcelRow(inputs) {
     });
 }
 async function addRowToExcelTable(row, index, filePath, tableName, accessToken) {
-    (function test() {
-        return;
-        row = [['test', '2025-08-11', 0.93332, '2023-08-12', 0.55533]];
-        tableName = 'Test';
-        index = 1;
-    })();
     const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/rows`;
     const body = {
         index: index,
