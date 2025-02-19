@@ -89,7 +89,6 @@ async function addNewEntry(add: boolean = false) {
             await filterExcelTable(excelFilePath, tableName, TableRows[0][index], row[index].toString(), accessToken);
         });
         
-
         function getISODate(date: Date | undefined) {
             //@ts-ignore
             return [date?.getFullYear(), date?.getMonth() + 1, date?.getDate()].map(el => el.toString().padStart(2, '0')).join('-');
@@ -431,7 +430,7 @@ async function filterExcelTable(filePath:string, tableName:string, columnName:st
     const body = {
         criteria: {
             filterOn: "custom",
-            criterion1: `="${filterValue}"`,
+            criterion1: `=${filterValue}`,
         }
     };
 

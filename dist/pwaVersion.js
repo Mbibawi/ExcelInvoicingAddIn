@@ -363,7 +363,7 @@ async function filterExcelTable(filePath, tableName, columnName, filterValue, ac
     const body = {
         criteria: {
             filterOn: "custom",
-            criterion1: `="${filterValue}"`,
+            criterion1: `=${filterValue}`,
         }
     };
     const filterResponse = await fetch(filterUrl, {
