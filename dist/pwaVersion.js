@@ -65,7 +65,7 @@ async function addNewEntry(add = false) {
             else
                 return input.value;
         });
-        await addRowToExcelTable([row], excelData.length - 1, excelFilePath, 'LivreJournal', accessToken);
+        await addRowToExcelTable([row], excelData.length - 1, excelFilePath, tableName, accessToken);
         function getISODate(date) {
             return [date.getFullYear(), date.getMonth() + 1, date.getDate()].map(el => el.toString().padStart(2, '0')).join('-');
         }
@@ -311,14 +311,17 @@ function getNewExcelRow(inputs) {
         input.value;
     });
 }
-async function addRowToExcelTable(row, index, filePath, tableName = 'LivreJournal', accessToken) {
-    row = [['test']];
-    tableName = 'Test';
-    index = 1;
-    const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/rows/add`;
-    //index: index, // Example row
+async function addRowToExcelTable(row, index, filePath, tableName, accessToken) {
+    (function test() {
+        return;
+        row = [['test', '2025-08-11', 0.93332, '2023-08-12', 0.55533]];
+        tableName = 'Test';
+        index = 1;
+    })();
+    const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/rows`;
     const body = {
-        values: row, // Example row
+        index: index,
+        values: row,
     };
     const response = await fetch(url, {
         method: "POST",

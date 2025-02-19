@@ -53,7 +53,7 @@ async function addNewEntry(add: boolean = false) {
     (async function addEntry() {
         if (!add) return;
         const inputs = Array.from(document.getElementsByTagName('input')) as HTMLInputElement[];//all inputs
-        const date = getInputByIndex(inputs, 3)?.valueAsDate; 
+        const date = getInputByIndex(inputs, 3)?.valueAsDate;
 
         if (!date)
             return alert('You must provide the date');
@@ -61,8 +61,8 @@ async function addNewEntry(add: boolean = false) {
         const row = inputs.map(input => {
 
             const index = getIndex(input);
-        
-            if ([3,4].includes(index))
+
+            if ([3, 4].includes(index))
                 return getISODate(date);
             else if ([5, 6].includes(index))
                 return getTime([input]);//time start and time end
@@ -72,25 +72,25 @@ async function addNewEntry(add: boolean = false) {
                 return input.valueAsNumber;//Hourly Rate, Amount, VAT
             else return input.value;
         });
-        
-        await addRowToExcelTable([row], excelData.length - 1, excelFilePath, 'LivreJournal', accessToken);
+
+        await addRowToExcelTable([row], excelData.length - 1, excelFilePath, tableName, accessToken);
 
         function getISODate(date: Date) {
-            return [date.getFullYear(), date.getMonth() +1, date.getDate()].map(el=>el.toString().padStart(2, '0')).join('-');
+            return [date.getFullYear(), date.getMonth() + 1, date.getDate()].map(el => el.toString().padStart(2, '0')).join('-');
         }
 
         function getTime(inputs: (HTMLInputElement | undefined)[]) {
             const day = (1000 * 60 * 60 * 24);
-            if (inputs.length ===1 && inputs[0])
+            if (inputs.length === 1 && inputs[0])
                 return inputs[0].valueAsNumber / day || 0;
 
             const from = inputs[0]?.valueAsNumber;//this gives the time in milliseconds
             const to = inputs[1]?.valueAsNumber;
-            
+
             if (!from || !to) return 0;
 
-            let time = (to - from)/day;
-            if (time < 0) time = (to  + day - from)/day//It means we started on one day and finished the next day 
+            let time = (to - from) / day;
+            if (time < 0) time = (to + day - from) / day//It means we started on one day and finished the next day 
             return time;
         }
 
@@ -147,7 +147,7 @@ async function addNewEntry(add: boolean = false) {
                 //We add a dataList for those fields
                 input.setAttribute('list', input.id + 's');
                 input.onchange = () => inputOnChange(index, excelData.slice(1, -1), false);
-                if (![1,16].includes(index))
+                if (![1, 16].includes(index))
                     createDataList(input.id, getUniqueValues(index, excelData.slice(1, -1)));//We don't create the data list for columns 'Matter' (1) and 'Adress' (16) because it will be created when the 'Client' field is updated
             }
 
@@ -368,15 +368,19 @@ function getNewExcelRow(inputs: HTMLInputElement[]) {
 
 }
 
-async function addRowToExcelTable(row: any[][], index: number, filePath: string, tableName: string = 'LivreJournal', accessToken: string) {
-    row = [['test']];
-    tableName = 'Test';
-    index = 1;
-    const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/rows/add`;
+async function addRowToExcelTable(row: any[][], index: number, filePath: string, tableName: string, accessToken: string) {
+    (function test() {
+        return;
+        row = [['test', '2025-08-11', 0.93332, '2023-08-12', 0.55533]];
+        tableName = 'Test';
+        index = 1;
+    })();
 
-    //index: index, // Example row
+    const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/rows`;
+    
     const body = {
-        values: row, // Example row
+        index: index,
+        values: row, 
     };
 
     const response = await fetch(url, {
