@@ -6,7 +6,7 @@ const tableName = 'LivreJournal';
 const destinationFolder = path + 'Clients';
 const excelFilePath = "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm";
 const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
-var excelData, accessToken;
+var TableRows, accessToken;
 Office.onReady((info) => {
     if (info.host === Office.HostType.Excel) {
         // Excel-specific initialization code goes here

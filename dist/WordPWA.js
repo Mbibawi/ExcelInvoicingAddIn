@@ -185,7 +185,7 @@ function insertInvoiceForm(excelTable) {
             form?.appendChild(label);
             form?.appendChild(input);
             if (Number(index) < 1)
-                createDataList(input?.id, Array.from(new Set(excelData.slice(1, -1).map(row => row[0])))); //We create a unique values dataList for the 'Client' input
+                createDataList(input?.id, Array.from(new Set(TableRows.slice(1, -1).map(row => row[0])))); //We create a unique values dataList for the 'Client' input
             return input;
         });
     }

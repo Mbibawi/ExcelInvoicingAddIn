@@ -1,6 +1,6 @@
 /// <reference types="office-js" />
 
-async function fetchExcelTable(accessToken: string, filePath: string, tableName:string): Promise<string[][]> {
+async function fetchExcelTable(accessToken: string, filePath: string, tableName: string): Promise<string[][]> {
 
     const fileUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/range`;
 
@@ -186,20 +186,20 @@ function insertInvoiceForm(excelTable: string[][]) {
     const title = excelTable[0];
     const inputs = insertInputsAndLables([0, 1, 2, 3, 3]);//Inserting the fields inputs (Client, Matter, Nature, Date). We insert the date twice
 
-  
-        insertInputsAndLables(['Français', 'English'], true); //Inserting langauges checkboxes
+
+    insertInputsAndLables(['Français', 'English'], true); //Inserting langauges checkboxes
     (function addBtn() {
         const btnIssue = document.createElement('button');
         btnIssue.innerText = 'Generate Invoice';
         btnIssue.classList.add('button');
-        btnIssue.onclick = ()=>invoice(true);
-        form.appendChild(btnIssue);     
+        btnIssue.onclick = () => invoice(true);
+        form.appendChild(btnIssue);
     })();
 
     function insertInputsAndLables(indexes: (number | string)[], checkBox: boolean = false): HTMLInputElement[] {
         const id = 'input';
         let css = 'field';
-        if(checkBox) css = 'checkBox'
+        if (checkBox) css = 'checkBox'
         return indexes.map(index => {
             const input = document.createElement('input');
             input.classList.add(css);
@@ -224,27 +224,27 @@ function insertInvoiceForm(excelTable: string[][]) {
 
             form?.appendChild(label);
             form?.appendChild(input);
-            if (Number(index) < 1) createDataList(input?.id, Array.from(new Set(excelData.slice(1, -1).map(row => row[0]))));//We create a unique values dataList for the 'Client' input
+            if (Number(index) < 1) createDataList(input?.id, Array.from(new Set(TableRows.slice(1, -1).map(row => row[0]))));//We create a unique values dataList for the 'Client' input
             return input
         });
     };
 
 }
 
-function getInputByIndex(inputs:HTMLInputElement[], index: number) {
-    return inputs.find(input=>Number(input.dataset.index) === index)
+function getInputByIndex(inputs: HTMLInputElement[], index: number) {
+    return inputs.find(input => Number(input.dataset.index) === index)
 }
 
 function getIndex(input: HTMLInputElement) {
-    return Number(input.dataset.index)    
+    return Number(input.dataset.index)
 }
 
 function filterExcelData(data: string[][], criteria: HTMLInputElement[], lang: string, i: number = 0) {
 
     //Filtering by Client (criteria[0])
     data = data.filter(row => row[getIndex(criteria[0])] === criteria[0].value);
-    
-    
+
+
     [1, 2].forEach(index => {
         //!Matter and Nature inputs (from columns 2 & 3 of the Excel table) may include multiple entries separated by ', ' not only one entry.
         const list = criteria[index].value.replaceAll(' ', '').split(',');//We generate a string[] from the input.value
@@ -270,7 +270,7 @@ function filterExcelData(data: string[][], criteria: HTMLInputElement[], lang: s
             return data.filter(row => convertDate(row[3]) <= to); //we filter by the date
         else
             return data.filter(row => convertDate(row[3]) <= new Date().getTime()); //we filter by the date
-        
+
     }
 
 }

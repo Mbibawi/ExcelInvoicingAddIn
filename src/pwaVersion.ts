@@ -43,23 +43,18 @@ async function addNewEntry(add: boolean = false) {
 
     (async function show() {
         if (add) return;
-        excelData = await fetchExcelTable(accessToken, excelPath, tableName);
+        TableRows = await fetchExcelTable(accessToken, excelPath, tableName);
 
-        if (!excelData) return;
+        if (!TableRows) return;
 
-        showForm(excelData[0]);
+        showForm(TableRows[0]);
     })();
 
     (async function addEntry() {
         if (!add) return;
         const inputs = Array.from(document.getElementsByTagName('input')) as HTMLInputElement[];//all inputs
-        const date = getInputByIndex(inputs, 3)?.valueAsDate;
-        const nature = getInputByIndex(inputs, 2)?.value;
-        const amount = getInputByIndex(inputs, 9);
-
-
-        if (!date || !nature || !amount?.value)
-            return alert('You must provide the date and the nature and the amount');
+        const nature = getInputByIndex(inputs, 2)?.value || '';
+        const date = getInputByIndex(inputs, 3)?.valueAsDate || undefined;
 
         const debit = ['Honoraire', 'Débours/Dépens', 'Débours/Dépens non facturables', 'Rétrocession d\'honoraires'].includes(nature);//We check if we need to change the value sign 
 
@@ -72,16 +67,32 @@ async function addNewEntry(add: boolean = false) {
             else if (index === 7)
                 return getTime([getInputByIndex(inputs, 5), getInputByIndex(inputs, 6)]);//Total time column
             else if (debit && index === 9)
-                return input.valueAsNumber * -1 || 0 ;//This is the amount if negative
+                return input.valueAsNumber * -1 || 0;//This is the amount if negative
             else if ([8, 9, 10].includes(index))
                 return input.valueAsNumber || 0;//Hourly Rate, Amount, VAT
             else return input.value;
         });
 
-        await addRowToExcelTable([row], excelData.length - 2, excelFilePath, tableName, accessToken);
+        const stop = 'You must at least provide the client, matter, nature, date and the amount. If you provided a time start, you must provide a time end, and an hourly rate. Please review your fields';
 
-        function getISODate(date: Date) {
-            return [date.getFullYear(), date.getMonth() + 1, date.getDate()].map(el => el.toString().padStart(2, '0')).join('-');
+        if (row.filter((el, i) => (i < 4 || i===9) && !el).length>0)
+            return alert(stop);//if client name, matter, nature, date or amount are missing
+        else if (row[5] && (!row[6] || !row[8]))
+            return alert(stop)//if startTime is provided but without endTime or without hourly rate
+        else if (row[6] && (!row[5] || !row[8]))
+            return alert(stop)//if endTime is provided but without startTime or without hourly rate
+
+
+        await addRowToExcelTable([row], TableRows.length - 2, excelFilePath, tableName, accessToken);
+
+        [0, 1].forEach(async index => {
+            await filterExcelTable(excelFilePath, tableName, row[index] as string, TableRows[0][index], accessToken);
+        });
+        
+
+        function getISODate(date: Date | undefined) {
+            //@ts-ignore
+            return [date?.getFullYear(), date?.getMonth() + 1, date?.getDate()].map(el => el.toString().padStart(2, '0')).join('-');
         }
 
         function getTime(inputs: (HTMLInputElement | undefined)[]) {
@@ -151,9 +162,9 @@ async function addNewEntry(add: boolean = false) {
             else if ([0, 1, 2, 11, 12, 13, 16].includes(index)) {
                 //We add a dataList for those fields
                 input.setAttribute('list', input.id + 's');
-                input.onchange = () => inputOnChange(index, excelData.slice(1, -1), false);
+                input.onchange = () => inputOnChange(index, TableRows.slice(1, -1), false);
                 if (![1, 16].includes(index))
-                    createDataList(input.id, getUniqueValues(index, excelData.slice(1, -1), tableName));//We don't create the data list for columns 'Matter' (1) and 'Adress' (16) because it will be created when the 'Client' field is updated
+                    createDataList(input.id, getUniqueValues(index, TableRows.slice(1, -1), tableName));//We don't create the data list for columns 'Matter' (1) and 'Adress' (16) because it will be created when the 'Client' field is updated
             }
 
             return input
@@ -168,11 +179,11 @@ async function invoice(issue: boolean = false) {
     (async function show() {
         if (issue) return;
 
-        excelData = await fetchExcelTable(accessToken, excelPath, tableName);
+        TableRows = await fetchExcelTable(accessToken, excelPath, tableName);
 
-        if (!excelData) return;
+        if (!TableRows) return;
 
-        insertInvoiceForm(excelData);
+        insertInvoiceForm(TableRows);
 
     })();
 
@@ -184,7 +195,7 @@ async function invoice(issue: boolean = false) {
 
         const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.dataset.language || 'FR';
 
-        const filtered = filterExcelData(excelData, criteria, lang);
+        const filtered = filterExcelData(TableRows, criteria, lang);
         console.log('filtered table = ', filtered);
 
         const date = new Date();
@@ -374,7 +385,7 @@ function getNewExcelRow(inputs: HTMLInputElement[]) {
 }
 
 async function addRowToExcelTable(row: any[][], index: number, filePath: string, tableName: string, accessToken: string) {
-    
+
     await clearFliter(); //We start by clearing the filter of the table, otherwise the insertion will fail
 
     const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/rows`;
@@ -394,22 +405,51 @@ async function addRowToExcelTable(row: any[][], index: number, filePath: string,
     });
 
     if (response.ok) {
-        console.log("Row added successfully!");
+        alert("Row added successfully!");
         return await response.json();
     } else {
-        console.error("Error adding row:", await response.text());
+        alert(`Error adding row: ${await response.text()}`);
     }
-
+    
     async function clearFliter() {
-    // First, clear filters on the table (optional step)
-    await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/clearFilters`, {
+        // First, clear filters on the table (optional step)
+        await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/clearFilters`, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${accessToken}`,
+                "Content-Type": "application/json"
+            }
+        });
+    }
+}
+
+async function filterExcelTable(filePath:string, tableName:string, columnName:string, filterValue:string, accessToken:string) {
+ 
+    // Step 3: Apply filter using the column name
+    const filterUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/columns/${columnName}/filter/apply`;
+
+    const body = {
+        criteria: {
+            filterOn: "custom",
+            criterion1: `="${filterValue}"`,
+        }
+    };
+
+    const filterResponse = await fetch(filterUrl, {
         method: "POST",
         headers: {
             "Authorization": `Bearer ${accessToken}`,
             "Content-Type": "application/json"
-        }
+        },
+        body: JSON.stringify(body)
     });
+
+    if (filterResponse.ok) {
+        alert(`Filter applied to column ${columnName} successfully!`);
+    } else {
+        alert(`Error applying filter: ${await filterResponse.text()}`);
     }
 }
+
 
 

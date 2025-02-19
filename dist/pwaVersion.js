@@ -40,20 +40,17 @@ async function addNewEntry(add = false) {
     (async function show() {
         if (add)
             return;
-        excelData = await fetchExcelTable(accessToken, excelPath, tableName);
-        if (!excelData)
+        TableRows = await fetchExcelTable(accessToken, excelPath, tableName);
+        if (!TableRows)
             return;
-        showForm(excelData[0]);
+        showForm(TableRows[0]);
     })();
     (async function addEntry() {
         if (!add)
             return;
         const inputs = Array.from(document.getElementsByTagName('input')); //all inputs
-        const date = getInputByIndex(inputs, 3)?.valueAsDate;
-        const nature = getInputByIndex(inputs, 2)?.value;
-        const amount = getInputByIndex(inputs, 9);
-        if (!date || !nature || !amount?.value)
-            return alert('You must provide the date and the nature and the amount');
+        const nature = getInputByIndex(inputs, 2)?.value || '';
+        const date = getInputByIndex(inputs, 3)?.valueAsDate || undefined;
         const debit = ['Honoraire', 'Débours/Dépens', 'Débours/Dépens non facturables', 'Rétrocession d\'honoraires'].includes(nature); //We check if we need to change the value sign 
         const row = inputs.map(input => {
             const index = getIndex(input);
@@ -70,9 +67,20 @@ async function addNewEntry(add = false) {
             else
                 return input.value;
         });
-        await addRowToExcelTable([row], excelData.length - 2, excelFilePath, tableName, accessToken);
+        const stop = 'You must at least provide the client, matter, nature, date and the amount. If you provided a time start, you must provide a time end, and an hourly rate. Please review your fields';
+        if (row.filter((el, i) => (i < 4 || i === 9) && !el).length > 0)
+            return alert(stop); //if client name, matter, nature, date or amount are missing
+        else if (row[5] && (!row[6] || !row[8]))
+            return alert(stop); //if startTime is provided but without endTime or without hourly rate
+        else if (row[6] && (!row[5] || !row[8]))
+            return alert(stop); //if endTime is provided but without startTime or without hourly rate
+        await addRowToExcelTable([row], TableRows.length - 2, excelFilePath, tableName, accessToken);
+        [0, 1].forEach(async (index) => {
+            await filterExcelTable(excelFilePath, tableName, row[index], TableRows[0][index], accessToken);
+        });
         function getISODate(date) {
-            return [date.getFullYear(), date.getMonth() + 1, date.getDate()].map(el => el.toString().padStart(2, '0')).join('-');
+            //@ts-ignore
+            return [date?.getFullYear(), date?.getMonth() + 1, date?.getDate()].map(el => el.toString().padStart(2, '0')).join('-');
         }
         function getTime(inputs) {
             const day = (1000 * 60 * 60 * 24);
@@ -135,9 +143,9 @@ async function addNewEntry(add = false) {
             else if ([0, 1, 2, 11, 12, 13, 16].includes(index)) {
                 //We add a dataList for those fields
                 input.setAttribute('list', input.id + 's');
-                input.onchange = () => inputOnChange(index, excelData.slice(1, -1), false);
+                input.onchange = () => inputOnChange(index, TableRows.slice(1, -1), false);
                 if (![1, 16].includes(index))
-                    createDataList(input.id, getUniqueValues(index, excelData.slice(1, -1), tableName)); //We don't create the data list for columns 'Matter' (1) and 'Adress' (16) because it will be created when the 'Client' field is updated
+                    createDataList(input.id, getUniqueValues(index, TableRows.slice(1, -1), tableName)); //We don't create the data list for columns 'Matter' (1) and 'Adress' (16) because it will be created when the 'Client' field is updated
             }
             return input;
         }
@@ -149,10 +157,10 @@ async function invoice(issue = false) {
     (async function show() {
         if (issue)
             return;
-        excelData = await fetchExcelTable(accessToken, excelPath, tableName);
-        if (!excelData)
+        TableRows = await fetchExcelTable(accessToken, excelPath, tableName);
+        if (!TableRows)
             return;
-        insertInvoiceForm(excelData);
+        insertInvoiceForm(TableRows);
     })();
     (async function issueInvoice() {
         if (!issue)
@@ -160,7 +168,7 @@ async function invoice(issue = false) {
         const inputs = Array.from(document.getElementsByTagName('input'));
         const criteria = inputs.filter(input => Number(input.dataset.index) >= 0);
         const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.dataset.language || 'FR';
-        const filtered = filterExcelData(excelData, criteria, lang);
+        const filtered = filterExcelData(TableRows, criteria, lang);
         console.log('filtered table = ', filtered);
         const date = new Date();
         const invoice = {
@@ -332,11 +340,11 @@ async function addRowToExcelTable(row, index, filePath, tableName, accessToken) 
         body: JSON.stringify(body)
     });
     if (response.ok) {
-        console.log("Row added successfully!");
+        alert("Row added successfully!");
         return await response.json();
     }
     else {
-        console.error("Error adding row:", await response.text());
+        alert(`Error adding row: ${await response.text()}`);
     }
     async function clearFliter() {
         // First, clear filters on the table (optional step)
@@ -347,6 +355,30 @@ async function addRowToExcelTable(row, index, filePath, tableName, accessToken) 
                 "Content-Type": "application/json"
             }
         });
+    }
+}
+async function filterExcelTable(filePath, tableName, columnName, filterValue, accessToken) {
+    // Step 3: Apply filter using the column name
+    const filterUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/columns/${columnName}/filter/apply`;
+    const body = {
+        criteria: {
+            filterOn: "custom",
+            criterion1: `="${filterValue}"`,
+        }
+    };
+    const filterResponse = await fetch(filterUrl, {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(body)
+    });
+    if (filterResponse.ok) {
+        alert(`Filter applied to column ${columnName} successfully!`);
+    }
+    else {
+        alert(`Error applying filter: ${await filterResponse.text()}`);
     }
 }
 //# sourceMappingURL=pwaVersion.js.map
