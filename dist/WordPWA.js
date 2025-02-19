@@ -1,6 +1,6 @@
 "use strict";
 /// <reference types="office-js" />
-async function fetchExcelTable(accessToken, filePath, tableName = 'LivreJournal') {
+async function fetchExcelTable(accessToken, filePath, tableName) {
     const fileUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/range`;
     const response = await fetch(fileUrl, {
         method: "GET",
@@ -100,7 +100,7 @@ async function mainWithWordgraphApi() {
         return;
     const excelPath = "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm";
     // Fetch Excel data
-    const excelData = await fetchExcelTable(accessToken, excelPath, 'LivreJournal');
+    const excelData = await fetchExcelTable(accessToken, excelPath, tableName);
     if (!excelData)
         return;
     insertInvoiceForm(excelData);

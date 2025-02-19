@@ -43,7 +43,7 @@ async function addNewEntry(add: boolean = false) {
 
     (async function show() {
         if (add) return;
-        excelData = await fetchExcelTable(accessToken, excelPath, 'LivreJournal');
+        excelData = await fetchExcelTable(accessToken, excelPath, tableName);
 
         if (!excelData) return;
 
@@ -61,7 +61,6 @@ async function addNewEntry(add: boolean = false) {
         const row = inputs.map(input => {
 
             const index = getIndex(input);
-
             if ([3, 4].includes(index))
                 return getISODate(date);
             else if ([5, 6].includes(index))
@@ -73,7 +72,7 @@ async function addNewEntry(add: boolean = false) {
             else return input.value;
         });
 
-        await addRowToExcelTable([row], excelData.length - 1, excelFilePath, tableName, accessToken);
+        await addRowToExcelTable([row], excelData.length - 2, excelFilePath, tableName, accessToken);
 
         function getISODate(date: Date) {
             return [date.getFullYear(), date.getMonth() + 1, date.getDate()].map(el => el.toString().padStart(2, '0')).join('-');
@@ -148,7 +147,7 @@ async function addNewEntry(add: boolean = false) {
                 input.setAttribute('list', input.id + 's');
                 input.onchange = () => inputOnChange(index, excelData.slice(1, -1), false);
                 if (![1, 16].includes(index))
-                    createDataList(input.id, getUniqueValues(index, excelData.slice(1, -1)));//We don't create the data list for columns 'Matter' (1) and 'Adress' (16) because it will be created when the 'Client' field is updated
+                    createDataList(input.id, getUniqueValues(index, excelData.slice(1, -1), tableName));//We don't create the data list for columns 'Matter' (1) and 'Adress' (16) because it will be created when the 'Client' field is updated
             }
 
             return input
@@ -163,7 +162,7 @@ async function invoice(issue: boolean = false) {
     (async function show() {
         if (issue) return;
 
-        excelData = await fetchExcelTable(accessToken, excelPath, 'LivreJournal');
+        excelData = await fetchExcelTable(accessToken, excelPath, tableName);
 
         if (!excelData) return;
 
@@ -233,7 +232,7 @@ function inputOnChange(index: number, table: any[][], invoice: boolean) {
 
     if (filtered.length < 1) return;
 
-    boundInputs.map(input => createDataList(input?.id, getUniqueValues(getIndex(input), filtered), invoice));
+    boundInputs.map(input => createDataList(input?.id, getUniqueValues(getIndex(input), filtered, tableName), invoice));
 
     if (invoice) {
         const nature = getInputByIndex(inputs, 2);//We get the nature input in order to fill automaticaly its values by a ', ' separated string

@@ -1,6 +1,6 @@
 /// <reference types="office-js" />
 
-async function fetchExcelTable(accessToken: string, filePath: string, tableName = 'LivreJournal'): Promise<string[][]> {
+async function fetchExcelTable(accessToken: string, filePath: string, tableName:string): Promise<string[][]> {
 
     const fileUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/range`;
 
@@ -125,7 +125,7 @@ async function mainWithWordgraphApi() {
 
     // Fetch Excel data
 
-    const excelData = await fetchExcelTable(accessToken, excelPath, 'LivreJournal');
+    const excelData = await fetchExcelTable(accessToken, excelPath, tableName);
 
     if (!excelData) return;
 

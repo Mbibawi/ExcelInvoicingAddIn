@@ -40,7 +40,7 @@ async function addNewEntry(add = false) {
     (async function show() {
         if (add)
             return;
-        excelData = await fetchExcelTable(accessToken, excelPath, 'LivreJournal');
+        excelData = await fetchExcelTable(accessToken, excelPath, tableName);
         if (!excelData)
             return;
         showForm(excelData[0]);
@@ -65,7 +65,7 @@ async function addNewEntry(add = false) {
             else
                 return input.value;
         });
-        await addRowToExcelTable([row], excelData.length - 1, excelFilePath, tableName, accessToken);
+        await addRowToExcelTable([row], excelData.length - 2, excelFilePath, tableName, accessToken);
         function getISODate(date) {
             return [date.getFullYear(), date.getMonth() + 1, date.getDate()].map(el => el.toString().padStart(2, '0')).join('-');
         }
@@ -132,7 +132,7 @@ async function addNewEntry(add = false) {
                 input.setAttribute('list', input.id + 's');
                 input.onchange = () => inputOnChange(index, excelData.slice(1, -1), false);
                 if (![1, 16].includes(index))
-                    createDataList(input.id, getUniqueValues(index, excelData.slice(1, -1))); //We don't create the data list for columns 'Matter' (1) and 'Adress' (16) because it will be created when the 'Client' field is updated
+                    createDataList(input.id, getUniqueValues(index, excelData.slice(1, -1), tableName)); //We don't create the data list for columns 'Matter' (1) and 'Adress' (16) because it will be created when the 'Client' field is updated
             }
             return input;
         }
@@ -144,7 +144,7 @@ async function invoice(issue = false) {
     (async function show() {
         if (issue)
             return;
-        excelData = await fetchExcelTable(accessToken, excelPath, 'LivreJournal');
+        excelData = await fetchExcelTable(accessToken, excelPath, tableName);
         if (!excelData)
             return;
         insertInvoiceForm(excelData);
@@ -193,7 +193,7 @@ function inputOnChange(index, table, invoice) {
     const filtered = filterOnInput(inputs, filledInputs, table); //We filter the table based on the filled inputs
     if (filtered.length < 1)
         return;
-    boundInputs.map(input => createDataList(input?.id, getUniqueValues(getIndex(input), filtered), invoice));
+    boundInputs.map(input => createDataList(input?.id, getUniqueValues(getIndex(input), filtered, tableName), invoice));
     if (invoice) {
         const nature = getInputByIndex(inputs, 2); //We get the nature input in order to fill automaticaly its values by a ', ' separated string
         if (!nature)

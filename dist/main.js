@@ -35,7 +35,7 @@ async function showForm(id) {
     let table;
     await Excel.run(async (context) => {
         const sheet = context.workbook.worksheets.getActiveWorksheet();
-        table = sheet.tables.getItem('LivreJournal');
+        table = sheet.tables.getItem(tableName);
         const header = table.getHeaderRowRange();
         header.load('text');
         await context.sync();
@@ -43,7 +43,7 @@ async function showForm(id) {
         body.load('text');
         await context.sync();
         const headers = header.text[0];
-        const clientUniqueValues = getUniqueValues(0, body.text);
+        const clientUniqueValues = getUniqueValues(0, body.text, tableName);
         if (id === 'entry')
             await addingEntry(headers, clientUniqueValues);
         else if (id === 'invoice')
@@ -87,14 +87,14 @@ async function showForm(id) {
             if (index === 0)
                 unfilter = true; //If this is the 'Client' column, we remove any filter from the table;
             //We filter the table accordin to the input's value and return the visible cells
-            const visibleCells = await filterTable(undefined, [{ column: index, value: getArray(input.value) }], unfilter);
+            const visibleCells = await filterTable(tableName, [{ column: index, value: getArray(input.value) }], unfilter);
             if (visibleCells.length < 1)
                 return alert('There are no visible cells in the filtered table');
             //We create (or update) the unique values dataList for the next input 
             const nextInput = getNextInput(input);
             if (!nextInput)
                 return;
-            createDataList(nextInput?.id || '', getUniqueValues(Number(nextInput.dataset.index), visibleCells));
+            createDataList(nextInput?.id || '', getUniqueValues(Number(nextInput.dataset.index), visibleCells, tableName));
             function getNextInput(input) {
                 let nextInput = input.nextElementSibling;
                 while (nextInput?.tagName !== 'INPUT' && nextInput?.nextElementSibling) {
@@ -105,14 +105,14 @@ async function showForm(id) {
             }
             if (index === 1) {
                 //!Need to figuer out how to create a multiple choice input for nature
-                const nature = new Set((await filterTable(undefined, undefined, false)).map(row => row[index]));
+                const nature = new Set((await filterTable(tableName, undefined, false)).map(row => row[index]));
                 nature.forEach(el => form.appendChild(createCheckBox(undefined, el)));
             }
         }
         ;
     }
     async function addingEntry(title, uniqueValues) {
-        await filterTable(undefined, undefined, true);
+        await filterTable(tableName, undefined, true);
         for (const t of title) { //!We could not use for(let i=0; i<title.length; i++) because the await does not work properly inside this loop
             const i = title.indexOf(t);
             if (![4, 7].includes(i))
@@ -133,7 +133,7 @@ async function showForm(id) {
             let unfilter = false;
             if (i === 0)
                 unfilter = true;
-            await filterTable(undefined, criteria, unfilter);
+            await filterTable(tableName, criteria, unfilter);
             //if (i < 1) createDataList('input' + String(i + 1), getUniqueValues(i + 1, await filterTable(undefined, undefined)));
         }
         form.innerHTML += `<button onclick="addEntry()"> Ajouter </button>`;
@@ -209,7 +209,7 @@ function createDataList(id, uniqueValues, multiple = false) {
  * Filters the Excel table based on a criteria
  * @param {[[number, string[]]]} criteria - the first element is the column index, the second element is the values[] based on which the column will be filtered
  */
-async function filterTable(tableName = 'LivreJournal', criteria, clearFilter = false) {
+async function filterTable(tableName, criteria, clearFilter = false) {
     return await Excel.run(async (context) => {
         const sheet = context.workbook.worksheets.getActiveWorksheet();
         const table = sheet.tables.getItem(tableName);
@@ -248,12 +248,12 @@ async function generateInvoice() {
     if (!inputs)
         return;
     const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.id.slice(0, 3).toUpperCase() || 'FR';
-    const visible = await filterTable(undefined, undefined, false);
+    const visible = await filterTable(tableName, undefined, false);
     const invoiceDetails = {
         number: getInvoiceNumber(new Date()),
         clientName: visible.map(row => String(row[0]))[0] || 'CLIENT',
-        matters: (getUniqueValues(1, visible)).map(el => String(el)),
-        adress: (getUniqueValues(15, visible)).map(el => String(el)),
+        matters: (getUniqueValues(1, visible, tableName)).map(el => String(el)),
+        adress: (getUniqueValues(15, visible, tableName)).map(el => String(el)),
         lang: lang
     };
     const filePath = `${destinationFolder}/${newWordFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`;
@@ -379,7 +379,7 @@ function getRowsData(tableData, lang) {
             .join(':');
     }
 }
-function getUniqueValues(index, array, tableName = 'LivreJournal') {
+function getUniqueValues(index, array, tableName) {
     if (!array)
         array = [];
     return Array.from(new Set(array.map(row => row[index])));
@@ -631,7 +631,7 @@ function convertBlobToBase64(blob) {
         reader.readAsDataURL(blob);
     });
 }
-async function addEntry(tableName = 'LivreJournal') {
+async function addEntry(tableName) {
     await Excel.run(async (context) => {
         const sheet = context.workbook.worksheets.getActiveWorksheet();
         const table = sheet.tables.getItem(tableName);
