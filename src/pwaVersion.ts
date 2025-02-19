@@ -182,6 +182,9 @@ async function addNewEntry(add: boolean = false) {
                 input.onchange = () => inputOnChange(index, TableRows.slice(1, -1), false);
                 if (![1, 16].includes(index))
                     createDataList(input.id, getUniqueValues(index, TableRows.slice(1, -1), tableName));//We don't create the data list for columns 'Matter' (1) and 'Adress' (16) because it will be created when the 'Client' field is updated
+                else if (index > 4 && index < 11)
+                    //Those are the "Start Time", "End Time", "Total Time", "Hourly Rate", "Amount", "VAT" columns . The "Hourly Rate" input is hidden, so it can't be changed by the user. We will add the onChange event to it by simplicity
+                    input.onchange = () => inputOnChange(index, undefined, false);
             }
 
             return input
@@ -241,8 +244,27 @@ async function invoice(issue: boolean = false) {
  * @param {boolean} invoice - If true, it means that we called the function in order to generate an invoice. If false, we called it in order to add a new entry in the table
  * @returns 
  */
-function inputOnChange(index: number, table: any[][], invoice: boolean) {
+function inputOnChange(index: number, table: any[][] | undefined, invoice: boolean) {
     let inputs = Array.from(document.getElementsByTagName('input') as HTMLCollectionOf<HTMLInputElement>);
+
+    if (!table && !invoice) {
+        const boundInputs = [5, 6, 7, 9, 10];//Those are "Start Time", "End Time", "Total Time", "Amount", "VAT" columns. We exclude the "Hourly Rate" column (8). We let the user rest it if he wants
+        boundInputs
+            .filter(i => i > index)
+            .forEach(i => setTo0(getInputByIndex(inputs, i)));
+
+        if (index === 9)
+            boundInputs
+                .filter(i => i < index)
+                .forEach(i => setTo0(getInputByIndex(inputs, i))); //If the user change the amout, it means the fees do not depend on the time spent, we hence rest them to 0 (except the hourly rate)
+        
+        function setTo0(input: HTMLInputElement|undefined) {
+            if (!input) return;
+            input.valueAsNumber = 0
+        }
+    }
+
+    if (!table) return;
 
     if (invoice)
         inputs = inputs.filter(input => input.dataset.index && Number(input.dataset.index) < 3); //Those are all the inputs that serve to filter the table (first 3 columns only)
