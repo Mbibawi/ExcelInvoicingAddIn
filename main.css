@@ -16,6 +16,7 @@ section.samples {
     justify-self: center;
     width: 100%;
     align-self: center;
+    padding: 3px;
 }
 
 .hidden{
