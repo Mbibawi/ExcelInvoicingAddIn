@@ -62,7 +62,7 @@ async function addNewEntry(add = false) {
                 return getTime([input]); //time start and time end columns
             else if (index === 7) {
                 const totalTime = getTime([getInputByIndex(inputs, 5), getInputByIndex(inputs, 6)]); //Total time column
-                if (totalTime > 0 && rate && amount)
+                if (totalTime > 0 && rate && amount && !amount.valueAsNumber)
                     amount.valueAsNumber = totalTime * 24 * rate; // making the amount equal the rate * totalTime
                 return totalTime;
             }
