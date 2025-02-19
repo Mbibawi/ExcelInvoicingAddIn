@@ -167,10 +167,10 @@ async function addNewEntry(add = false) {
                 input.onchange = () => inputOnChange(index, TableRows.slice(1, -1), false);
                 if (![1, 16].includes(index))
                     createDataList(input.id, getUniqueValues(index, TableRows.slice(1, -1), tableName)); //We don't create the data list for columns 'Matter' (1) and 'Adress' (16) because it will be created when the 'Client' field is updated
-                else if (index > 4 && index < 11)
-                    //Those are the "Start Time", "End Time", "Total Time", "Hourly Rate", "Amount", "VAT" columns . The "Hourly Rate" input is hidden, so it can't be changed by the user. We will add the onChange event to it by simplicity
-                    input.onchange = () => inputOnChange(index, undefined, false);
             }
+            if (index > 4 && index < 11)
+                //Those are the "Start Time", "End Time", "Total Time", "Hourly Rate", "Amount", "VAT" columns . The "Hourly Rate" input is hidden, so it can't be changed by the user. We will add the onChange event to it by simplicity
+                input.onchange = () => inputOnChange(index, undefined, false);
             return input;
         }
     }
