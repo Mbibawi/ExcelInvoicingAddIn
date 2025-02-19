@@ -58,8 +58,8 @@ async function addNewEntry(add: boolean = false) {
         const amount = getInputByIndex(inputs, 9);
 
 
-        if (!date || !nature)
-            return alert('You must provide the date and the nature');
+        if (!date || !nature || !amount?.value)
+            return alert('You must provide the date and the nature and the amount');
 
         const debit = ['Honoraire', 'Débours/Dépens', 'Débours/Dépens non facturables', 'Rétrocession d\'honoraires'].includes(nature);//We check if we need to change the value sign 
 
@@ -75,7 +75,7 @@ async function addNewEntry(add: boolean = false) {
                 return getTime([getInputByIndex(inputs, 5), getInputByIndex(inputs, 6)]);//Total time
             else if ([8, 9, 10].includes(index))
                 return input.valueAsNumber;//Hourly Rate, Amount, VAT
-            else return input.value;
+            else return input.value || 0;
         });
 
         await addRowToExcelTable([row], excelData.length - 2, excelFilePath, tableName, accessToken);
@@ -374,6 +374,8 @@ function getNewExcelRow(inputs: HTMLInputElement[]) {
 }
 
 async function addRowToExcelTable(row: any[][], index: number, filePath: string, tableName: string, accessToken: string) {
+    
+    await clearFliter(); //We start by clearing the filter of the table, otherwise the insertion will fail
 
     const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/rows`;
 
@@ -396,6 +398,17 @@ async function addRowToExcelTable(row: any[][], index: number, filePath: string,
         return await response.json();
     } else {
         console.error("Error adding row:", await response.text());
+    }
+
+    async function clearFliter() {
+    // First, clear filters on the table (optional step)
+    await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/clearFilters`, {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": "application/json"
+        }
+    });
     }
 }
 
