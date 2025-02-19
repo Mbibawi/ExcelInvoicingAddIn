@@ -51,6 +51,7 @@ async function addNewEntry(add = false) {
         const inputs = Array.from(document.getElementsByTagName('input')); //all inputs
         const nature = getInputByIndex(inputs, 2)?.value || '';
         const date = getInputByIndex(inputs, 3)?.valueAsDate || undefined;
+        const amount = getInputByIndex(inputs, 9);
         const debit = ['Honoraire', 'Débours/Dépens', 'Débours/Dépens non facturables', 'Rétrocession d\'honoraires'].includes(nature); //We check if we need to change the value sign 
         const row = inputs.map(input => {
             const index = getIndex(input);
@@ -60,9 +61,8 @@ async function addNewEntry(add = false) {
                 return getTime([input]); //time start and time end columns
             else if (index === 7) {
                 const totalTime = getTime([getInputByIndex(inputs, 5), getInputByIndex(inputs, 6)]); //Total time column
-                //@ts-ignore
-                if (totalTime > 0)
-                    getInputByIndex(9).value = getInputByIndex(8).value * totalTime * 24;
+                if (totalTime > 0 && amount)
+                    amount.valueAsNumber = totalTime * 24 * (getInputByIndex(inputs, 8)?.valueAsNumber || 0); // making the amount equal the rate * totalTime
             }
             else if (debit && index === 9)
                 return input.valueAsNumber * -1 || 0; //This is the amount if negative
@@ -80,6 +80,7 @@ async function addNewEntry(add = false) {
             return alert(stop); //if endTime is provided but without startTime or without hourly rate
         await addRowToExcelTable([row], TableRows.length - 2, excelFilePath, tableName, accessToken);
         [0, 1].forEach(async (index) => {
+            //@ts-ignore
             await filterExcelTable(excelFilePath, tableName, TableRows[0][index], row[index].toString(), accessToken);
         });
         function getISODate(date) {
