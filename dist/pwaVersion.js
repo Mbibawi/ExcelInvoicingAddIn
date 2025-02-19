@@ -95,7 +95,10 @@ async function addNewEntry(add = false) {
             const to = inputs[1]?.valueAsNumber;
             if (!from || !to)
                 return 0;
-            let time = (to - from) / day;
+            const quarter = 15 * 60 * 1000; //quarter of an hour
+            let time = to - from;
+            time = Math.round(time / quarter) * quarter; //We are rounding the time by 1/4 hours
+            time = time / day;
             if (time < 0)
                 time = (to + day - from) / day; //It means we started on one day and finished the next day 
             return time;
