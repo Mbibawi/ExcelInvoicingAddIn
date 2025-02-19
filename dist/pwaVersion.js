@@ -58,8 +58,12 @@ async function addNewEntry(add = false) {
                 return getISODate(date); //Those are the 2 date columns
             else if ([5, 6].includes(index))
                 return getTime([input]); //time start and time end columns
-            else if (index === 7)
-                return getTime([getInputByIndex(inputs, 5), getInputByIndex(inputs, 6)]); //Total time column
+            else if (index === 7) {
+                const totalTime = getTime([getInputByIndex(inputs, 5), getInputByIndex(inputs, 6)]); //Total time column
+                //@ts-ignore
+                if (totalTime > 0)
+                    getInputByIndex(9).value = getInputByIndex(8).value * totalTime * 24;
+            }
             else if (debit && index === 9)
                 return input.valueAsNumber * -1 || 0; //This is the amount if negative
             else if ([8, 9, 10].includes(index))
