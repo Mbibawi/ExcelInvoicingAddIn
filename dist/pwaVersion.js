@@ -74,12 +74,21 @@ async function addNewEntry(add = false) {
                 return input.value;
         });
         const stop = 'You must at least provide the client, matter, nature, date and the amount. If you provided a time start, you must provide a time end, and an hourly rate. Please review your fields';
-        if (row.filter((el, i) => (i < 4 || i === 9) && !el).length > 0)
-            return alert(stop); //if client name, matter, nature, date or amount are missing
-        else if (row[5] && (!row[6] || !row[8]))
-            return alert(stop); //if startTime is provided but without endTime or without hourly rate
-        else if (row[6] && (!row[5] || !row[8]))
-            return alert(stop); //if endTime is provided but without startTime or without hourly rate
+        if (missing())
+            return alert(stop);
+        function missing() {
+            if (row[5] === row[6])
+                return false; //If the total time = 0 we do not need to alert if the hourly rate is missing
+            else if (row.filter((el, i) => (i < 4 || i === 9) && !el).length > 0)
+                return true; //if client name, matter, nature, date or amount are missing
+            else if (row[9])
+                return [row[5], row[6]].map(value => value = 0).length < 1; //This means the amount has been provided and does not  depend on the time spent or the hourly rate. We set the values of the startTime and endTime to 0, and return false (length<1 must return false)
+            else if (row[5] && (!row[6] || !row[8]))
+                return true; //if startTime is provided but without endTime or without hourly rate
+            else if (row[6] && (!row[5] || !row[8]))
+                return true; //if endTime is provided but without startTime or without hourly rate
+        }
+        ;
         await addRowToExcelTable([row], TableRows.length - 2, excelFilePath, tableName, accessToken);
         [0, 1].map(async (index) => {
             //!We use map because forEach doesn't await
