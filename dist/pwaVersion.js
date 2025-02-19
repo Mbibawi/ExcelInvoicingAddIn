@@ -76,7 +76,7 @@ async function addNewEntry(add = false) {
             return alert(stop); //if endTime is provided but without startTime or without hourly rate
         await addRowToExcelTable([row], TableRows.length - 2, excelFilePath, tableName, accessToken);
         [0, 1].forEach(async (index) => {
-            await filterExcelTable(excelFilePath, tableName, row[index], TableRows[0][index], accessToken);
+            await filterExcelTable(excelFilePath, tableName, TableRows[0][index], row[index].toString(), accessToken);
         });
         function getISODate(date) {
             //@ts-ignore

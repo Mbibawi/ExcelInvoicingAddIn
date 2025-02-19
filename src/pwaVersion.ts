@@ -86,7 +86,7 @@ async function addNewEntry(add: boolean = false) {
         await addRowToExcelTable([row], TableRows.length - 2, excelFilePath, tableName, accessToken);
 
         [0, 1].forEach(async index => {
-            await filterExcelTable(excelFilePath, tableName, row[index] as string, TableRows[0][index], accessToken);
+            await filterExcelTable(excelFilePath, tableName, TableRows[0][index], row[index].toString(), accessToken);
         });
         
 
