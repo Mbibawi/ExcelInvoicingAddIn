@@ -56,6 +56,7 @@ async function addNewEntry(add: boolean = false) {
         const nature = getInputByIndex(inputs, 2)?.value || '';
         const date = getInputByIndex(inputs, 3)?.valueAsDate || undefined;
         const amount = getInputByIndex(inputs, 9);
+        const rate = getInputByIndex(inputs, 8)?.valueAsNumber;
 
         const debit = ['Honoraire', 'Débours/Dépens', 'Débours/Dépens non facturables', 'Rétrocession d\'honoraires'].includes(nature);//We check if we need to change the value sign 
 
@@ -68,7 +69,7 @@ async function addNewEntry(add: boolean = false) {
             else if (index === 7) {
                 const totalTime = getTime([getInputByIndex(inputs, 5), getInputByIndex(inputs, 6)]);//Total time column
 
-                if (totalTime > 0 && amount) amount.valueAsNumber = totalTime * 24 * (getInputByIndex(inputs, 8)?.valueAsNumber || 0)// making the amount equal the rate * totalTime
+                if (totalTime > 0 && rate && amount) amount.valueAsNumber = totalTime * 24 * rate// making the amount equal the rate * totalTime
                 return totalTime
             }
             else if (debit && index === 9)
@@ -90,10 +91,13 @@ async function addNewEntry(add: boolean = false) {
 
         await addRowToExcelTable([row], TableRows.length - 2, excelFilePath, tableName, accessToken);
 
-        [0, 1].forEach(async index => {
+        [0, 1].map(async index => {
+            //!We use map because forEach doesn't await
             //@ts-ignore
             await filterExcelTable(excelFilePath, tableName, TableRows[0][index], row[index].toString(), accessToken);
         });
+
+        alert('Row aded and table was filtered');
         
         function getISODate(date: Date | undefined) {
             //@ts-ignore
