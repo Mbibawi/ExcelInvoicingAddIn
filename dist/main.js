@@ -454,16 +454,17 @@ function getUniqueValues(index, array, tableName) {
  * @param {string} accessToken - the access token
  * @param {string} filePath - file path (folder + file nam) of the file to be fetched
  * @param {string} tableName - Name of the table to be fetched
- * @param {string} tableName - Name of the table to be fetched
- * @param {boolean} rows - Its default value is true. If true, it returns the rows of the table
+ * @param {boolean} range - Its default value is true. If true, it returns all the rows of the table including the title, otherwise, it returns only the body of the table
  * @param {boolean} columns - If true it will return the columns
  * @returns {any[][] | number | void} - All the rows (including the title) of the Excel table
  */
-async function fetchExcelTableWithGraphAPI(accessToken, filePath, tableName, rows = true, columns) {
+async function fetchExcelTableWithGraphAPI(accessToken, filePath, tableName, range = true, columns) {
     if (!accessToken)
         accessToken = await getAccessToken() || '';
     let endPoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/`;
-    if (rows)
+    if (range)
+        endPoint = endPoint += 'range';
+    if (!range)
         endPoint = endPoint += 'rows';
     else if (columns)
         endPoint += 'columns';
