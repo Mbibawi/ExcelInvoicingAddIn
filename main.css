@@ -2,22 +2,31 @@ section.samples {
     margin-top: 20px;
 }
 
+.btns{
+    display: flex;
+    justify-self: center;
+}
 .ms-Button {
     display: block;
     margin-bottom: 10px;
     justify-self: center;
     margin-left: 20px;
     min-width: 80px;
-    background-color: #e6b812;
+    background-color: #1ca9b2;
     font-size: 12pt;
+    border-radius: 5px;
+    font-family: 'Times New Roman', Times, serif;
+    font-weight: bold;
 }
 #form{
-    background-color: #11728c;
+    background-color: #0b5f76;
     justify-self: center;
     width: 100%;
     align-self: center;
     min-height: none;
-    padding: 3px;
+    padding: 5px;
+    border-radius: 5px;
+    margin: 3px;
 }
 
 .hidden{
@@ -26,11 +35,14 @@ section.samples {
 
 .button{
     display: block;
-    background-color: #e6b812;
+    background-color: #1ca9b2;
     min-width: 20%;
-    min-height: 10px;
+    min-height: 15px;
     justify-self: center;
     margin-top: 20px;
+    border-radius: 5px;
+    font-family: 'Times New Roman', Times, serif;
+    font-weight: bold;
 }
 .checkBox{
     display: inline;
