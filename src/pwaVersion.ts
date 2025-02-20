@@ -197,7 +197,7 @@ async function invoice(issue: boolean = false) {
 
         const filePath = `${destinationFolder}/${getInvoiceFileName(invoice.clientName, invoice.matters, invoice.number)}`;
 
-        await createAndUploadXmlDocument(filtered, contentControls, accessToken, filePath);
+        await createAndUploadXmlDocument(filtered, contentControls, accessToken, templatePath, filePath);
 
         function filterExcelData(data: any[][], criteria: HTMLInputElement[], lang: string) {
 
@@ -381,7 +381,7 @@ function inputOnChange(index: number, table: any[][] | undefined, invoice: boole
 };
 
 
-async function createAndUploadXmlDocument(rows: string[][], contentControls: string[][], accessToken: string, filePath: string) {
+async function createAndUploadXmlDocument(rows: string[][], contentControls: string[][], accessToken: string, templatePath:string, filePath: string) {
 
     if (!accessToken) return;
     const schema = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
@@ -389,7 +389,7 @@ async function createAndUploadXmlDocument(rows: string[][], contentControls: str
     return await createAndEditNewXmlDoc();
 
     async function createAndEditNewXmlDoc() {
-        const blob = await fetchFileFromOneDriveWithGraphAPI(accessToken, filePath);
+        const blob = await fetchFileFromOneDriveWithGraphAPI(accessToken, templatePath);
         if (!blob) return;
         const zip = await convertBlobIntoXML(blob);
         const doc = zip.xmlDoc;

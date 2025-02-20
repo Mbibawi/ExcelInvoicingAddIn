@@ -169,7 +169,7 @@ async function invoice(issue = false) {
         };
         const contentControls = getContentControlsValues(invoice, date);
         const filePath = `${destinationFolder}/${getInvoiceFileName(invoice.clientName, invoice.matters, invoice.number)}`;
-        await createAndUploadXmlDocument(filtered, contentControls, accessToken, filePath);
+        await createAndUploadXmlDocument(filtered, contentControls, accessToken, templatePath, filePath);
         function filterExcelData(data, criteria, lang) {
             //Filtering by Client (criteria[0])
             data = data.filter(row => row[getIndex(criteria[0])] === criteria[0].value);
@@ -320,13 +320,13 @@ function inputOnChange(index, table, invoice) {
     }
 }
 ;
-async function createAndUploadXmlDocument(rows, contentControls, accessToken, filePath) {
+async function createAndUploadXmlDocument(rows, contentControls, accessToken, templatePath, filePath) {
     if (!accessToken)
         return;
     const schema = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
     return await createAndEditNewXmlDoc();
     async function createAndEditNewXmlDoc() {
-        const blob = await fetchFileFromOneDriveWithGraphAPI(accessToken, filePath);
+        const blob = await fetchFileFromOneDriveWithGraphAPI(accessToken, templatePath);
         if (!blob)
             return;
         const zip = await convertBlobIntoXML(blob);

@@ -298,7 +298,7 @@ async function generateInvoice() {
   };
 
   const filePath = `${destinationFolder}/${getInvoiceFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`
-  await createAndUploadXmlDocument(getRowsData(visible, lang), getContentControlsValues(invoiceDetails, new Date()), await getAccessToken() || '', filePath);
+  await createAndUploadXmlDocument(getRowsData(visible, lang), getContentControlsValues(invoiceDetails, new Date()), await getAccessToken() || '', templatePath, filePath);
 
 }
 /**

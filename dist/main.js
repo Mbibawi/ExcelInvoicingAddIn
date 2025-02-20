@@ -257,7 +257,7 @@ async function generateInvoice() {
         lang: lang
     };
     const filePath = `${destinationFolder}/${getInvoiceFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`;
-    await createAndUploadXmlDocument(getRowsData(visible, lang), getContentControlsValues(invoiceDetails, new Date()), await getAccessToken() || '', filePath);
+    await createAndUploadXmlDocument(getRowsData(visible, lang), getContentControlsValues(invoiceDetails, new Date()), await getAccessToken() || '', templatePath, filePath);
 }
 /**
  * Returns a string[][] representing the rows to be inserted in the Word table containing the invoice details
