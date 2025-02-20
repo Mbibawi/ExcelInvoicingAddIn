@@ -256,9 +256,15 @@ async function generateInvoice() {
         adress: (getUniqueValues(15, visible, tableName)).map(el => String(el)),
         lang: lang
     };
-    const filePath = `${destinationFolder}/${newWordFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`;
-    await createAndUploadXmlDocument(getRowsData(visible, lang), getContentControlsValues(invoiceDetails, new Date()), await getAccessToken() || '', filePath, lang);
+    const filePath = `${destinationFolder}/${getInvoiceFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`;
+    await createAndUploadXmlDocument(getRowsData(visible, lang), getContentControlsValues(invoiceDetails, new Date()), await getAccessToken() || '', filePath);
 }
+/**
+ * Returns a string[][] representing the rows to be inserted in the Word table containing the invoice details
+ * @param {string[][]} tableData - The filtered Excel rows from which the data will be extracted and put in the required format
+ * @param {string} lang - The language in which the invoice will issued
+ * @returns {string[][]} - the rows to be added to the table. Each row has 4 elements
+ */
 function getRowsData(tableData, lang) {
     const lables = {
         totalFees: {
@@ -304,15 +310,15 @@ function getRowsData(tableData, lang) {
             EN: '.'
         },
     };
-    const amount = 9, vat = 10, hours = 7, rate = 8, nature = 2, descr = 14;
+    const amount = 9, vat = 10, hours = 7, rate = 8, nature = 2, descr = 14; //Indexes of the Excel table columns from which we extract the date 
     const data = tableData.map(row => {
         const date = dateFromExcel(Number(row[3]));
         const time = getTimeSpent(Number(row[hours]));
         let description = `${String(row[nature])} : ${String(row[descr])}`; //Column Nature + Column Description;
-        //If the billable hours are > 0
+        //If the billable hours are > 0, we add to the description: time spent and hourly rate
         if (time)
             //@ts-ignore
-            description += `(${lables.hourlyBilled[lang]} ${time} ${lables.hourlyRate[lang]} ${Math.abs(row[rate]).toString()} €)`;
+            description += `(${lables.hourlyBilled[lang]} ${time} ${lables.hourlyRate[lang]} ${Math.abs(row[rate]).toString()}\u00A0€)`;
         const rowValues = [
             [date.getDate(), date.getMonth() + 1, date.getFullYear()].map(el => el.toString().padStart(2, '0')).join('/'), //Column Date
             description,
@@ -368,6 +374,11 @@ function getRowsData(tableData, lang) {
             return sum * -1; //We reverse the sign of any other amount
         }
     }
+    /**
+     * Convert the time as retrieved from an Excel cell into 'hh:mm' format
+     * @param {number} time - The time as stored in an Excel cell
+     * @returns {string} - The time as 'hh:mm' format
+     */
     function getTimeSpent(time) {
         if (!time || time <= 0)
             return '';
@@ -379,179 +390,107 @@ function getRowsData(tableData, lang) {
             .join(':');
     }
 }
+function getContentControlsValues(invoice, date) {
+    const fields = {
+        dateLabel: {
+            title: 'LabelParisLe',
+            text: { FR: 'Paris le ', EN: 'Paris on ' }[invoice.lang] || '',
+        },
+        date: {
+            title: 'RTInvoiceDate',
+            text: [date.getDate(), date.getMonth() + 1, date.getFullYear()].map(el => el.toString().padStart(2, '0')).join('/'),
+        },
+        numberLabel: {
+            title: 'LabelInvoiceNumber',
+            text: { FR: 'Facturen n°\u00A0', EN: 'Invoice No.:' }[invoice.lang] || '',
+        },
+        number: {
+            title: 'RTInvoiceNumber',
+            text: invoice.number,
+        },
+        subjectLable: {
+            title: 'LabelSubject',
+            text: { FR: 'Objet\u00A0: ', EN: 'Subject: ' }[invoice.lang] || '',
+        },
+        subject: {
+            title: 'RTMatter',
+            text: invoice.matters.join(' & '),
+        },
+        fee: {
+            title: 'LabelTableHeadingHonoraire',
+            text: { FR: 'Honoraire/Débours', EN: 'Fees/Expenses' }[invoice.lang] || '',
+        },
+        amount: {
+            title: 'LabelTableHeadingMontantTTC',
+            text: { FR: 'Montant TTC', EN: 'Amount VAT Included' }[invoice.lang] || '',
+        },
+        vat: {
+            title: 'LabelTableHeadingTVA',
+            text: { FR: 'TVA', EN: 'VAT' }[invoice.lang] || '',
+        },
+        disclaimer: {
+            title: 'LabelDisclamer' + ['French', 'English'].find(el => !el.toUpperCase().startsWith(invoice.lang)) || 'French',
+            text: '',
+        },
+        clientName: {
+            title: 'RTClient',
+            text: invoice.clientName,
+        },
+        adress: {
+            title: 'RTClientAdresse',
+            text: invoice.adress.join('/n'),
+        },
+    };
+    return Object.keys(fields).map(key => [fields[key].title, fields[key].text]);
+}
 function getUniqueValues(index, array, tableName) {
     if (!array)
         array = [];
     return Array.from(new Set(array.map(row => row[index])));
 }
 ;
-async function createAndUploadXmlDocument(data, contentControls, accessToken, filePath, lang) {
-    if (!accessToken)
-        return;
-    const schema = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
-    return await createAndEditNewXmlDoc();
-    async function createAndEditNewXmlDoc() {
-        const blob = await fetchBlobFromFile(templatePath, accessToken);
-        if (!blob)
-            return;
-        const zip = await convertBlobIntoXML(blob);
-        const doc = zip.xmlDoc;
-        if (!doc)
-            return;
-        const table = getXMLElement(doc, "w:tbl", 0);
-        data.forEach((row, x) => {
-            const newXmlRow = insertRowToXMLTable(doc, table);
-            if (!newXmlRow)
-                return;
-            const isTotal = row[0].startsWith('Total');
-            const isLast = x === data.length - 1;
-            row.forEach((text, y) => {
-                addCellToXMLTableRow(doc, newXmlRow, getStyle(x, y, isTotal), [isTotal, isLast].includes(true), text);
-            });
-        });
-        contentControls
-            .forEach(([title, text]) => {
-            const control = findXMLContentControlByTitle(doc, title);
-            if (!control)
-                return;
-            editXMLContentControl(control, text);
-        });
-        console.log('doc = ', doc.children[0]);
-        const newBlob = await convertXMLIntoBlob(doc, zip.zip);
-        await uploadToOneDrive(newBlob, filePath, accessToken);
-        function getStyle(row, cell, isTotal) {
-            let style = 'Invoice';
-            if (cell === 0 && isTotal)
-                style += 'BoldItalicLeft';
-            else if (cell === 0)
-                style += 'BoldLeft';
-            else if (cell === 1)
-                style += 'NotBoldItalicLeft';
-            else if (cell === 2 && isTotal)
-                style += 'BoldItalicCentered';
-            else if (cell === 2)
-                style += 'BoldCentered';
-            else if (cell === 3)
-                style += 'BoldItalicCentered';
-            else
-                style = '';
-            return style;
-        }
-    }
-    //await editDocumentWordJSAPI(await copyTemplate()?.id, accessToken, data, getContentControlsValues(invoice.lang))
-    async function fetchBlobFromFile(templatePath, accessToken) {
-        const response = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${templatePath}:/content`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-            },
-        });
-        if (!response.ok)
-            throw new Error('Failed to fetch the Word file from OneDrive');
-        return await response.blob();
-    }
-    async function convertBlobIntoXML(blob) {
-        //@ts-ignore
-        const zip = new JSZip();
-        const arrayBuffer = await blob.arrayBuffer();
-        await zip.loadAsync(arrayBuffer);
-        const documentXml = await zip.file("word/document.xml").async("string");
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(documentXml, "application/xml");
-        return { xmlDoc, zip };
-    }
-    //@ts-expect-error
-    async function convertXMLIntoBlob(editedXml, zip) {
-        const serializer = new XMLSerializer();
-        let modifiedDocumentXml = serializer.serializeToString(editedXml);
-        zip.file("word/document.xml", modifiedDocumentXml);
-        return await zip.generateAsync({ type: "blob" });
-    }
-    function getXMLElement(xmlDoc, tag, index) {
-        const elements = xmlDoc.getElementsByTagName(tag);
-        return elements[index];
-    }
-    function insertRowToXMLTable(xmlDoc, table, after = -1) {
-        if (!table)
-            return;
-        const row = createTableElement(xmlDoc, "w:tr");
-        after >= 0 ? getXMLElement(table, 'w:tr', after)?.insertAdjacentElement('afterend', row) :
-            table.appendChild(row);
-        return row;
-    }
-    function setStyle(targetElement, style, backGroundColor = '', doc) {
-        // Create or find the run properties element
-        //const styleProps = createAndAppend(runElement, "w:rPr", false);
-        const tag = targetElement.tagName.toLocaleLowerCase();
-        (function cell() {
-            if (tag !== 'w:tc')
-                return;
-            const cellProp = createAndAppend(targetElement, 'w:tcPr', false);
-            createAndAppend(cellProp, 'w:vAlign').setAttribute('w:val', "center");
-            //createAndAppend(cellProp, 'w:tcStyle').setAttribute('w:val', 'InvoiceCellCentered');
-            if (!backGroundColor)
-                return;
-            const background = createAndAppend(cellProp, 'w:shd'); //Adding background color to cell
-            background.setAttribute('w:val', "clear");
-            background.setAttribute('w:fill', backGroundColor);
-        })();
-        (function parag() {
-            if (tag !== 'w:p')
-                return;
-            if (!style)
-                return;
-            const props = createAndAppend(targetElement, "w:pPr", false);
-            createAndAppend(props, "w:pStyle").setAttribute("w:val", style);
-        })();
-        function createAndAppend(parent, tag, append = true) {
-            const newElement = createTableElement(doc, tag);
-            if (append)
-                parent.appendChild(newElement);
-            else
-                parent.insertBefore(newElement, parent.firstChild);
-            return newElement;
-        }
-    }
-    function addCellToXMLTableRow(xmlDoc, row, style, isTotal = false, text) {
-        if (!xmlDoc || !row)
-            return;
-        const cell = createTableElement(xmlDoc, "w:tc"); //new table cell
-        row.appendChild(cell);
-        if (isTotal)
-            setStyle(cell, style, 'D9D9D9', xmlDoc);
-        else
-            setStyle(cell, style, '', xmlDoc);
-        const parag = createTableElement(xmlDoc, "w:p"); //new table paragraph
-        cell.appendChild(parag);
-        setStyle(parag, style, '', xmlDoc);
-        const newRun = createTableElement(xmlDoc, "w:r"); // new run
-        parag.appendChild(newRun);
-        if (!text)
-            return;
-        const newText = createTableElement(xmlDoc, "w:t");
-        newText.textContent = text;
-        newRun.appendChild(newText);
-    }
-    function createTableElement(xmlDoc, tag) {
-        return xmlDoc.createElement(tag);
-    }
-    function findXMLContentControlByTitle(xmlDoc, title) {
-        const contentControls = Array.from(xmlDoc.getElementsByTagName("w:sdt"));
-        return contentControls.find(control => control.getElementsByTagName("w:alias")[0]?.getAttribute("w:val") === title);
-    }
-    function editXMLContentControl(control, text) {
-        if (!control)
-            return;
-        if (!text)
-            return control.remove();
-        const textElement = control.getElementsByTagName("w:t")[0];
-        if (!textElement)
-            return;
-        textElement.textContent = text;
-    }
+/**
+ * Returns all the rows of an Excel table in a workbook stored on OneDrive, using the Graph API
+ * @param {string} accessToken - the access token
+ * @param {string} filePath - file path (folder + file nam) of the file to be fetched
+ * @param {string} tableName - Name of the table to be fetched
+ * @returns {any[][]} - All the rows (including the title) of the Excel table
+ */
+async function fetchExcelTableWithGraphAPI(accessToken, filePath, tableName) {
+    const fileUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/range`;
+    const response = await fetch(fileUrl, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!response.ok)
+        throw new Error("Failed to fetch Excel data");
+    const data = await response.json();
+    //@ts-ignore
+    return data.values;
 }
-;
-async function uploadToOneDrive(blob, filePath, accessToken) {
+/**
+ * Returns a blob from a file stored on OneDrive, using the Graph API and the file path
+ * @param {string} accessToken
+ * @param {string} filePath
+ * @returns {Blob} - A blob of the fetched file, if successful
+ */
+async function fetchFileFromOneDriveWithGraphAPI(accessToken, filePath) {
+    const fileUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/content`;
+    const response = await fetch(fileUrl, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!response.ok)
+        throw new Error("Failed to fetch Word template");
+    return await response.blob(); // Returns the Word template as a Blob
+}
+/**
+ * Uploads a file blob to OneDrive using the Graph API
+ * @param {Blob } blob
+ * @param {string} filePath
+ * @param {string} accessToken
+ */
+async function uploadFileToOneDriveWithGraphAPI(blob, filePath, accessToken) {
     const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/content`;
     const response = await fetch(endpoint, {
         method: 'PUT',
@@ -564,13 +503,50 @@ async function uploadToOneDrive(blob, filePath, accessToken) {
     response.ok ? alert('succefully uploaded the new file') : console.log('failed to upload the file to onedrive error = ', await response.json());
 }
 ;
-function newWordFileName(clientName, matters, invoiceNumber) {
+/**
+ * Returns the Word file name by which the newly issued invoice will be saved on OneDrive
+ * @param {string} clientName - The name of the client for which the invoice will be issued
+ * @param {string} matters - The matters included in the invoice
+ * @param {string} invoiceNumber - The invoice serial number
+ * @returns {string} - The name of the Word file to be saved
+ */
+function getInvoiceFileName(clientName, matters, invoiceNumber) {
     // return 'test file name for now.docx'
     return `_Test_Facture_${clientName}_${Array.from(matters).join('&')}_No.${invoiceNumber.replace('/', '-')}.docx`;
 }
 function getInvoiceNumber(date) {
     const padStart = (n) => n.toString().padStart(2, '0');
     return (date.getFullYear() - 2000).toString() + padStart(date.getMonth() + 1) + padStart(date.getDate()) + '/' + padStart(date.getHours()) + padStart(date.getMinutes());
+}
+/**
+ * Returns any date in the ISO format (YYY-MM-DD) accepted by Excel
+ * @param {Date} date - the Date that we need to convert to ISO format
+ * @returns {string} - The date in ISO format
+ */
+function getISODate(date) {
+    //@ts-ignore
+    return [date?.getFullYear(), date?.getMonth() + 1, date?.getDate()].map(el => el.toString().padStart(2, '0')).join('-');
+}
+/**
+ * Returns the value from a time input as a number matching the Excel time format (which is a fraction of the day)
+ * @param {HTMLInputElement[]} inputs - If a single input is passed, it will return the Excel formatted time value from this input or 0. If 2 inputs are passed, it will return the total time by calculting the difference between the second input and the first input in the array
+ * @returns {number} - The time as a number matching the Excel time format
+ */
+function getTime(inputs) {
+    const day = (1000 * 60 * 60 * 24);
+    if (inputs.length < 2 && inputs[0])
+        return inputs[0].valueAsNumber / day || 0;
+    const from = inputs[0]?.valueAsNumber; //this gives the time in milliseconds
+    const to = inputs[1]?.valueAsNumber;
+    if (!from || !to)
+        return 0;
+    const quarter = 15 * 60 * 1000; //quarter of an hour
+    let time = to - from;
+    time = Math.round(time / quarter) * quarter; //We are rounding the time by 1/4 hours
+    time = time / day;
+    if (time < 0)
+        time = (to + day - from) / day; //It means we started on one day and finished the next day 
+    return time;
 }
 async function editDocumentWordJSAPI(id, accessToken, data, controlsData) {
     if (!id || !accessToken || !data)
@@ -918,5 +894,30 @@ function sortByColumn(data, columnIndex) {
         }
         return String(valA).localeCompare(String(valB)); // String sorting
     });
+}
+function getInputByIndex(inputs, index) {
+    return inputs.find(input => Number(input.dataset.index) === index);
+}
+function getIndex(input) {
+    return Number(input.dataset.index);
+}
+// Utility function: Convert Blob to Base64
+async function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result.toString().split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
+// Utility function: Convert Base64 to Blob
+function base64ToBlob(base64) {
+    const byteCharacters = atob(base64);
+    const byteNumbers = new Array(byteCharacters.length).fill(0).map((_, i) => byteCharacters.charCodeAt(i));
+    const byteArray = new Uint8Array(byteNumbers);
+    return new Blob([byteArray], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+}
+function getInputValue(index, inputs) {
+    return inputs.find(input => Number(input.dataset.index) === index)?.value || '';
 }
 //# sourceMappingURL=main.js.map

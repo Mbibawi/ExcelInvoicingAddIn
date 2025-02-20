@@ -18,36 +18,17 @@ function getAccessToken() {
     };
     return getTokenWithMSAL(clientId, redirectUri, msalConfig)
 }
-// Fetch OneDrive File by Path
-async function fetchOneDriveFileByPath(filePathAndName: string, accessToken: string) {
-    try {
-        const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePathAndName}:/content`;
-
-        const response = await fetch(url, {
-            method: "GET",
-            headers: {
-                "Authorization": `Bearer ${accessToken}`,
-                "Content-Type": "application/json"
-            }
-        });
-
-        const data = await response.arrayBuffer();
-        return data;
-    } catch (error) {
-        console.error("Error fetching OneDrive file:", error);
-    }
-}
 
 async function addNewEntry(add: boolean = false) {
     accessToken = await getAccessToken() || '';
 
     (async function show() {
         if (add) return;
-        TableRows = await fetchExcelTable(accessToken, excelPath, tableName);
+        TableRows = await fetchExcelTableWithGraphAPI(accessToken, excelPath, tableName);
 
         if (!TableRows) return;
 
-        showForm(TableRows[0]);
+        insertAddForm(TableRows[0]);
     })();
 
     (async function addEntry() {
@@ -95,7 +76,7 @@ async function addNewEntry(add: boolean = false) {
         };
 
 
-        await addRowToExcelTable([row], TableRows.length - 2, excelFilePath, tableName, accessToken);
+        await addRowToExcelTableWithGraphAPI([row], TableRows.length - 2, excelFilePath, tableName, accessToken);
 
         [0, 1].map(async index => {
             //!We use map because forEach doesn't await
@@ -104,34 +85,12 @@ async function addNewEntry(add: boolean = false) {
         });
 
         alert('Row aded and table was filtered');
-        
-        function getISODate(date: Date | undefined) {
-            //@ts-ignore
-            return [date?.getFullYear(), date?.getMonth() + 1, date?.getDate()].map(el => el.toString().padStart(2, '0')).join('-');
-        }
 
-        function getTime(inputs: (HTMLInputElement | undefined)[]) {
-            const day = (1000 * 60 * 60 * 24);
-            if (inputs.length === 1 && inputs[0])
-                return inputs[0].valueAsNumber / day || 0;
-
-            const from = inputs[0]?.valueAsNumber;//this gives the time in milliseconds
-            const to = inputs[1]?.valueAsNumber;
-
-            if (!from || !to) return 0;
-
-            const quarter = 15 * 60 * 1000; //quarter of an hour
-            let time = to - from;
-            time = Math.round(time / quarter) * quarter;//We are rounding the time by 1/4 hours
-            time = time/day;
-            if (time < 0) time = (to + day - from) / day//It means we started on one day and finished the next day 
-            return time;
-        }
 
     })()
 
 
-    function showForm(title: string[]) {
+    function insertAddForm(title: string[]) {
         const form = document.getElementById('form');
         if (!form) return;
         form.innerHTML = '';
@@ -173,8 +132,8 @@ async function addNewEntry(add: boolean = false) {
                 input.dataset.index = index.toString();
                 input.type = 'text';
             })();
-            
-            (function customize() {             
+
+            (function customize() {
                 if ([8, 9, 10].includes(index))
                     input.type = 'number';
                 else if (index === 3)
@@ -182,14 +141,14 @@ async function addNewEntry(add: boolean = false) {
                 else if ([5, 6].includes(index))
                     input.type = 'time';
                 else if ([4, 7, 15].includes(index)) input.style.display = 'none';//We hide those 3 columns: 'Total Time' and the 'Year' and 'Link to a File'
-                else if (index < 3 || index >10) {
+                else if (index < 3 || index > 10) {
                     //We add a dataList for those fields
                     input.setAttribute('list', input.id + 's');
                     input.onchange = () => inputOnChange(index, TableRows.slice(1, -1), false);
                     if (![1, 16].includes(index))
                         createDataList(input.id, getUniqueValues(index, TableRows.slice(1, -1), tableName));//We don't create the data list for columns 'Matter' (1) and 'Adress' (16) because it will be created when the 'Client' field is updated
                 }
-                    
+
                 if (index > 4 && index < 11)
                     //Those are the "Start Time", "End Time", "Total Time", "Hourly Rate", "Amount", "VAT" columns . The "Hourly Rate" input is hidden, so it can't be changed by the user. We will add the onChange event to it by simplicity
                     input.onchange = () => inputOnChange(index, undefined, false);//!We are passing the table[][] argument as undefined, and the invoice argument as false 
@@ -207,7 +166,7 @@ async function invoice(issue: boolean = false) {
     (async function show() {
         if (issue) return;
 
-        TableRows = await fetchExcelTable(accessToken, excelPath, tableName);
+        TableRows = await fetchExcelTableWithGraphAPI(accessToken, excelPath, tableName);
 
         if (!TableRows) return;
 
@@ -221,10 +180,9 @@ async function invoice(issue: boolean = false) {
 
         const criteria = inputs.filter(input => Number(input.dataset.index) >= 0);
 
-        const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.dataset.language || 'FR';
+        const lang = inputs.find(input => input.dataset.language && input.checked === true)?.dataset.language || 'FR';
 
         const filtered = filterExcelData(TableRows, criteria, lang);
-        console.log('filtered table = ', filtered);
 
         const date = new Date();
 
@@ -232,23 +190,131 @@ async function invoice(issue: boolean = false) {
             number: getInvoiceNumber(date),
             clientName: getInputValue(0, criteria),
             matters: getArray(getInputValue(1, criteria)),
-            adress: Array.from(new Set(filtered.map(row => row[16]))),
+            adress: getArray(getInputValue(16, criteria)),
             lang: lang
         }
         const contentControls = getContentControlsValues(invoice, date);
 
-        const filePath = `${destinationFolder}/${newWordFileName(invoice.clientName, invoice.matters, invoice.number)}`;
+        const filePath = `${destinationFolder}/${getInvoiceFileName(invoice.clientName, invoice.matters, invoice.number)}`;
 
-        await createAndUploadXmlDocument(filtered, contentControls, accessToken, filePath, lang);
+        await createAndUploadXmlDocument(filtered, contentControls, accessToken, filePath);
+
+        function filterExcelData(data: any[][], criteria: HTMLInputElement[], lang: string) {
+
+            //Filtering by Client (criteria[0])
+            data = data.filter(row => row[getIndex(criteria[0])] === criteria[0].value);
+
+
+            [1, 2].forEach(index => {
+                //!Matter and Nature inputs (from columns 2 & 3 of the Excel table) may include multiple entries separated by ', ' not only one entry.
+                const list = criteria[index].value.replaceAll(' ', '').split(',');//We generate a string[] from the input.value
+                data = data.filter(row => list.includes(row[index]));//We filter the data
+            });
+            //We finaly filter by date
+            data = filterByDate(data);
+
+            return getRowsData(data, lang);
+
+            function filterByDate(data: string[][]) {
+                const [from, to] = criteria
+                    .filter(input => getIndex(input) === 3)
+                    .map(input => new Date(input.value).getTime());
+
+                const convertDate = (date: string | number) => dateFromExcel(Number(date)).getTime();
+
+                if (from && to)
+                    return data.filter(row => convertDate(row[3]) >= from && convertDate(row[3]) <= to); //we filter by the date
+                else if (from)
+                    return data.filter(row => convertDate(row[3]) >= from); //we filter by the date
+                else if (to)
+                    return data.filter(row => convertDate(row[3]) <= to); //we filter by the date
+                else
+                    return data.filter(row => convertDate(row[3]) <= new Date().getTime()); //we filter by the date
+
+            }
+
+        }
 
     })();
+
+    function insertInvoiceForm(excelTable: string[][]) {
+        const form = document.getElementById('form');
+        if (!form) return;
+        form.innerHTML = '';
+        const title = excelTable[0];
+        insertInputsAndLables([0, 1, 2, 3, 3]);//Inserting the fields inputs (Client, Matter, Nature, Date). We insert the date twice
+        insertInputsAndLables(['Français', 'English'], true); //Inserting langauges checkboxes
+
+        (function addBtn() {
+            const btnIssue = document.createElement('button');
+            btnIssue.innerText = 'Generate Invoice';
+            btnIssue.classList.add('button');
+            btnIssue.onclick = () => invoice(true);
+            form.appendChild(btnIssue);
+        })();
+
+        function insertInputsAndLables(indexes: (number | string)[], checkBox: boolean = false): HTMLInputElement[] {
+            let id = 'input';
+            let css = 'field';
+            if (checkBox) css = 'checkBox';
+
+            return indexes.map(index => {
+                checkBox ? id = id : id+= index.toString();
+                appendLable(index);
+                return appendInput(Number(index));
+            });
+
+            function appendInput(index:number) {
+                const input = document.createElement('input');
+                input.classList.add(css);
+                input.id = id;
+
+                (function setType() {               
+                    if (checkBox) input.type = 'checkbox';
+                    else if (index < 3) input.type = 'text';
+                    else input.type = 'date';
+                })();
+
+                (function notCheckBox() { 
+                    if (checkBox) return;
+                    input.name = input.id;
+                    input.dataset.index = index.toString();
+                    input.setAttribute('list', input.id + 's');
+                    input.autocomplete = "on";
+
+                    if (index < 2)
+                        input.onchange = () => inputOnChange(Number(input.dataset.index), excelTable.slice(1, -1), true);
+
+                    if (index < 1)
+                        createDataList(id, Array.from(new Set(TableRows.slice(1, -1).map(row => row[0]))));//We create a unique values dataList for the 'Client' input
+                })();
+
+                (function isCheckBox() {
+                    if (!checkBox) return;
+                    input.dataset.language = index.toString().slice(0, 2).toUpperCase();
+                })();
+
+                form?.appendChild(input);
+
+                return input;
+            }
+
+            function appendLable(index:number|string) {
+                const label = document.createElement('label');
+                checkBox ? label.innerText = index.toString() : label.innerText = title[Number(index)];
+                label.htmlFor = id;
+                form?.appendChild(label);
+            }
+        };
+
+    }
 
 }
 
 /**
- * Updates the data list of the other fields according to the value of the input that has been changed
+ * Updates the data list or the value of bound inputs according to the value of the input that has been changed
  * @param {number} index - the dataset.index of the input that has been changed
- * @param {any[][]} table - the table that will be filtered
+ * @param {any[][]} table - the table that will be filtered. If undefined, it means that no data list will be updated.
  * @param {boolean} invoice - If true, it means that we called the function in order to generate an invoice. If false, we called it in order to add a new entry in the table
  * @returns 
  */
@@ -264,7 +330,7 @@ function inputOnChange(index: number, table: any[][] | undefined, invoice: boole
             boundInputs
                 .forEach(i => i < index ? reset(i) : i = i);
 
-        
+
         function reset(i: number) {
             const input = getInputByIndex(inputs, i);
             if (!input) return;
@@ -314,88 +380,199 @@ function inputOnChange(index: number, table: any[][] | undefined, invoice: boole
     }
 };
 
-async function extractInvoiceData(lang: string) {
-    const inputs = Array.from(document.getElementsByTagName('input'));
-    const criteria = inputs.filter(input => input.dataset.index);
 
-    //@ts-expect-error
-    const tableData = filterRows(0, await fetchExcelData());
+async function createAndUploadXmlDocument(rows: string[][], contentControls: string[][], accessToken: string, filePath: string) {
 
+    if (!accessToken) return;
+    const schema = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 
-    return getRowsData(tableData, lang);
+    return await createAndEditNewXmlDoc();
 
+    async function createAndEditNewXmlDoc() {
+        const blob = await fetchFileFromOneDriveWithGraphAPI(accessToken, filePath);
+        if (!blob) return;
+        const zip = await convertBlobIntoXML(blob);
+        const doc = zip.xmlDoc;
+        if (!doc) return;
+        const table = getXMLElement(doc, "w:tbl", 0);
 
-    function filterRows(i: number, tableData: string[][]) {
-        while (i < criteria.length) {
-            const input = criteria[i];
-            tableData = tableData.filter(row => row[Number(input.dataset.index)].toString() === input.value);
-            i++
+        rows.forEach((row, x) => {
+            const newXmlRow = insertRowToXMLTable(doc, table);
+            if (!newXmlRow) return;
+            const isTotal = row[0].startsWith('Total');
+            const isLast = x === rows.length - 1;
+            row.forEach((text, index) => {
+                addCellToXMLTableRow(doc, newXmlRow, getStyle(index, isTotal), [isTotal, isLast].includes(true), text)
+            })
+        });
+
+        contentControls
+            .forEach(([title, text]) => {
+                const control = findXMLContentControlByTitle(doc, title);
+                if (!control) return;
+                editXMLContentControl(control, text);
+            });
+
+        console.log('doc = ', doc.children[0]);
+
+        const newBlob = await convertXMLIntoBlob(doc, zip.zip);
+
+        await uploadFileToOneDriveWithGraphAPI(newBlob, filePath, accessToken);
+
+        function getStyle(cell: number, isTotal: boolean) {
+            let style = 'Invoice';
+            if (cell === 0 && isTotal) style += 'BoldItalicLeft';
+            else if (cell === 0) style += 'BoldLeft';
+            else if (cell === 1) style += 'NotBoldItalicLeft';
+            else if (cell === 2 && isTotal) style += 'BoldItalicCentered';
+            else if (cell === 2) style += 'BoldCentered';
+            else if (cell === 3) style += 'BoldItalicCentered';
+            else style = '';
+            return style
         }
-        return tableData
     }
 
+    //await editDocumentWordJSAPI(await copyTemplate()?.id, accessToken, data, getContentControlsValues(invoice.lang))
 
-}
 
-function dateFromExcel(excelDate: number) {
+
+    async function fetchBlobFromFile(templatePath: string, accessToken: string) {
+        const response = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${templatePath}:/content`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+            },
+        });
+
+        if (!response.ok) throw new Error('Failed to fetch the Word file from OneDrive');
+
+        return await response.blob();
+
+    }
+
+    async function convertBlobIntoXML(blob: Blob) {
+        //@ts-ignore
+        const zip = new JSZip();
+
+        const arrayBuffer = await blob.arrayBuffer();
+
+        await zip.loadAsync(arrayBuffer);
+
+        const documentXml = await zip.file("word/document.xml").async("string");
+
+        const parser = new DOMParser();
+
+        const xmlDoc = parser.parseFromString(documentXml, "application/xml");
+
+        return { xmlDoc, zip }
+    }
+
+    //@ts-expect-error
+    async function convertXMLIntoBlob(editedXml: XMLDocument, zip: JSZip) {
+
+        const serializer = new XMLSerializer();
+        let modifiedDocumentXml = serializer.serializeToString(editedXml);
+
+        zip.file("word/document.xml", modifiedDocumentXml);
+
+        return await zip.generateAsync({ type: "blob" });
+    }
+
+    function getXMLElement(xmlDoc: XMLDocument | Element, tag: string, index: number) {
+        const elements = xmlDoc.getElementsByTagName(tag);
+        return elements[index];
+    }
+
+    function insertRowToXMLTable(xmlDoc: XMLDocument, table: Element, after: number = -1) {
+        if (!table) return;
+        const row = createTableElement(xmlDoc, "w:tr");
+        after >= 0 ? getXMLElement(table, 'w:tr', after)?.insertAdjacentElement('afterend', row) :
+            table.appendChild(row);
+        return row;
+    }
+
+    function setStyle(targetElement: Element, style: string, backGroundColor: string = '', doc: Document): void {
+        // Create or find the run properties element
+        //const styleProps = createAndAppend(runElement, "w:rPr", false);
+
+        const tag = targetElement.tagName.toLocaleLowerCase();
+        (function cell() {
+            if (tag !== 'w:tc') return;
+            const cellProp = createAndAppend(targetElement, 'w:tcPr', false);
+            createAndAppend(cellProp, 'w:vAlign').setAttribute('w:val', "center");
+            //createAndAppend(cellProp, 'w:tcStyle').setAttribute('w:val', 'InvoiceCellCentered');
+            if (!backGroundColor) return;
+            const background = createAndAppend(cellProp, 'w:shd');//Adding background color to cell
+            background.setAttribute('w:val', "clear");
+            background.setAttribute('w:fill', backGroundColor);
+        })();
+
+        (function parag() {
+            if (tag !== 'w:p') return;
+            if (!style) return;
+            const props = createAndAppend(targetElement, "w:pPr", false);
+            createAndAppend(props, "w:pStyle").setAttribute("w:val", style);
+        })();
+
+
+
+        function createAndAppend(parent: Element, tag: string, append: boolean = true) {
+            const newElement = createTableElement(doc, tag);
+            if (append) parent.appendChild(newElement)
+            else parent.insertBefore(newElement, parent.firstChild);
+            return newElement
+        }
+    }
+
+    function addCellToXMLTableRow(xmlDoc: XMLDocument, row: Element, style: string, isTotal: boolean, text?: string) {
+        if (!xmlDoc || !row) return;
+        const cell = createTableElement(xmlDoc, "w:tc");//new table cell
+        row.appendChild(cell);
+        if (isTotal)
+            setStyle(cell, style, 'D9D9D9', xmlDoc);//We set the background color of the cell
+        else setStyle(cell, style, '', xmlDoc);
+        const parag = createTableElement(xmlDoc, "w:p");//new table paragraph
+        cell.appendChild(parag)
+        setStyle(parag, style, '', xmlDoc);
+        const newRun = createTableElement(xmlDoc, "w:r");// new run
+        parag.appendChild(newRun);
+
+        if (!text) return;
+
+        const newText = createTableElement(xmlDoc, "w:t");
+        newText.textContent = text;
+
+        newRun.appendChild(newText);
+
+    }
+
+    function createTableElement(xmlDoc: XMLDocument, tag: string) {
+        return xmlDoc.createElement(tag);
+    }
+
+    function findXMLContentControlByTitle(xmlDoc: XMLDocument, title: string) {
+        const contentControls = Array.from(xmlDoc.getElementsByTagName("w:sdt"));
+        return contentControls.find(control => control.getElementsByTagName("w:alias")[0]?.getAttribute("w:val") === title);
+    }
+
+    function editXMLContentControl(control: Element, text: string) {
+        if (!control) return;
+        if (!text) return control.remove();
+        const textElement = control.getElementsByTagName("w:t")[0];
+        if (!textElement) return;
+        textElement.textContent = text;
+    }
+
+};
+/**
+ * Convert the date in an Excel row into a javascript date (in milliseconds)
+ * @param {number} excelDate - The date retrieved from an Excel cell
+ * @returns {Date} - a javascript format of the date
+ */
+function dateFromExcel(excelDate: number): Date {
     const date = new Date((excelDate - 25569) * (60 * 60 * 24) * 1000);//This gives the days converted from milliseconds. 
     const dateOffset = date.getTimezoneOffset() * 60 * 1000;//Getting the difference in milleseconds
     return new Date(date.getTime() + dateOffset);
-}
-
-function getContentControlsValues(invoice: { number: string, clientName: string, matters: string[], adress: string[], lang: string }, date: Date): string[][] {
-    const fields: { [index: string]: { title: string, text: string } } = {
-        dateLabel: {
-            title: 'LabelParisLe',
-            text: { FR: 'Paris le ', EN: 'Paris on ' }[invoice.lang] || '',
-        },
-        date: {
-            title: 'RTInvoiceDate',
-            text: [date.getDate(), date.getMonth() + 1, date.getFullYear()].map(el => el.toString().padStart(2, '0')).join('/'),
-        },
-        numberLabel: {
-            title: 'LabelInvoiceNumber',
-            text: { FR: 'Facturen n° : ', EN: 'Invoice No.:' }[invoice.lang] || '',
-        },
-        number: {
-            title: 'RTInvoiceNumber',
-            text: invoice.number,
-        },
-        subjectLable: {
-            title: 'LabelSubject',
-            text: { FR: 'Objet : ', EN: 'Subject: ' }[invoice.lang] || '',
-        },
-        subject: {
-            title: 'RTMatter',
-            text: invoice.matters.join(' & '),
-        },
-        fee: {
-            title: 'LabelTableHeadingHonoraire',
-            text: { FR: 'Honoraire/Débours', EN: 'Fees/Expenses' }[invoice.lang] || '',
-        },
-        amount: {
-            title: 'LabelTableHeadingMontantTTC',
-            text: { FR: 'Montant TTC', EN: 'Amount VAT Included' }[invoice.lang] || '',
-        },
-        vat: {
-            title: 'LabelTableHeadingTVA',
-            text: { FR: 'TVA', EN: 'VAT' }[invoice.lang] || '',
-        },
-        disclaimer: {
-            title: 'LabelDisclamer' + ['French', 'English'].find(el => !el.toUpperCase().startsWith(invoice.lang)) || 'French',
-            text: '',
-        },
-        clientName: {
-            title: 'RTClient',
-            text: invoice.clientName,
-        },
-        adress: {
-            title: 'RTClientAdresse',
-            text: invoice.adress.join('/n'),
-        },
-
-    };
-    return Object.keys(fields).map(key => [fields[key].title, fields[key].text]);
 }
 
 function getMSGraphClient(accessToken: string) {
@@ -407,22 +584,6 @@ function getMSGraphClient(accessToken: string) {
         }
     });
 }
-// Save Word Document to Another Location
-async function saveWordDocumentToNewLocation(invoice: { number: string, clientName: string, matters: string[] }, accessToken: string, originalFilePath: string = templatePath, newFilePath: string = destinationFolder) {
-    const date = new Date();
-    const fileName = newWordFileName(invoice.clientName, invoice.matters, invoice.number);
-    newFilePath = `${destinationFolder}/${fileName}`
-    try {
-
-        const fileContent = await fetchOneDriveFileByPath(originalFilePath, accessToken);
-        const resp = await getMSGraphClient(accessToken).api(`/me/drive/root:${newFilePath}:/content`).put(fileContent);
-        console.log('put response = ', resp);
-        return newFilePath
-
-    } catch (error) {
-        console.error("Error saving Word document:", error);
-    }
-}
 
 function getNewExcelRow(inputs: HTMLInputElement[]) {
     return inputs.map(input => {
@@ -432,7 +593,7 @@ function getNewExcelRow(inputs: HTMLInputElement[]) {
 
 }
 
-async function addRowToExcelTable(row: any[][], index: number, filePath: string, tableName: string, accessToken: string) {
+async function addRowToExcelTableWithGraphAPI(row: any[][], index: number, filePath: string, tableName: string, accessToken: string) {
 
     await clearFliter(); //We start by clearing the filter of the table, otherwise the insertion will fail
 
@@ -458,7 +619,7 @@ async function addRowToExcelTable(row: any[][], index: number, filePath: string,
     } else {
         alert(`Error adding row: ${await response.text()}`);
     }
-    
+
     async function clearFliter() {
         // First, clear filters on the table (optional step)
         await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/clearFilters`, {
@@ -471,8 +632,8 @@ async function addRowToExcelTable(row: any[][], index: number, filePath: string,
     }
 }
 
-async function filterExcelTable(filePath:string, tableName:string, columnName:string, filterValue:string, accessToken:string) {
- 
+async function filterExcelTable(filePath: string, tableName: string, columnName: string, filterValue: string, accessToken: string) {
+
     // Step 3: Apply filter using the column name
     const filterUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/columns/${columnName}/filter/apply`;
 
