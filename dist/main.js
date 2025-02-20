@@ -533,7 +533,7 @@ async function uploadFileToOneDriveWithGraphAPI(blob, filePath, accessToken) {
  */
 function getInvoiceFileName(clientName, matters, invoiceNumber) {
     // return 'test file name for now.docx'
-    return `_Test_Facture_${clientName}_${Array.from(matters).join('&')}_No.${invoiceNumber.replace('/', '-')}.docx`.replaceAll('/', '_');
+    return `_Test_Facture_${clientName}_${Array.from(matters).join('&')}_No.${invoiceNumber.replace('/', '-')}.docx`.replaceAll('/', '_').replaceAll('"', '');
 }
 async function getExcelTableRowsCountViaGraphAPI(filePath, tableName, accessToken) {
     const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/rows/$count`;
