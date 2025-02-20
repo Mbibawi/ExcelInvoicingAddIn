@@ -537,8 +537,10 @@ async function fetchExcelTableWithGraphAPI(accessToken: string, filePath: string
     throw new Error(`Error fetching row count: ${await response.text()}`);
   };
 
-    const data = await response.json();
-    return data.value.map((v:any)=>v.values); 
+  const data = await response.json();
+  if(range)
+    return data.values; 
+  else return data.value.map((v:any)=>v.values); 
 }
 
 /**
