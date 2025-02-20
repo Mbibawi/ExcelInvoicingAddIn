@@ -476,15 +476,9 @@ async function fetchExcelTableWithGraphAPI(accessToken, filePath, tableName, row
         throw new Error(`Error fetching row count: ${await response.text()}`);
     }
     ;
-    if (rows) {
-        const data = await response.json();
-        //@ts-ignore
-        return data.value;
-    }
-    else if (columns) {
-        const count = await response.text(); // The API returns a number as plain text
-        return parseInt(count, 10); // Convert to number
-    }
+    const data = await response.json();
+    //@ts-ignore
+    return data.value;
 }
 /**
  * Returns a blob from a file stored on OneDrive, using the Graph API and the file path
