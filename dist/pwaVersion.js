@@ -158,6 +158,7 @@ async function invoice(issue = false) {
         const inputs = Array.from(document.getElementsByTagName('input'));
         const criteria = inputs.filter(input => Number(input.dataset.index) >= 0);
         const lang = inputs.find(input => input.dataset.language && input.checked === true)?.dataset.language || 'FR';
+        TableRows = await fetchExcelTableWithGraphAPI(accessToken, excelPath, tableName); //We fetch the table again in case there where changes made since it was fetched the first time when the userform was inserted
         const filtered = filterExcelData(TableRows, criteria, lang);
         const date = new Date();
         const invoice = {
