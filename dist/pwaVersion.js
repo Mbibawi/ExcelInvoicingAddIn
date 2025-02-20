@@ -220,7 +220,7 @@ async function invoice(issue = false) {
             return indexes.map(index => {
                 checkBox ? id = id : id += index.toString();
                 appendLable(index);
-                return appendInput(Number(index));
+                return appendInput(index);
             });
             function appendInput(index) {
                 const input = document.createElement('input');
@@ -229,7 +229,7 @@ async function invoice(issue = false) {
                 (function setType() {
                     if (checkBox)
                         input.type = 'checkbox';
-                    else if (index < 3)
+                    else if (Number(index) < 3)
                         input.type = 'text';
                     else
                         input.type = 'date';
@@ -237,6 +237,7 @@ async function invoice(issue = false) {
                 (function notCheckBox() {
                     if (checkBox)
                         return;
+                    index = Number(index);
                     input.name = input.id;
                     input.dataset.index = index.toString();
                     input.setAttribute('list', input.id + 's');
@@ -338,7 +339,7 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
             const newXmlRow = insertRowToXMLTable(doc, table);
             if (!newXmlRow)
                 return;
-            const isTotal = row[0].startsWith('Total');
+            const isTotal = row[0]?.startsWith('Total');
             const isLast = x === rows.length - 1;
             row.forEach((text, index) => {
                 addCellToXMLTableRow(doc, newXmlRow, getStyle(index, isTotal), [isTotal, isLast].includes(true), text);
