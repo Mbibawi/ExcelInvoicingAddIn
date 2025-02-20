@@ -3,7 +3,7 @@ if (!localStorage.excelPath)
     localStorage.excelPath = prompt('Please provide the OneDrive full path (including the file name and extension) for the Excel Workbook', "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm");
 const workbookPath = localStorage.excelPath || alert('The excel Workbook path is not valid');
 if (!localStorage.templatePath)
-    localStorage.templatePath = prompt('Please provide the OneDrive full path (including the file name and extension) for the Word template', "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/'FactureTEMPLATE [NE PAS MODIFIDER].docx");
+    localStorage.templatePath = prompt('Please provide the OneDrive full path (including the file name and extension) for the Word template', "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/FactureTEMPLATE [NE PAS MODIFIDER].docx");
 const templatePath = localStorage.templatePath || alert('The template path is not valid or is missing');
 if (!localStorage.tableName)
     localStorage.tableName = prompt('Please provide the name of the Excel Table where the invoicing data is stored', 'LivreJournal');

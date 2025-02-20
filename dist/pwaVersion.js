@@ -313,12 +313,11 @@ function inputOnChange(index, table, invoice) {
     if (filtered.length < 1)
         return;
     boundInputs.map(input => createDataList(input?.id, getUniqueValues(getIndex(input), filtered, tableName), invoice));
-    if (invoice) {
-        const nature = getInputByIndex(inputs, 2); //We get the nature input in order to fill automaticaly its values by a ', ' separated string
-        if (!nature)
-            return;
-        nature.value = Array.from(document.getElementById(nature?.id + 's')?.children)?.map((option) => option.value).join(', ');
-    }
+    /* if (invoice) {
+        const nature = getInputByIndex(inputs, 2);//We get the nature input in order to fill automaticaly its values by a ', ' separated string
+        if (!nature) return;
+        nature.value = Array.from(document.getElementById(nature?.id + 's')?.children as HTMLCollectionOf<HTMLOptionElement>)?.map((option) => option.value).join(', ');
+    } */
     function filterOnInput(inputs, filled, table) {
         let filtered = table;
         for (let i = 0; i < filled.length; i++) {

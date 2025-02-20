@@ -180,7 +180,7 @@ async function invoice(issue: boolean = false) {
     (async function issueInvoice() {
         if (!issue) return;
         if (!templatePath || !destinationFolder) return alert('The full path of the Word Invoice Template and/or the destination folder where the new invoice will be saved, are either missing or not valid');
-        
+
         const inputs = Array.from(document.getElementsByTagName('input'));
 
         const criteria = inputs.filter(input => Number(input.dataset.index) >= 0);
@@ -373,11 +373,11 @@ function inputOnChange(index: number, table: any[][] | undefined, invoice: boole
 
     boundInputs.map(input => createDataList(input?.id, getUniqueValues(getIndex(input), filtered, tableName), invoice));
 
-    if (invoice) {
+    /* if (invoice) {
         const nature = getInputByIndex(inputs, 2);//We get the nature input in order to fill automaticaly its values by a ', ' separated string
         if (!nature) return;
         nature.value = Array.from(document.getElementById(nature?.id + 's')?.children as HTMLCollectionOf<HTMLOptionElement>)?.map((option) => option.value).join(', ');
-    }
+    } */
 
     function filterOnInput(inputs: HTMLInputElement[], filled: number[], table: any[][]) {
         let filtered: any[][] = table;
