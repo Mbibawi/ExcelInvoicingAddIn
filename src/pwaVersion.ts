@@ -24,7 +24,9 @@ async function addNewEntry(add: boolean = false) {
 
     (async function show() {
         if (add) return;
-        TableRows = await fetchExcelTableWithGraphAPI(accessToken, excelPath, tableName) as string[][];
+        if (!workbookPath || !tableName) return alert('The Excel Workbook Path or the name of the Excel table are not valid');
+
+        TableRows = await fetchExcelTableWithGraphAPI(accessToken, workbookPath, tableName) as string[][];
 
         if (!TableRows) return;
 
@@ -76,7 +78,7 @@ async function addNewEntry(add: boolean = false) {
         };
 
 
-        await addRowToExcelTableWithGraphAPI([row], TableRows.length - 2, excelFilePath, tableName, accessToken);
+        await addRowToExcelTableWithGraphAPI([row], TableRows.length - 2, workbookPath, tableName, accessToken);
 
         [0, 1].map(async index => {
             //!We use map because forEach doesn't await
@@ -165,8 +167,9 @@ async function invoice(issue: boolean = false) {
 
     (async function show() {
         if (issue) return;
+        if (!workbookPath || !tableName) return alert('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
 
-        TableRows = await fetchExcelTableWithGraphAPI(accessToken, excelPath, tableName) as string[][];
+        TableRows = await fetchExcelTableWithGraphAPI(accessToken, workbookPath, tableName) as string[][];
 
         if (!TableRows) return;
 
@@ -176,13 +179,15 @@ async function invoice(issue: boolean = false) {
 
     (async function issueInvoice() {
         if (!issue) return;
+        if (!templatePath || !destinationFolder) return alert('The full path of the Word Invoice Template and/or the destination folder where the new invoice will be saved, are either missing or not valid');
+        
         const inputs = Array.from(document.getElementsByTagName('input'));
 
         const criteria = inputs.filter(input => Number(input.dataset.index) >= 0);
 
         const lang = inputs.find(input => input.dataset.language && input.checked === true)?.dataset.language || 'FR';
 
-        TableRows = await fetchExcelTableWithGraphAPI(accessToken, excelPath, tableName) as string[][];//We fetch the table again in case there where changes made since it was fetched the first time when the userform was inserted
+        TableRows = await fetchExcelTableWithGraphAPI(accessToken, workbookPath, tableName) as string[][];//We fetch the table again in case there where changes made since it was fetched the first time when the userform was inserted
 
         const filtered = filterExcelData(TableRows, criteria, lang);
 
@@ -209,7 +214,7 @@ async function invoice(issue: boolean = false) {
 
             [1, 2].forEach(index => {
                 //!Matter and Nature inputs (from columns 2 & 3 of the Excel table) may include multiple entries separated by ', ' not only one entry.
-                const list = criteria[index].value.split(',').map(el=>el.trimStart().trimEnd());//We generate a string[] from the input.value
+                const list = criteria[index].value.split(',').map(el => el.trimStart().trimEnd());//We generate a string[] from the input.value
                 data = data.filter(row => list.includes(row[index]));//We filter the data
             });
             //We finaly filter by date
@@ -261,12 +266,12 @@ async function invoice(issue: boolean = false) {
             if (checkBox) css = 'checkBox';
 
             return indexes.map(index => {
-                checkBox ? id = id : id+= index.toString();
+                checkBox ? id = id : id += index.toString();
                 appendLable(index);
                 return appendInput(index);
             });
 
-            function appendInput(index:number| string) {
+            function appendInput(index: number | string) {
                 const input = document.createElement('input');
                 input.classList.add(css);
                 input.id = id;
@@ -277,7 +282,7 @@ async function invoice(issue: boolean = false) {
                     else input.type = 'date';
                 })();
 
-                (function notCheckBox() { 
+                (function notCheckBox() {
                     if (checkBox) return;
                     index = Number(index);
                     input.name = input.id;
@@ -302,7 +307,7 @@ async function invoice(issue: boolean = false) {
                 return input;
             }
 
-            function appendLable(index:number|string) {
+            function appendLable(index: number | string) {
                 const label = document.createElement('label');
                 checkBox ? label.innerText = index.toString() : label.innerText = title[Number(index)];
                 label.htmlFor = id;
@@ -384,7 +389,7 @@ function inputOnChange(index: number, table: any[][] | undefined, invoice: boole
 };
 
 
-async function createAndUploadXmlDocument(rows: string[][], contentControls: string[][], accessToken: string, templatePath:string, filePath: string) {
+async function createAndUploadXmlDocument(rows: string[][], contentControls: string[][], accessToken: string, templatePath: string, filePath: string) {
 
     if (!accessToken) return;
     const schema = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';

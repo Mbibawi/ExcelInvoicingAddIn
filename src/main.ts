@@ -1,9 +1,17 @@
-const excelPath = "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm";
-const path = "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/"
-const templatePath = path + 'FactureTEMPLATE [NE PAS MODIFIDER].docx';
-const tableName = 'LivreJournal';
-const destinationFolder = path + 'Clients';
-const excelFilePath = "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm"
+if (!localStorage.excelPath)
+  localStorage.excelPath = prompt('Please provide the OneDrive full path (including the file name and extension) for the Excel Workbook', "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm");
+const workbookPath = localStorage.excelPath || alert('The excel Workbook path is not valid');
+
+if (!localStorage.templatePath) localStorage.templatePath = prompt('Please provide the OneDrive full path (including the file name and extension) for the Word template', "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/'FactureTEMPLATE [NE PAS MODIFIDER].docx");
+
+const templatePath = localStorage.templatePath || alert('The template path is not valid or is missing');
+
+if (!localStorage.tableName) localStorage.tableName = prompt('Please provide the name of the Excel Table where the invoicing data is stored', 'LivreJournal');
+const tableName = localStorage.tableName || alert('The table name is not valid or is issing');
+
+if (!localStorage.destinationFolder) localStorage.destinationFolder = prompt('Please provide the OneDrive path where the issued invoices will be stored', "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/Clients");
+const destinationFolder = localStorage.destinationFolder || alert('the destination folder path is missing or not valid');
+
 const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
 var TableRows: string[][], accessToken: string;
 
@@ -518,7 +526,7 @@ function getUniqueValues(index: number, array: any[][], tableName: string): any[
  * @returns {any[][] | number | void} - All the rows (including the title) of the Excel table
  */
 async function fetchExcelTableWithGraphAPI(accessToken: string, filePath: string, tableName: string, range: boolean = true, columns?: boolean): Promise<string[][] | number | void> {
-  
+
   if (!accessToken) accessToken = await getAccessToken() || '';
 
   let endPoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/`;
@@ -538,9 +546,9 @@ async function fetchExcelTableWithGraphAPI(accessToken: string, filePath: string
   };
 
   const data = await response.json();
-  if(range)
-    return data.values; 
-  else return data.value.map((v:any)=>v.values); 
+  if (range)
+    return data.values;
+  else return data.value.map((v: any) => v.values);
 }
 
 /**

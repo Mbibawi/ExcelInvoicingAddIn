@@ -22,7 +22,9 @@ async function addNewEntry(add = false) {
     (async function show() {
         if (add)
             return;
-        TableRows = await fetchExcelTableWithGraphAPI(accessToken, excelPath, tableName);
+        if (!workbookPath || !tableName)
+            return alert('The Excel Workbook Path or the name of the Excel table are not valid');
+        TableRows = await fetchExcelTableWithGraphAPI(accessToken, workbookPath, tableName);
         if (!TableRows)
             return;
         insertAddForm(TableRows[0]);
@@ -71,7 +73,7 @@ async function addNewEntry(add = false) {
                 return true; //if endTime is provided but without startTime or without hourly rate
         }
         ;
-        await addRowToExcelTableWithGraphAPI([row], TableRows.length - 2, excelFilePath, tableName, accessToken);
+        await addRowToExcelTableWithGraphAPI([row], TableRows.length - 2, workbookPath, tableName, accessToken);
         [0, 1].map(async (index) => {
             //!We use map because forEach doesn't await
             //@ts-ignore
@@ -147,7 +149,9 @@ async function invoice(issue = false) {
     (async function show() {
         if (issue)
             return;
-        TableRows = await fetchExcelTableWithGraphAPI(accessToken, excelPath, tableName);
+        if (!workbookPath || !tableName)
+            return alert('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
+        TableRows = await fetchExcelTableWithGraphAPI(accessToken, workbookPath, tableName);
         if (!TableRows)
             return;
         insertInvoiceForm(TableRows);
@@ -155,10 +159,12 @@ async function invoice(issue = false) {
     (async function issueInvoice() {
         if (!issue)
             return;
+        if (!templatePath || !destinationFolder)
+            return alert('The full path of the Word Invoice Template and/or the destination folder where the new invoice will be saved, are either missing or not valid');
         const inputs = Array.from(document.getElementsByTagName('input'));
         const criteria = inputs.filter(input => Number(input.dataset.index) >= 0);
         const lang = inputs.find(input => input.dataset.language && input.checked === true)?.dataset.language || 'FR';
-        TableRows = await fetchExcelTableWithGraphAPI(accessToken, excelPath, tableName); //We fetch the table again in case there where changes made since it was fetched the first time when the userform was inserted
+        TableRows = await fetchExcelTableWithGraphAPI(accessToken, workbookPath, tableName); //We fetch the table again in case there where changes made since it was fetched the first time when the userform was inserted
         const filtered = filterExcelData(TableRows, criteria, lang);
         const date = new Date();
         const invoice = {
