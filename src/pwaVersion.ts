@@ -164,30 +164,36 @@ async function addNewEntry(add: boolean = false) {
             const css = 'field';
             const input = document.createElement('input');
             const id = 'input' + index.toString();
-            input.classList.add(css);
-            input.id = id;
-            input.name = id;
-            input.autocomplete = "on";
-            input.dataset.index = index.toString();
-            input.type = 'text';
-            if ([8, 9, 10].includes(index))
-                input.type = 'number';
-            else if (index === 3)
-                input.type = 'date';
-            else if ([5, 6].includes(index))
-                input.type = 'time';
-            else if ([4, 7, 15].includes(index)) input.style.display = 'none';//We hide those 3 columns: 'Total Time' and the 'Year' and 'Link to a File'
-            else if ([0, 1, 2, 11, 12, 13, 16].includes(index)) {
-                //We add a dataList for those fields
-                input.setAttribute('list', input.id + 's');
-                input.onchange = () => inputOnChange(index, TableRows.slice(1, -1), false);
-                if (![1, 16].includes(index))
-                    createDataList(input.id, getUniqueValues(index, TableRows.slice(1, -1), tableName));//We don't create the data list for columns 'Matter' (1) and 'Adress' (16) because it will be created when the 'Client' field is updated
-            }
-                
-            if (index > 4 && index < 11)
-                //Those are the "Start Time", "End Time", "Total Time", "Hourly Rate", "Amount", "VAT" columns . The "Hourly Rate" input is hidden, so it can't be changed by the user. We will add the onChange event to it by simplicity
-                input.onchange = () => inputOnChange(index, undefined, false);
+
+            (function append() {
+                input.classList.add(css);
+                input.id = id;
+                input.name = id;
+                input.autocomplete = "on";
+                input.dataset.index = index.toString();
+                input.type = 'text';
+            })();
+            
+            (function customize() {             
+                if ([8, 9, 10].includes(index))
+                    input.type = 'number';
+                else if (index === 3)
+                    input.type = 'date';
+                else if ([5, 6].includes(index))
+                    input.type = 'time';
+                else if ([4, 7, 15].includes(index)) input.style.display = 'none';//We hide those 3 columns: 'Total Time' and the 'Year' and 'Link to a File'
+                else if (index < 3 || index >10) {
+                    //We add a dataList for those fields
+                    input.setAttribute('list', input.id + 's');
+                    input.onchange = () => inputOnChange(index, TableRows.slice(1, -1), false);
+                    if (![1, 16].includes(index))
+                        createDataList(input.id, getUniqueValues(index, TableRows.slice(1, -1), tableName));//We don't create the data list for columns 'Matter' (1) and 'Adress' (16) because it will be created when the 'Client' field is updated
+                }
+                    
+                if (index > 4 && index < 11)
+                    //Those are the "Start Time", "End Time", "Total Time", "Hourly Rate", "Amount", "VAT" columns . The "Hourly Rate" input is hidden, so it can't be changed by the user. We will add the onChange event to it by simplicity
+                    input.onchange = () => inputOnChange(index, undefined, false);//!We are passing the table[][] argument as undefined, and the invoice argument as false 
+            })();
 
             return input
         }
@@ -250,17 +256,17 @@ function inputOnChange(index: number, table: any[][] | undefined, invoice: boole
     let inputs = Array.from(document.getElementsByTagName('input') as HTMLCollectionOf<HTMLInputElement>);
 
     if (!table && !invoice) {
-        const boundInputs = [5, 6, 7, 9, 10];//Those are "Start Time", "End Time", "Total Time", "Amount", "VAT" columns. We exclude the "Hourly Rate" column (8). We let the user rest it if he wants
+        const boundInputs = [5, 6, 7, 9, 10];//Those are "Start Time" (5), "End Time" (6), "Total Time" (7, although it is hidden), "Amount" (9), "VAT" (10) columns. We exclude the "Hourly Rate" column (8). We let the user rest it if he wants
         boundInputs
-            .filter(i => i > index)
-            .forEach(i => setTo0(getInputByIndex(inputs, i)));
+            .forEach(i => i > index ? reset(i) : i = i);
 
         if (index === 9)
             boundInputs
-                .filter(i => i < index)
-                .forEach(i => setTo0(getInputByIndex(inputs, i))); //If the user change the amout, it means the fees do not depend on the time spent, we hence rest them to 0 (except the hourly rate)
+                .forEach(i => i < index ? reset(i) : i = i);
+
         
-        function setTo0(input: HTMLInputElement|undefined) {
+        function reset(i: number) {
+            const input = getInputByIndex(inputs, i);
             if (!input) return;
             input.valueAsNumber = 0;
             input.value = '';
