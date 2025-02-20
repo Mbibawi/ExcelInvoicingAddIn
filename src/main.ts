@@ -538,7 +538,7 @@ async function fetchExcelTableWithGraphAPI(accessToken: string, filePath: string
   };
 
     const data = await response.json();
-    data.value.map((v:any)=>v.values); 
+    return data.value.map((v:any)=>v.values); 
 }
 
 /**
