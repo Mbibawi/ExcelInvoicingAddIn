@@ -514,20 +514,18 @@ function getUniqueValues(index: number, array: any[][], tableName: string): any[
  * @param {string} filePath - file path (folder + file nam) of the file to be fetched
  * @param {string} tableName - Name of the table to be fetched
  * @param {string} tableName - Name of the table to be fetched
- * @param {boolean} range - If true it will return all the rows of the table
- * @param {boolean} rows - If true it will return the rows count of the table
- * @param {boolean} columns - If true it will return the columns count of the table
+ * @param {boolean} rows - Its default value is true. If true, it returns the rows of the table
+ * @param {boolean} columns - If true it will return the columns
  * @returns {any[][] | number | void} - All the rows (including the title) of the Excel table
  */
-async function fetchExcelTableWithGraphAPI(accessToken: string, filePath: string, tableName: string, range: boolean, rows: boolean = true, columns?: boolean): Promise<string[][] | number | void> {
+async function fetchExcelTableWithGraphAPI(accessToken: string, filePath: string, tableName: string, rows: boolean = true, columns?: boolean): Promise<string[][] | number | void> {
   
   if (!accessToken) accessToken = await getAccessToken() || '';
 
   let endPoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/`;
 
-  if (range) endPoint = endPoint += 'range';
-  else if (rows) endPoint += 'rows/$count';
-  else if (columns) endPoint += 'columns/$count';
+  if (rows) endPoint = endPoint += 'rows';
+  else if (columns) endPoint += 'columns';
 
   const response = await fetch(endPoint, {
     method: "GET",
@@ -539,11 +537,11 @@ async function fetchExcelTableWithGraphAPI(accessToken: string, filePath: string
     throw new Error(`Error fetching row count: ${await response.text()}`);
   };
 
-  if (range) {
+  if (rows) {
     const data = await response.json();
     //@ts-ignore
     return data.values;
-  } else if (rows || columns) {
+  } else if (columns) {
     const count = await response.text(); // The API returns a number as plain text
     return parseInt(count, 10); // Convert to number
   }

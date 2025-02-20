@@ -24,7 +24,7 @@ async function addNewEntry(add: boolean = false) {
 
     (async function show() {
         if (add) return;
-        TableRows = await fetchExcelTableWithGraphAPI(accessToken, excelPath, tableName, true) as string[][];
+        TableRows = await fetchExcelTableWithGraphAPI(accessToken, excelPath, tableName) as string[][];
 
         if (!TableRows) return;
 
@@ -166,7 +166,7 @@ async function invoice(issue: boolean = false) {
     (async function show() {
         if (issue) return;
 
-        TableRows = await fetchExcelTableWithGraphAPI(accessToken, excelPath, tableName, true) as string[][];
+        TableRows = await fetchExcelTableWithGraphAPI(accessToken, excelPath, tableName) as string[][];
 
         if (!TableRows) return;
 
