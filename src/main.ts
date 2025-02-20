@@ -540,7 +540,7 @@ async function fetchExcelTableWithGraphAPI(accessToken: string, filePath: string
   if (rows) {
     const data = await response.json();
     //@ts-ignore
-    return data.values;
+    return data.value;
   } else if (columns) {
     const count = await response.text(); // The API returns a number as plain text
     return parseInt(count, 10); // Convert to number
