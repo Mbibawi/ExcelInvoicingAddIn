@@ -477,8 +477,7 @@ async function fetchExcelTableWithGraphAPI(accessToken, filePath, tableName, row
     }
     ;
     const data = await response.json();
-    //@ts-ignore
-    data.value.map(v => v.values);
+    data.value.map((v) => v.values);
 }
 /**
  * Returns a blob from a file stored on OneDrive, using the Graph API and the file path
