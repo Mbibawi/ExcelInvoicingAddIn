@@ -207,7 +207,7 @@ async function invoice(issue: boolean = false) {
 
             [1, 2].forEach(index => {
                 //!Matter and Nature inputs (from columns 2 & 3 of the Excel table) may include multiple entries separated by ', ' not only one entry.
-                const list = criteria[index].value.replaceAll(' ', '').split(',');//We generate a string[] from the input.value
+                const list = criteria[index].value.split(',').map(el=>el.trimStart().trimEnd());//We generate a string[] from the input.value
                 data = data.filter(row => list.includes(row[index]));//We filter the data
             });
             //We finaly filter by date
