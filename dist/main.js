@@ -20,6 +20,45 @@ Office.onReady((info) => {
         loadMsalScript();
     }
 });
+(function RegisterServiceWorker() {
+    // Check if the browser supports service workers
+    if ("serviceWorker" in navigator) {
+        window.addEventListener("load", async () => {
+            try {
+                const registration = await navigator.serviceWorker.register("/sw.js");
+                console.log("Service Worker registered successfully:", registration);
+            }
+            catch (error) {
+                console.error("Service Worker registration failed:", error);
+            }
+        });
+    }
+    // Handle updates to the service worker
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+        console.log("New service worker activated. Reloading page...");
+        window.location.reload();
+    });
+    //@ts-ignore Handling the "beforeinstallprompt" event for PWA installability
+    let installPromptEvent = null;
+    //@ts-ignore
+    window.addEventListener("beforeinstallprompt", (event) => {
+        event.preventDefault(); // Prevent the default mini-infobar
+        installPromptEvent = event;
+        const installButton = document.getElementById("install-button");
+        if (installButton) {
+            installButton.style.display = "block"; // Show the install button
+            installButton.addEventListener("click", async () => {
+                if (installPromptEvent) {
+                    await installPromptEvent.prompt(); // Show the install prompt
+                    const choiceResult = await installPromptEvent.userChoice;
+                    console.log("User install choice:", choiceResult.outcome);
+                    installPromptEvent = null; // Clear the event after the prompt
+                    installButton.style.display = "none"; // Hide the button
+                }
+            });
+        }
+    });
+})();
 function loadMsalScript() {
     var token;
     const script = document.createElement("script");
