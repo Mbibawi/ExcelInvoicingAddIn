@@ -91,7 +91,7 @@ async function addNewEntry(add = false) {
             return;
         form.innerHTML = '';
         title.forEach((title, index) => {
-            if (![4, 7, 15].includes(index))
+            if (![4, 7].includes(index))
                 form.appendChild(createLable(title, index)); //We exclued the labels for "Total Time" and for "Year"
             form.appendChild(createInput(index));
         });
@@ -130,13 +130,13 @@ async function addNewEntry(add = false) {
                     input.type = 'date';
                 else if ([5, 6].includes(index))
                     input.type = 'time';
-                else if ([4, 7, 15].includes(index))
+                else if ([4, 7].includes(index))
                     input.style.display = 'none'; //We hide those 3 columns: 'Total Time' and the 'Year' and 'Link to a File'
                 else if (index < 3 || index > 10) {
                     //We add a dataList for those fields
                     input.setAttribute('list', input.id + 's');
                     input.onchange = () => inputOnChange(index, TableRows.slice(1, -1), false);
-                    if (![1, 16].includes(index))
+                    if (![1, 15].includes(index))
                         createDataList(input.id, getUniqueValues(index, TableRows.slice(1, -1), tableName)); //We don't create the data list for columns 'Matter' (1) and 'Adress' (16) because it will be created when the 'Client' field is updated
                 }
                 if (index > 4 && index < 11)
@@ -175,7 +175,7 @@ async function invoice(issue = false) {
             number: getInvoiceNumber(date),
             clientName: getInputValue(0, criteria),
             matters: getArray(getInputValue(1, criteria)),
-            adress: getArray(getInputValue(16, criteria)),
+            adress: getArray(getInputValue(15, criteria)),
             lang: lang
         };
         const contentControls = getContentControlsValues(invoice, date);
@@ -305,7 +305,7 @@ function inputOnChange(index, table, invoice) {
     if (invoice)
         inputs = inputs.filter(input => input.dataset.index && Number(input.dataset.index) < 3); //Those are all the inputs that serve to filter the table (first 3 columns only)
     else
-        inputs = inputs.filter(input => [0, 1, 16].includes(getIndex(input))); //Those are all the inputs that have data lists associated with them
+        inputs = inputs.filter(input => [0, 1, 15].includes(getIndex(input))); //Those are all the inputs that have data lists associated with them
     const filledInputs = inputs
         .filter(input => input.value && getIndex(input) <= index)
         .map(input => getIndex(input)); //Those are all the inputs that the user filled with data
