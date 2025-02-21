@@ -33,7 +33,7 @@ section.samples {
     display: none;
 }
 
-.btns{
+#btns{
     display: flex;
     justify-items: stretch;
 }
