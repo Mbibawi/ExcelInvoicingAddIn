@@ -33,6 +33,11 @@ section.samples {
     display: none;
 }
 
+.btns{
+    display: flex;
+    justify-self: center;
+}
+
 .button{
     display: block;
     background-color: #1ca9b2;
