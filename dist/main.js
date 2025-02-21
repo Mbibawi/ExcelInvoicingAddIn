@@ -23,7 +23,6 @@ var TableRows, accessToken;
 }); */
 (function RegisterServiceWorker() {
     // Check if the browser supports service workers
-    debugger;
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", async () => {
             try {
