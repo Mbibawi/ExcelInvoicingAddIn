@@ -77,7 +77,7 @@ async function addNewEntry(add = false) {
         [0, 1].map(async (index) => {
             //!We use map because forEach doesn't await
             //@ts-ignore
-            await filterExcelTable(excelFilePath, tableName, TableRows[0][index], row[index].toString(), accessToken);
+            await filterExcelTable(workbookPath, tableName, TableRows[0][index], row[index].toString(), accessToken);
         });
         alert('Row aded and table was filtered');
     })();
