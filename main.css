@@ -6,18 +6,6 @@ section.samples {
     display: flex;
     justify-self: center;
 }
-.ms-Button {
-    display: block;
-    margin-bottom: 10px;
-    justify-self: center;
-    margin-left: 20px;
-    min-width: 80px;
-    background-color: #1ca9b2;
-    font-size: 12pt;
-    border-radius: 5px;
-    font-family: 'Times New Roman', Times, serif;
-    font-weight: bold;
-}
 #form{
     background-color: #0b5f76;
     justify-self: center;
@@ -35,10 +23,11 @@ section.samples {
 
 #btns{
     display: flex;
-    justify-items: stretch;
+    justify-items: center;
+    margin-top: 10px;
 }
 
-.button{
+.button, .ms-Button{
     display: block;
     background-color: #1ca9b2;
     min-width: 20%;
@@ -52,6 +41,7 @@ section.samples {
 .checkBox{
     display: inline;
 }
+
 .field{
     margin: 2px;
     display: block;
@@ -61,6 +51,7 @@ section.samples {
     font-size: 12pt;
     font-family: serif;
   }
+
   label{
     display: block;
     font-weight: bold;
