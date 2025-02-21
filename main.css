@@ -35,7 +35,7 @@ section.samples {
 
 .btns{
     display: flex;
-    justify-self: center;
+    justify-items: stretch;
 }
 
 .button{
