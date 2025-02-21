@@ -26,7 +26,7 @@ var TableRows, accessToken;
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", async () => {
             try {
-                const registration = await navigator.serviceWorker.register("/dist/sw.js");
+                const registration = await navigator.serviceWorker.register("/ExcelInvoicingAddIn/dist/sw.js");
                 console.log("Service Worker registered successfully:", registration);
             }
             catch (error) {
