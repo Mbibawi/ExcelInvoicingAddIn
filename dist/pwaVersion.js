@@ -66,11 +66,11 @@ async function addNewEntry(add = false) {
         if (missing())
             return stop('Some of the required fields are');
         function missing() {
-            if (row[5] === row[6])
-                return false; //If the total time = 0 we do not need to alert if the hourly rate is missing
-            else if (row.filter((el, i) => (i < 4 || i === 9) && !el).length > 0)
+            if (row.filter((value, i) => (i < 4 || i === 9) && !value).length > 0)
                 return true; //if client name, matter, nature, date or amount are missing
             //else if (row[9]) return [5, 6,7,8].map(index => row[index] = 0).length < 1;//This means the amount has been provided and does not  depend on the time spent or the hourly rate. We set the values of the startTime and endTime to 0, and return false (length<1 must return false)
+            if (row[5] === row[6])
+                return false; //If the total time = 0 we do not need to alert if the hourly rate is missing
             else if (row[5] && (!row[6] || !row[8]))
                 return true; //if startTime is provided but without endTime or without hourly rate
             else if (row[6] && (!row[5] || !row[8]))

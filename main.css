@@ -23,6 +23,7 @@ section.samples {
 
 #btns{
     display: flex;
+    justify-items: center;
     margin-top: 10px;
 }
 
