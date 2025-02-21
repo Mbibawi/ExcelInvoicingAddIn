@@ -35,9 +35,14 @@ async function addNewEntry(add: boolean = false) {
 
     (async function addEntry() {
         if (!add) return;
+
+        const stop = (missing:string)=> alert(`${missing} missing. You must at least provide the client, matter, nature, date and the amount. If you provided a time start, you must provide the end time and the hourly rate. Please review your iputs`);
+        
         const inputs = Array.from(document.getElementsByTagName('input')) as HTMLInputElement[];//all inputs
-        const nature = getInputByIndex(inputs, 2)?.value || '';
-        const date = getInputByIndex(inputs, 3)?.valueAsDate || undefined;
+        const nature = getInputByIndex(inputs, 2)?.value;
+        if(!nature) return stop('The matter is')
+        const date = getInputByIndex(inputs, 3)?.valueAsDate 
+        if(!date) return stop('The invoice date is');
         const amount = getInputByIndex(inputs, 9);
         const rate = getInputByIndex(inputs, 8)?.valueAsNumber;
 
@@ -63,9 +68,8 @@ async function addNewEntry(add: boolean = false) {
             else return input.value;
         });
 
-        const stop = 'You must at least provide the client, matter, nature, date and the amount. If you provided a time start, you must provide a time end, and an hourly rate. Please review your fields';
 
-        if (missing()) return alert(stop);
+        if (missing()) return stop('Some of the required fields are');
 
         function missing() {
             if (row[5] === row[6]) return false;//If the total time = 0 we do not need to alert if the hourly rate is missing
