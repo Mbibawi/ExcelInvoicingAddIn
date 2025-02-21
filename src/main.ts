@@ -1121,3 +1121,42 @@ function getInputValue(index: number, inputs: HTMLInputElement[]) {
   return inputs.find(input => Number(input.dataset.index) === index)?.value || ''
 }
 
+function settings() {
+  const form = document.getElementById('form');
+  if (!form) return;
+  form.innerHTML = '';
+  const inputs = [
+    {
+    label: 'Workbook Path: ',
+    name: 'excelPath'
+  },
+    {
+    label: 'Word Template Path: ',
+    name: 'templatePath'
+  },
+    {
+    label: 'Destination Folder: ',
+    name: 'destinationFolder'
+  },
+    {
+    label: 'Table Name: ',
+    name: 'tableName'
+  },
+  ];
+  inputs.forEach((el, index) => {
+    const label = document.createElement('label');
+    label.innerText = el.label;
+    const input = document.createElement('input');
+    input.classList.add('field');
+    input.placeholder = el.name;
+    input.dataset.index = index.toString();
+    input.onchange = () => set(input, el.label, el.name);
+    form.appendChild(input);
+
+    function set(input: HTMLInputElement, label:string, name:string) {
+      localStorage[name] = input.value;
+      alert(`${label} has been updated`);
+    }
+    
+  });
+}
