@@ -1,26 +1,30 @@
 {
-    "name": "Excel Invoicing App",
-    "short_name": "ExcelInvoicing",
-    "description": "A Progressive Web App to invoice clients using Excel and Graph API",
-    "start_url": "/index.html",
-    "display": "standalone",
-    "background_color": "#FFFFFF",
-    "theme_color": "#0078D4",
-    "icons": [
-      {
-        "src": "/icons/icon-192x192.png",
-        "sizes": "192x192",
-        "type": "image/png"
-      },
-      {
-        "src": "/icons/icon-512x512.png",
-        "sizes": "512x512",
-        "type": "image/png"
-      }
-    ],
-    "scope": "/",
-    "orientation": "portrait",
-    "dir": "ltr",
-    "lang": "en-US"
-  }
-  
+  "name": "Excel Invoicing App",
+  "short_name": "ExcelInvoicing",
+  "description": "A Progressive Web App to invoice clients using Excel and Graph API",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#0078D4",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "scope": "/",
+  "orientation": "portrait",
+  "dir": "ltr",
+  "lang": "en-US",
+  "categories": [
+    "finance",
+    "productivity",
+    "utilities"
+  ]
+}
