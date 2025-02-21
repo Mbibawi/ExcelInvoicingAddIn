@@ -15,17 +15,18 @@ const destinationFolder = localStorage.destinationFolder || alert('the destinati
 const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
 var TableRows: string[][], accessToken: string;
 
-Office.onReady((info) => {
+/* Office.onReady((info) => {
   if (info.host === Office.HostType.Excel) {
     // Excel-specific initialization code goes here
     console.log("Excel is ready!");
 
     loadMsalScript();
   }
-});
+}); */
 
 (function RegisterServiceWorker() {
   // Check if the browser supports service workers
+  debugger
   if ("serviceWorker" in navigator) {
       window.addEventListener("load", async () => {
           try {
