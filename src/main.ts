@@ -1146,9 +1146,10 @@ function settings() {
   inputs.forEach((el, index) => {
     const label = document.createElement('label');
     label.innerText = el.label;
+    form.appendChild(label);
     const input = document.createElement('input');
     input.classList.add('field');
-    input.placeholder = localStorage.getItem(el.name) || 'not found';
+    input.value = localStorage.getItem(el.name) || 'not found';
     input.dataset.index = index.toString();
     input.onchange = () => set(input, el.label, el.name);
     form.appendChild(input);
