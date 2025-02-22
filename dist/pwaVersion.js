@@ -105,9 +105,6 @@ async function addNewEntry(add = false, rows) {
                 form.appendChild(createLable(title, index)); //We exclued the labels for "Total Time" and for "Year"
             form.appendChild(createInput(index));
         });
-        for (const t of title) { //!We could not use for(let i=0; i<title.length; i++) because the await does not work properly inside this loop
-        }
-        ;
         (function addBtn() {
             const btnIssue = document.createElement('button');
             btnIssue.innerText = 'Add Entry';
@@ -258,7 +255,7 @@ async function invoice(issue = false) {
                 (function setType() {
                     if (checkBox)
                         input.type = 'checkbox';
-                    else if (!Number(index) || Number(index) < 3)
+                    else if (isNaN(Number(index)) || Number(index) < 3)
                         input.type = 'text';
                     else
                         input.type = 'date';
@@ -288,7 +285,7 @@ async function invoice(issue = false) {
             }
             function appendLable(index) {
                 const label = document.createElement('label');
-                checkBox || !Number(index) ? label.innerText = index.toString() : label.innerText = title[Number(index)];
+                checkBox || isNaN(Number(index)) ? label.innerText = index.toString() : label.innerText = title[Number(index)];
                 label.htmlFor = id;
                 form?.appendChild(label);
             }
