@@ -294,6 +294,7 @@ async function generateInvoice() {
     if (!inputs)
         return;
     const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.id.slice(0, 3).toUpperCase() || 'FR';
+    const discount = parseInt(inputs.find(input => input.id = 'discount')?.value || '0%');
     const visible = await filterTable(tableName, undefined, false);
     const invoiceDetails = {
         number: getInvoiceNumber(new Date()),
@@ -303,7 +304,7 @@ async function generateInvoice() {
         lang: lang
     };
     const filePath = `${destinationFolder}/${getInvoiceFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`;
-    await createAndUploadXmlDocument(getRowsData(visible, lang), getContentControlsValues(invoiceDetails, new Date()), await getAccessToken() || '', templatePath, filePath);
+    await createAndUploadXmlDocument(getRowsData(visible, discount, lang), getContentControlsValues(invoiceDetails, new Date()), await getAccessToken() || '', templatePath, filePath);
 }
 /**
  * Returns a string[][] representing the rows to be inserted in the Word table containing the invoice details
@@ -311,7 +312,7 @@ async function generateInvoice() {
  * @param {string} lang - The language in which the invoice will issued
  * @returns {string[][]} - the rows to be added to the table. Each row has 4 elements
  */
-function getRowsData(tableData, lang) {
+function getRowsData(tableData, discount, lang) {
     const lables = {
         totalFees: {
             nature: 'Honoraire',
@@ -319,7 +320,7 @@ function getRowsData(tableData, lang) {
             EN: 'Total Fees'
         },
         totalExpenses: {
-            nature: 'Débours/Dépens',
+            nature: 'Débours/Dépens, Rétrocession d\'honoraires',
             FR: 'Total débours et frais',
             EN: 'Total Expenses'
         },
@@ -339,6 +340,18 @@ function getRowsData(tableData, lang) {
         totalReinbursement: {
             FR: 'A rembourser',
             EN: 'To reimburse'
+        },
+        deductedFees: {
+            FR: 'Remise sur les honoraires',
+            EN: 'Fees discount'
+        },
+        totalFeesAfterDeduction: {
+            FR: 'Total des honoraires après remise',
+            EN: 'Total fee after discount'
+        },
+        discountRate: {
+            FR: 'Taux de remise',
+            EN: 'Discount rate'
         },
         hourlyBilled: {
             nature: '',
@@ -375,12 +388,6 @@ function getRowsData(tableData, lang) {
     });
     pushTotalsRows();
     return data;
-    function getAmountString(value) {
-        if (Math.abs(Number(value)) >= 0)
-            //@ts-expect-error
-            return '€\u00A0' + Number(value).toFixed(2).replace('.', lables.decimal[lang]);
-        return '';
-    }
     function pushTotalsRows() {
         //Adding rows for the totals of the different categories and amounts
         const totalFee = getTotals(amount, lables.totalFees.nature);
@@ -390,28 +397,74 @@ function getRowsData(tableData, lang) {
         const totalExpenses = getTotals(amount, lables.totalExpenses.nature);
         const totalExpensesVAT = getTotals(vat, lables.totalExpenses.nature);
         const totalTimeSpent = getTotals(hours, null); //by passing the nature = null, we do not filter the "Total Time" column by any crieteria. We will get the sum of all the column.
-        const totalDueVAT = getTotals(vat, null);
         const totalDue = totalFee + totalExpenses + totalPayments;
+        const totalDueVAT = totalFeeVAT + totalExpensesVAT;
         const insert = (sum) => Math.abs(sum) > 0;
-        push(insert(totalFee), lables.totalFees, totalFee, totalFeeVAT);
-        push(insert(totalExpenses), lables.totalExpenses, totalExpenses, totalExpensesVAT);
-        push(insert(totalPayments), lables.totalPayments, Math.abs(totalPayments), totalPaymentsVAT);
-        push(insert(totalTimeSpent), lables.totalTimeSpent, Math.abs(totalTimeSpent), undefined); //!We don't pass the vat argument in order to get the corresponding cell of the Word table empty
-        totalDue >= 0 ? push(true, lables.totalDue, totalDue, totalDueVAT) : push(true, lables.totalReinbursement, totalDue, totalDueVAT);
-        function push(insert, label, amount, vat) {
-            if (!insert || !amount)
+        (function subTotalsRows() {
+            push(insert(totalFee), lables.totalFees, totalFee, totalFeeVAT);
+            push(insert(totalExpenses), lables.totalExpenses, totalExpenses, totalExpensesVAT);
+            push(insert(totalPayments), lables.totalPayments, Math.abs(totalPayments), totalPaymentsVAT);
+            push(insert(totalTimeSpent), lables.totalTimeSpent, Math.abs(totalTimeSpent), undefined); //!We don't pass the vat argument in order to get the corresponding cell of the Word table empty
+        })();
+        (function dueRow() {
+            if (!discount)
+                return totalDueRow(totalDue, totalDueVAT); //If there is no discount to be applied on the fees, we return
+            const feeDiscount = (fee) => fee * (discount / 100); //returns the amount to be deducted from the fees or from the VAT on the fees as a negative number
+            const deduction = feeDiscount(totalFee);
+            const deductionVAT = feeDiscount(totalFeeVAT);
+            if (!insert(deduction))
+                return totalDueRow(totalDue, totalDueVAT); //If the total fee is 0 for whatever reason, it means that deduction will be = 0. In such case we return the "Total Due" row as if there were no deduction applied.
+            push(true, lables.discountRate, discount, undefined, true); //This is the row indicating the discount rate applied on the fees. isRate = true in order to get a % not an amount string. 
+            push(true, lables.deductedFees, deduction * -1, deductionVAT * -1); //This is the amount that will be deducted from the fee and from the fee pplied on the fee
+            push(true, lables.totalFeesAfterDeduction, totalFee - deduction, totalFeeVAT - deductionVAT); //This is the amount that will be deducted from the fee and from the fee pplied on the fee. 
+            totalDueRow(totalDue - deduction, totalDueVAT - deductionVAT);
+            addDiscountRowToExcel(deduction, deductionVAT);
+        })();
+        function addDiscountRowToExcel(amount, vat) {
+            const newRow = tableData
+                .filter(row => row[2] === 'Honoraire')[0]
+                ?.map((cell, index) => {
+                if ([0, 1, 11, 15].includes(index))
+                    return cell;
+                else if (index === 2)
+                    return 'Réduction';
+                else if ([3, 4].includes(index))
+                    return getISODate(new Date());
+                else if (index === 9)
+                    return amount * -1;
+                else if (index === 10)
+                    return vat * -1;
+                else
+                    undefined;
+            });
+            addNewEntry(true, [newRow]);
+        }
+        function totalDueRow(total, vat) {
+            total >= 0 ? push(true, lables.totalDue, total, vat)
+                : push(true, lables.totalReinbursement, total, vat);
+        }
+        function push(insert, label, amount, vat, isRate = false) {
+            if (!insert)
                 return;
             data.push([
                 //@ts-ignore
                 label[lang],
                 '',
-                label === lables.totalTimeSpent ? getTimeSpent(amount) : getAmountString(amount), //The total amount can be a negative number, that's why we use Math.abs() in order to get the absolute number without the negative sign
+                valueString(amount),
                 //@ts-ignore
-                getAmountString(Math.abs(vat)), //Column VAT: always a positive value
+                valueString(Math.abs(vat)), //Column VAT: always a positive value
             ]);
+            function valueString(amount) {
+                if (isRate)
+                    return amount.toString() + '%';
+                else if (label === lables.totalTimeSpent)
+                    return getTimeSpent(amount);
+                else
+                    return getAmountString(amount);
+            }
         }
         function getTotals(index, nature) {
-            const total = tableData.filter(row => nature ? row[2] === nature : row === row)
+            const total = tableData.filter(row => nature ? nature.split(', ').includes(row[2]) : row === row)
                 .map(row => Number(row[index]));
             let sum = 0;
             for (let i = 0; i < total.length; i++) {
@@ -419,6 +472,12 @@ function getRowsData(tableData, lang) {
             }
             return sum * -1; //We reverse the sign of any other amount
         }
+    }
+    function getAmountString(value) {
+        if (Math.abs(Number(value)) >= 0)
+            //@ts-expect-error
+            return '€\u00A0' + Number(value).toFixed(2).replace('.', lables.decimal[lang]);
+        return '';
     }
     /**
      * Convert the time as retrieved from an Excel cell into 'hh:mm' format
@@ -686,7 +745,7 @@ function convertBlobToBase64(blob) {
         reader.readAsDataURL(blob);
     });
 }
-async function addEntry(tableName) {
+async function addEntry(tableName, rows) {
     await Excel.run(async (context) => {
         const sheet = context.workbook.worksheets.getActiveWorksheet();
         const table = sheet.tables.getItem(tableName);

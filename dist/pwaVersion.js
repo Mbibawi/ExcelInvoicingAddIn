@@ -17,7 +17,7 @@ function getAccessToken() {
     };
     return getTokenWithMSAL(clientId, redirectUri, msalConfig);
 }
-async function addNewEntry(add = false) {
+async function addNewEntry(add = false, rows) {
     accessToken = await getAccessToken() || '';
     (async function show() {
         if (add)
@@ -32,58 +32,68 @@ async function addNewEntry(add = false) {
     (async function addEntry() {
         if (!add)
             return;
-        const stop = (missing) => alert(`${missing} missing. You must at least provide the client, matter, nature, date and the amount. If you provided a time start, you must provide the end time and the hourly rate. Please review your iputs`);
-        const inputs = Array.from(document.getElementsByTagName('input')); //all inputs
-        const nature = getInputByIndex(inputs, 2)?.value;
-        if (!nature)
-            return stop('The matter is');
-        const date = getInputByIndex(inputs, 3)?.valueAsDate;
-        if (!date)
-            return stop('The invoice date is');
-        const amount = getInputByIndex(inputs, 9);
-        const rate = getInputByIndex(inputs, 8)?.valueAsNumber;
-        const debit = ['Honoraire', 'Débours/Dépens', 'Débours/Dépens non facturables', 'Rétrocession d\'honoraires'].includes(nature); //We check if we need to change the value sign 
-        const row = inputs.map(input => {
-            const index = getIndex(input);
-            if ([3, 4].includes(index))
-                return getISODate(date); //Those are the 2 date columns
-            else if ([5, 6].includes(index))
-                return getTime([input]); //time start and time end columns
-            else if (index === 7) {
-                //!This is a hidden input
-                const totalTime = getTime([getInputByIndex(inputs, 5), getInputByIndex(inputs, 6)]); //Total time column
-                if (totalTime > 0 && rate && amount && !amount.valueAsNumber)
-                    amount.valueAsNumber = totalTime * 24 * rate; // making the amount equal the rate * totalTime
-                return totalTime;
+        if (rows)
+            return addRow(rows); //If rows are already passed, we will add them directly
+        await addRow(parseInputs() || undefined);
+        function parseInputs() {
+            const stop = (missing) => alert(`${missing} missing. You must at least provide the client, matter, nature, date and the amount. If you provided a time start, you must provide the end time and the hourly rate. Please review your iputs`);
+            const inputs = Array.from(document.getElementsByTagName('input')); //all inputs
+            const nature = getInputByIndex(inputs, 2)?.value;
+            if (!nature)
+                return stop('The matter is');
+            const date = getInputByIndex(inputs, 3)?.valueAsDate;
+            if (!date)
+                return stop('The invoice date is');
+            const amount = getInputByIndex(inputs, 9);
+            const rate = getInputByIndex(inputs, 8)?.valueAsNumber;
+            const debit = ['Honoraire', 'Débours/Dépens', 'Débours/Dépens non facturables', 'Rétrocession d\'honoraires'].includes(nature); //We check if we need to change the value sign 
+            const row = inputs.map(input => {
+                const index = getIndex(input);
+                if ([3, 4].includes(index))
+                    return getISODate(date); //Those are the 2 date columns
+                else if ([5, 6].includes(index))
+                    return getTime([input]); //time start and time end columns
+                else if (index === 7) {
+                    //!This is a hidden input
+                    const totalTime = getTime([getInputByIndex(inputs, 5), getInputByIndex(inputs, 6)]); //Total time column
+                    if (totalTime > 0 && rate && amount && !amount.valueAsNumber)
+                        amount.valueAsNumber = totalTime * 24 * rate; // making the amount equal the rate * totalTime
+                    return totalTime;
+                }
+                else if (debit && index === 9)
+                    return input.valueAsNumber * -1 || 0; //This is the amount if negative
+                else if ([8, 9, 10].includes(index))
+                    return input.valueAsNumber || 0; //Hourly Rate, Amount, VAT
+                else
+                    return input.value;
+            });
+            if (missing())
+                return stop('Some of the required fields are');
+            return [row];
+            function missing() {
+                if (row.filter((value, i) => (i < 4 || i === 9) && !value).length > 0)
+                    return true; //if client name, matter, nature, date or amount are missing
+                //else if (row[9]) return [5, 6,7,8].map(index => row[index] = 0).length < 1;//This means the amount has been provided and does not  depend on the time spent or the hourly rate. We set the values of the startTime and endTime to 0, and return false (length<1 must return false)
+                if (row[5] === row[6])
+                    return false; //If the total time = 0 we do not need to alert if the hourly rate is missing
+                else if (row[5] && (!row[6] || !row[8]))
+                    return true; //if startTime is provided but without endTime or without hourly rate
+                else if (row[6] && (!row[5] || !row[8]))
+                    return true; //if endTime is provided but without startTime or without hourly rate
             }
-            else if (debit && index === 9)
-                return input.valueAsNumber * -1 || 0; //This is the amount if negative
-            else if ([8, 9, 10].includes(index))
-                return input.valueAsNumber || 0; //Hourly Rate, Amount, VAT
-            else
-                return input.value;
-        });
-        if (missing())
-            return stop('Some of the required fields are');
-        function missing() {
-            if (row.filter((value, i) => (i < 4 || i === 9) && !value).length > 0)
-                return true; //if client name, matter, nature, date or amount are missing
-            //else if (row[9]) return [5, 6,7,8].map(index => row[index] = 0).length < 1;//This means the amount has been provided and does not  depend on the time spent or the hourly rate. We set the values of the startTime and endTime to 0, and return false (length<1 must return false)
-            if (row[5] === row[6])
-                return false; //If the total time = 0 we do not need to alert if the hourly rate is missing
-            else if (row[5] && (!row[6] || !row[8]))
-                return true; //if startTime is provided but without endTime or without hourly rate
-            else if (row[6] && (!row[5] || !row[8]))
-                return true; //if endTime is provided but without startTime or without hourly rate
+            ;
         }
-        ;
-        await addRowToExcelTableWithGraphAPI([row], TableRows.length - 2, workbookPath, tableName, accessToken);
-        [0, 1].map(async (index) => {
-            //!We use map because forEach doesn't await
-            //@ts-ignore
-            await filterExcelTable(workbookPath, tableName, TableRows[0][index], row[index].toString(), accessToken);
-        });
-        alert('Row aded and table was filtered');
+        async function addRow(row) {
+            if (!row)
+                return;
+            await addRowToExcelTableWithGraphAPI(row, TableRows.length - 2, workbookPath, tableName, accessToken);
+            [0, 1].map(async (index) => {
+                //!We use map because forEach doesn't await
+                //@ts-ignore
+                await filterExcelTable(workbookPath, tableName, TableRows[0][index], row[index].toString(), accessToken);
+            });
+            alert('Row aded and table was filtered');
+        }
     })();
     function insertAddForm(title) {
         const form = document.getElementById('form');
@@ -167,9 +177,10 @@ async function invoice(issue = false) {
             return alert('The full path of the Word Invoice Template and/or the destination folder where the new invoice will be saved, are either missing or not valid');
         const inputs = Array.from(document.getElementsByTagName('input'));
         const criteria = inputs.filter(input => Number(input.dataset.index) >= 0);
+        const discount = parseInt(inputs.find(input => input.id === 'discount')?.value || '0%');
         const lang = inputs.find(input => input.dataset.language && input.checked === true)?.dataset.language || 'FR';
         TableRows = await fetchExcelTableWithGraphAPI(accessToken, workbookPath, tableName); //We fetch the table again in case there where changes made since it was fetched the first time when the userform was inserted
-        const filtered = filterExcelData(TableRows, criteria, lang);
+        const filtered = filterExcelData(TableRows, criteria, discount, lang);
         const date = new Date();
         const invoice = {
             number: getInvoiceNumber(date),
@@ -181,7 +192,14 @@ async function invoice(issue = false) {
         const contentControls = getContentControlsValues(invoice, date);
         const filePath = `${destinationFolder}/${getInvoiceFileName(invoice.clientName, invoice.matters, invoice.number)}`;
         await createAndUploadXmlDocument(filtered, contentControls, accessToken, templatePath, filePath);
-        function filterExcelData(data, criteria, lang) {
+        /**
+         * Filters the Excel table according to the values of each inputs, then returns the values of the Word table rows that will be added to the Word table in the invoice template document
+         * @param {any[][]} data - The Excel table rows that will be filtered
+         * @param {HTMLInputElement[]} criteria - the html inputs containing the values based on which the table will be filtered
+         * @param {string} lang - The language in which the invoice will be issued
+         * @returns {string[][]} - The values of the rows that will be added to the Word table in the invoice template
+         */
+        function filterExcelData(data, criteria, discount, lang) {
             //Filtering by Client (criteria[0])
             data = data.filter(row => row[getIndex(criteria[0])] === criteria[0].value);
             [1, 2].forEach(index => {
@@ -191,7 +209,7 @@ async function invoice(issue = false) {
             });
             //We finaly filter by date
             data = filterByDate(data);
-            return getRowsData(data, lang);
+            return getRowsData(data, discount, lang);
             function filterByDate(data) {
                 const [from, to] = criteria
                     .filter(input => getIndex(input) === 3)
@@ -215,7 +233,8 @@ async function invoice(issue = false) {
         form.innerHTML = '';
         const title = excelTable[0];
         insertInputsAndLables([0, 1, 2, 3, 3]); //Inserting the fields inputs (Client, Matter, Nature, Date). We insert the date twice
-        insertInputsAndLables(['Français', 'English'], true); //Inserting langauges checkboxes
+        insertInputsAndLables(['Discount'], 'discount', false)[0].value = '0%'; //Inserting a discount percentage input and setting its default value to 0%
+        insertInputsAndLables(['Français', 'English'], undefined, true); //Inserting languages checkboxes
         (function addBtn() {
             const btnIssue = document.createElement('button');
             btnIssue.innerText = 'Generate Invoice';
@@ -223,13 +242,12 @@ async function invoice(issue = false) {
             btnIssue.onclick = () => invoice(true);
             form.appendChild(btnIssue);
         })();
-        function insertInputsAndLables(indexes, checkBox = false) {
-            let id = 'input';
+        function insertInputsAndLables(indexes, id = 'input', checkBox = false) {
             let css = 'field';
             if (checkBox)
                 css = 'checkBox';
             return indexes.map(index => {
-                checkBox ? id = id : id += index.toString();
+                !checkBox ? id += index.toString() : id = id;
                 appendLable(index);
                 return appendInput(index);
             });
@@ -240,7 +258,7 @@ async function invoice(issue = false) {
                 (function setType() {
                     if (checkBox)
                         input.type = 'checkbox';
-                    else if (Number(index) < 3)
+                    else if (!Number(index) || Number(index) < 3)
                         input.type = 'text';
                     else
                         input.type = 'date';
@@ -250,6 +268,8 @@ async function invoice(issue = false) {
                         return;
                     index = Number(index);
                     input.name = input.id;
+                    if (!index)
+                        return; //If the input is the "discount" input, we return
                     input.dataset.index = index.toString();
                     input.setAttribute('list', input.id + 's');
                     input.autocomplete = "on";
@@ -268,7 +288,7 @@ async function invoice(issue = false) {
             }
             function appendLable(index) {
                 const label = document.createElement('label');
-                checkBox ? label.innerText = index.toString() : label.innerText = title[Number(index)];
+                checkBox || !Number(index) ? label.innerText = index.toString() : label.innerText = title[Number(index)];
                 label.htmlFor = id;
                 form?.appendChild(label);
             }
