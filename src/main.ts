@@ -1215,7 +1215,8 @@ function settings() {
     input.onchange = () => set(input, el.label, el.name);
     form.appendChild(input);
 
-    function set(input: HTMLInputElement, label:string, name:string) {
+    function set(input: HTMLInputElement, label: string, name: string) {
+      if (!confirm(`Are you sure you want to change the ${label} localStorage value to + ${input.value}?`)) return;
       localStorage.setItem(name, input.value);
       alert(`${label} has been updated`);
     }
