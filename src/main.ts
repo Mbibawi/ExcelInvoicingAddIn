@@ -103,7 +103,7 @@ async function showForm(id?: string) {
     body.load('text');
     await context.sync();
     const headers = header.text[0];
-    const clientUniqueValues: string[] = getUniqueValues(0, body.text, tableName);
+    const clientUniqueValues: string[] = getUniqueValues(0, body.text);
 
     if (id === 'entry') await addingEntry(headers, clientUniqueValues);
     else if (id === 'invoice') invoice(headers, clientUniqueValues);
@@ -157,7 +157,7 @@ async function showForm(id?: string) {
       //We create (or update) the unique values dataList for the next input 
       const nextInput = getNextInput(input);
       if (!nextInput) return;
-      createDataList(nextInput?.id || '', getUniqueValues(Number(nextInput.dataset.index), visibleCells, tableName));
+      createDataList(nextInput?.id || '', getUniqueValues(Number(nextInput.dataset.index), visibleCells));
 
 
       function getNextInput(input: HTMLInputElement) {
@@ -347,8 +347,8 @@ async function generateInvoice() {
   const invoiceDetails = {
     number: getInvoiceNumber(new Date()),
     clientName: visible.map(row => String(row[0]))[0] || 'CLIENT',
-    matters: (getUniqueValues(1, visible, tableName)).map(el => String(el)),
-    adress: (getUniqueValues(15, visible, tableName)).map(el => String(el)),
+    matters: (getUniqueValues(1, visible)).map(el => String(el)),
+    adress: (getUniqueValues(15, visible)).map(el => String(el)),
     lang: lang
   };
 
@@ -617,7 +617,7 @@ function getContentControlsValues(invoice: { number: string, clientName: string,
   return Object.keys(fields).map(key => [fields[key].title, fields[key].text]);
 }
 
-function getUniqueValues(index: number, array: any[][], tableName: string): any[] {
+function getUniqueValues(index: number, array: any[][]): any[] {
   if (!array) array = [];
   return Array.from(new Set(array.map(row => row[index])))
 };

@@ -159,7 +159,7 @@ async function addNewEntry(add: boolean = false, rows?:any[][]) {
                     input.setAttribute('list', input.id + 's');
                     input.onchange = () => inputOnChange(index, TableRows.slice(1, -1), false);
                     if (![1, 15].includes(index))
-                        createDataList(input.id, getUniqueValues(index, TableRows.slice(1, -1), tableName));//We don't create the data list for columns 'Matter' (1) and 'Adress' (16) because it will be created when the 'Client' field is updated
+                        createDataList(input.id, getUniqueValues(index, TableRows.slice(1, -1)));//We don't create the data list for columns 'Matter' (1) and 'Adress' (16) because it will be created when the 'Client' field is updated
                 }
 
                 if (index > 4 && index < 11)
@@ -270,15 +270,15 @@ async function invoice(issue: boolean = false) {
         form.innerHTML = '';
         const title = excelTable[0];
 
-        insertInputsAndLables([0, 1, 2, 3, 3]);//Inserting the fields inputs (Client, Matter, Nature, Date). We insert the date twice
+        insertInputsAndLables([0, 1, 2, 3, 3], 'input');//Inserting the fields inputs (Client, Matter, Nature, Date). We insert the date twice
 
         insertInputsAndLables(['Discount'], 'discount', false)[0].value = '0%'; //Inserting a discount percentage input and setting its default value to 0%
 
-        insertInputsAndLables(['Français', 'English'], undefined, true); //Inserting languages checkboxes
+        insertInputsAndLables(['Français', 'English'], 'lang', true); //Inserting languages checkboxes
 
         (function customizeDateLabels() {
             const [from, to] = Array.from(document.getElementsByTagName('label'))
-            ?.filter(label => label.htmlFor === 'input3');
+            ?.filter(label => label.htmlFor.endsWith('3'));
             if(from) from.innerText += ' From/Before (included)';
             if(to) to.innerText += ' To (included)';
         })();
@@ -291,12 +291,11 @@ async function invoice(issue: boolean = false) {
             form.appendChild(btnIssue);
         })();
 
-        function insertInputsAndLables(indexes: (number | string)[], id:string = 'input', checkBox: boolean = false): HTMLInputElement[] {
+        function insertInputsAndLables(indexes: (number | string)[], id:string, checkBox: boolean = false): HTMLInputElement[] {
             let css = 'field';
             if (checkBox) css = 'checkBox';
 
-            return indexes.map(index => {
-                !checkBox ? id += index.toString() : id=id;
+            return indexes.map((index) => {
                 appendLable(index);
                 return appendInput(index);
             });
@@ -304,8 +303,8 @@ async function invoice(issue: boolean = false) {
             function appendInput(index: number | string) {
                 const input = document.createElement('input');
                 input.classList.add(css);
-                input.id = id;
-
+                !isNaN(Number(index)) ? input.id = id + index.toString() : input.id = id;
+                
                 (function setType() {
                     if (checkBox) input.type = 'checkbox';
                     else if (isNaN(Number(index)) || Number(index) < 3) input.type = 'text';
@@ -313,10 +312,9 @@ async function invoice(issue: boolean = false) {
                 })();
 
                 (function notCheckBox() {
-                    if (checkBox) return;
+                    if (isNaN(Number(index)) || checkBox) return;//If the index is not a number or the input is a checkBox, we return;
                     index = Number(index);
                     input.name = input.id;
-                    if (!index) return;//If the input is the "discount" input, we return
                     input.dataset.index = index.toString();
                     input.setAttribute('list', input.id + 's');
                     input.autocomplete = "on";
@@ -325,7 +323,7 @@ async function invoice(issue: boolean = false) {
                         input.onchange = () => inputOnChange(Number(input.dataset.index), excelTable.slice(1, -1), true);
 
                     if (index < 1)
-                        createDataList(id, Array.from(new Set(TableRows.slice(1, -1).map(row => row[0]))));//We create a unique values dataList for the 'Client' input
+                        createDataList(input.id, getUniqueValues(0, TableRows.slice(1, -1)));//We create a unique values dataList for the 'Client' input
                 })();
 
                 (function isCheckBox() {
@@ -340,8 +338,8 @@ async function invoice(issue: boolean = false) {
 
             function appendLable(index: number | string) {
                 const label = document.createElement('label');
-                checkBox || isNaN(Number(index)) ? label.innerText = index.toString() : label.innerText = title[Number(index)];
-                label.htmlFor = id;
+                isNaN(Number(index)) || checkBox ? label.innerText = index.toString() : label.innerText = title[Number(index)];
+                !isNaN(Number(index)) ? label.htmlFor = id + index.toString() : label.htmlFor = id;
                 form?.appendChild(label);
             }
         };
@@ -402,7 +400,7 @@ function inputOnChange(index: number, table: any[][] | undefined, invoice: boole
 
     if (filtered.length < 1) return;
 
-    boundInputs.map(input => createDataList(input?.id, getUniqueValues(getIndex(input), filtered, tableName), invoice));
+    boundInputs.map(input => createDataList(input?.id, getUniqueValues(getIndex(input), filtered), invoice));
 
     /* if (invoice) {
         const nature = getInputByIndex(inputs, 2);//We get the nature input in order to fill automaticaly its values by a ', ' separated string

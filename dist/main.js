@@ -89,7 +89,7 @@ async function showForm(id) {
         body.load('text');
         await context.sync();
         const headers = header.text[0];
-        const clientUniqueValues = getUniqueValues(0, body.text, tableName);
+        const clientUniqueValues = getUniqueValues(0, body.text);
         if (id === 'entry')
             await addingEntry(headers, clientUniqueValues);
         else if (id === 'invoice')
@@ -140,7 +140,7 @@ async function showForm(id) {
             const nextInput = getNextInput(input);
             if (!nextInput)
                 return;
-            createDataList(nextInput?.id || '', getUniqueValues(Number(nextInput.dataset.index), visibleCells, tableName));
+            createDataList(nextInput?.id || '', getUniqueValues(Number(nextInput.dataset.index), visibleCells));
             function getNextInput(input) {
                 let nextInput = input.nextElementSibling;
                 while (nextInput?.tagName !== 'INPUT' && nextInput?.nextElementSibling) {
@@ -299,8 +299,8 @@ async function generateInvoice() {
     const invoiceDetails = {
         number: getInvoiceNumber(new Date()),
         clientName: visible.map(row => String(row[0]))[0] || 'CLIENT',
-        matters: (getUniqueValues(1, visible, tableName)).map(el => String(el)),
-        adress: (getUniqueValues(15, visible, tableName)).map(el => String(el)),
+        matters: (getUniqueValues(1, visible)).map(el => String(el)),
+        adress: (getUniqueValues(15, visible)).map(el => String(el)),
         lang: lang
     };
     const filePath = `${destinationFolder}/${getInvoiceFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`;
@@ -548,7 +548,7 @@ function getContentControlsValues(invoice, date) {
     };
     return Object.keys(fields).map(key => [fields[key].title, fields[key].text]);
 }
-function getUniqueValues(index, array, tableName) {
+function getUniqueValues(index, array) {
     if (!array)
         array = [];
     return Array.from(new Set(array.map(row => row[index])));
