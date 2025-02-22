@@ -232,7 +232,15 @@ async function invoice(issue = false) {
         insertInputsAndLables([0, 1, 2, 3, 3]); //Inserting the fields inputs (Client, Matter, Nature, Date). We insert the date twice
         insertInputsAndLables(['Discount'], 'discount', false)[0].value = '0%'; //Inserting a discount percentage input and setting its default value to 0%
         insertInputsAndLables(['Français', 'English'], undefined, true); //Inserting languages checkboxes
-        (function addBtn() {
+        (function customizeDateLabels() {
+            const [from, to] = Array.from(document.getElementsByTagName('label'))
+                ?.filter(label => label.htmlFor === 'input3');
+            if (from)
+                from.innerText += ' From/Before (included)';
+            if (to)
+                to.innerText += ' To (included)';
+        })();
+        (function addIssueInvoiceBtn() {
             const btnIssue = document.createElement('button');
             btnIssue.innerText = 'Generate Invoice';
             btnIssue.classList.add('button');

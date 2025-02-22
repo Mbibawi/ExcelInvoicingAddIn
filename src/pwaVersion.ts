@@ -276,8 +276,14 @@ async function invoice(issue: boolean = false) {
 
         insertInputsAndLables(['Français', 'English'], undefined, true); //Inserting languages checkboxes
 
-      
-        (function addBtn() {
+        (function customizeDateLabels() {
+            const [from, to] = Array.from(document.getElementsByTagName('label'))
+            ?.filter(label => label.htmlFor === 'input3');
+            if(from) from.innerText += ' From/Before (included)';
+            if(to) to.innerText += ' To (included)';
+        })();
+
+        (function addIssueInvoiceBtn() {
             const btnIssue = document.createElement('button');
             btnIssue.innerText = 'Generate Invoice';
             btnIssue.classList.add('button');
@@ -604,7 +610,7 @@ async function createAndUploadXmlDocument(rows: string[][], contentControls: str
  */
 function dateFromExcel(excelDate: number): Date {
     const date = new Date((excelDate - 25569) * (60 * 60 * 24) * 1000);//This gives the days converted from milliseconds. 
-    
+
     const dateOffset = date.getTimezoneOffset() * 60 * 1000;//Getting the difference in milleseconds
     return new Date(date.getTime() + dateOffset);
 }
