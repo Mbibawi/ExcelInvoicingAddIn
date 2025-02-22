@@ -231,7 +231,6 @@ async function invoice(issue: boolean = false) {
             //Filtering by Client (criteria[0])
             data = data.filter(row => row[getIndex(criteria[0])] === criteria[0].value);
 
-
             [1, 2].forEach(index => {
                 //!Matter and Nature inputs (from columns 2 & 3 of the Excel table) may include multiple entries separated by ', ' not only one entry.
                 const list = criteria[index].value.split(',').map(el => el.trimStart().trimEnd());//We generate a string[] from the input.value
@@ -243,12 +242,13 @@ async function invoice(issue: boolean = false) {
             return getRowsData(data, discount, lang);
 
             function filterByDate(data: string[][]) {
+                
+                const convertDate = (date: string | number) => dateFromExcel(Number(date)).getTime();
+                
                 const [from, to] = criteria
                     .filter(input => getIndex(input) === 3)
-                    .map(input => new Date(input.value).getTime());
-
-                const convertDate = (date: string | number) => dateFromExcel(Number(date)).getTime();
-
+                    .map(input => input.valueAsDate?.getTime());
+                
                 if (from && to)
                     return data.filter(row => convertDate(row[3]) >= from && convertDate(row[3]) <= to); //we filter by the date
                 else if (from)
@@ -604,6 +604,7 @@ async function createAndUploadXmlDocument(rows: string[][], contentControls: str
  */
 function dateFromExcel(excelDate: number): Date {
     const date = new Date((excelDate - 25569) * (60 * 60 * 24) * 1000);//This gives the days converted from milliseconds. 
+    
     const dateOffset = date.getTimezoneOffset() * 60 * 1000;//Getting the difference in milleseconds
     return new Date(date.getTime() + dateOffset);
 }

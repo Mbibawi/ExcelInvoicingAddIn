@@ -208,10 +208,10 @@ async function invoice(issue = false) {
             data = filterByDate(data);
             return getRowsData(data, discount, lang);
             function filterByDate(data) {
+                const convertDate = (date) => dateFromExcel(Number(date)).getTime();
                 const [from, to] = criteria
                     .filter(input => getIndex(input) === 3)
-                    .map(input => new Date(input.value).getTime());
-                const convertDate = (date) => dateFromExcel(Number(date)).getTime();
+                    .map(input => input.valueAsDate?.getTime());
                 if (from && to)
                     return data.filter(row => convertDate(row[3]) >= from && convertDate(row[3]) <= to); //we filter by the date
                 else if (from)
