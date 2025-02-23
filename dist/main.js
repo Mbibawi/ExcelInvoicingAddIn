@@ -470,7 +470,12 @@ function getRowsData(tableData, discount, lang) {
     function getAmountString(value) {
         if (isNaN(value))
             return '';
-        return '€\u00A0' + value.toFixed(2).replace('.', labels.decimal[lang]);
+        const amount = value.toFixed(2).replace('.', labels.decimal[lang]);
+        const versions = {
+            FR: `${amount}\u00A0€`,
+            EN: `€\u00A0${amount}`,
+        };
+        return versions[lang];
     }
     /**
      * Convert the time as retrieved from an Excel cell into 'hh:mm' format

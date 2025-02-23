@@ -543,7 +543,15 @@ function getRowsData(tableData: any[][], discount: number, lang: string): [strin
 
   function getAmountString(value: number): string {
     if (isNaN(value)) return '';
-    return '€\u00A0' + value.toFixed(2).replace('.', labels.decimal[lang as keyof lable]);
+
+    const amount = value.toFixed(2).replace('.', labels.decimal[lang as keyof lable]);
+
+    const versions = {
+      FR: `${amount}\u00A0€`,
+      EN: `€\u00A0${amount}`,
+    }
+
+    return versions[lang as keyof typeof versions];
   }
 
   /**
