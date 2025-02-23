@@ -96,7 +96,7 @@ async function addNewEntry(add = false, row) {
                 return;
             [0, 1].map(async (index) => {
                 //!We use map because forEach doesn't await
-                await filterExcelTable(workbookPath, tableName, TableRows[0]?.[index], row[index]?.toString(), accessToken);
+                await filterExcelTable(workbookPath, tableName, TableRows[0]?.[index], [row[index]?.toString()] || [], accessToken);
             });
             alert('Row aded and table was filtered');
         }
@@ -197,10 +197,7 @@ async function invoice(issue = false) {
         await createAndUploadXmlDocument(wordRows, contentControls, accessToken, templatePath, filePath, totalsRows);
         (function filterTable() {
             [0, 1].map(async (index) => {
-                let criteria;
-                index > 0 ? criteria = getUniqueValues(index, filtered).map(value => `'${value}'`).join(' or ')
-                    : criteria = filtered[0][index];
-                await filterExcelTable(workbookPath, tableName, TableRows[0][index], criteria, accessToken);
+                await filterExcelTable(workbookPath, tableName, TableRows[0][index], getUniqueValues(index, filtered), accessToken);
             });
         })();
         /**
@@ -591,15 +588,15 @@ async function addRowToExcelTableWithGraphAPI(row, index, filePath, tableName, a
         });
     }
 }
-async function filterExcelTable(filePath, tableName, columnName, filterValue, accessToken) {
+async function filterExcelTable(filePath, tableName, columnName, values, accessToken) {
     if (!accessToken)
         return;
     // Step 3: Apply filter using the column name
     const filterUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/columns/${columnName}/filter/apply`;
     const body = {
         criteria: {
-            filterOn: "custom",
-            criterion1: `=${filterValue}`,
+            filterOn: "values",
+            values: values,
         }
     };
     const filterResponse = await fetch(filterUrl, {

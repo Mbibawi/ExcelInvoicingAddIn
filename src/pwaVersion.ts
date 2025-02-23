@@ -101,8 +101,7 @@ async function addNewEntry(add: boolean = false, row?:any[]) {
     
             [0, 1].map(async index => {
                 //!We use map because forEach doesn't await
-
-                await filterExcelTable(workbookPath, tableName, TableRows[0]?.[index], row[index]?.toString(), accessToken);
+                await filterExcelTable(workbookPath, tableName, TableRows[0]?.[index], [row[index]?.toString()] ||[], accessToken);
             });
     
             alert('Row aded and table was filtered');
@@ -227,10 +226,7 @@ async function invoice(issue: boolean = false) {
 
         (function filterTable() { 
             [0, 1].map(async index =>{
-            let criteria: string;
-            index > 0 ? criteria = getUniqueValues(index, filtered).map(value => `'${value}'`).join(' or ')
-                : criteria = filtered[0][index];
-                await filterExcelTable(workbookPath, tableName, TableRows[0][index], criteria, accessToken)
+                await filterExcelTable(workbookPath, tableName, TableRows[0][index], getUniqueValues(index, filtered) as string[], accessToken)
             });
           })();
 
@@ -686,7 +682,7 @@ async function addRowToExcelTableWithGraphAPI(row: any[][], index: number, fileP
     }
 }
 
-async function filterExcelTable(filePath: string, tableName: string, columnName: string, filterValue: string, accessToken: string) {
+async function filterExcelTable(filePath: string, tableName: string, columnName: string, values: string[], accessToken: string) {
     if (!accessToken) return;
 
     // Step 3: Apply filter using the column name
@@ -694,8 +690,8 @@ async function filterExcelTable(filePath: string, tableName: string, columnName:
 
     const body = {
         criteria: {
-            filterOn: "custom",
-            criterion1: `=${filterValue}`,
+            filterOn: "values",
+            values: values,
         }
     };
 
