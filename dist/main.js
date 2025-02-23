@@ -440,7 +440,7 @@ function getRowsData(tableData, discount, lang) {
                 else
                     undefined;
             });
-            addNewEntry(true, [newRow]);
+            addNewEntry(true, newRow);
         }
         function totalDueRow(total, vat) {
             total >= 0 ? push(true, lables.totalDue, total, vat)

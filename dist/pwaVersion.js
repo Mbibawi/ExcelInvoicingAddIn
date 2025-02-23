@@ -17,7 +17,12 @@ function getAccessToken() {
     };
     return getTokenWithMSAL(clientId, redirectUri, msalConfig);
 }
-async function addNewEntry(add = false, rows) {
+/**
+ *
+ * @param {boolean} add - If false, the function will only show a form containing input fields for the user to provide the data for the new row to be added to the Excel Table. If true, the function will parse the values from the input fields in the form, and will add them as a new row to the Excel Table. Its default value is false.
+ * @param {any[]} row - If provided, the function will add the row directly to the Excel Table without needing to retrieve the data from the inputs.
+ */
+async function addNewEntry(add = false, row) {
     accessToken = await getAccessToken() || '';
     (async function show() {
         if (add)
@@ -32,8 +37,8 @@ async function addNewEntry(add = false, rows) {
     (async function addEntry() {
         if (!add)
             return;
-        if (rows)
-            return addRow(rows); //If rows are already passed, we will add them directly
+        if (row)
+            return addRow([row]); //If a row is already passed, we will add them directly
         await addRow(parseInputs() || undefined);
         function parseInputs() {
             const stop = (missing) => alert(`${missing} missing. You must at least provide the client, matter, nature, date and the amount. If you provided a time start, you must provide the end time and the hourly rate. Please review your iputs`);
@@ -69,7 +74,7 @@ async function addNewEntry(add = false, rows) {
             });
             if (missing())
                 return stop('Some of the required fields are');
-            return [row];
+            return row;
             function missing() {
                 if (row.filter((value, i) => (i < 4 || i === 9) && !value).length > 0)
                     return true; //if client name, matter, nature, date or amount are missing
@@ -86,7 +91,7 @@ async function addNewEntry(add = false, rows) {
         async function addRow(row) {
             if (!row)
                 return;
-            await addRowToExcelTableWithGraphAPI(row, TableRows.length - 2, workbookPath, tableName, accessToken);
+            await addRowToExcelTableWithGraphAPI([row], TableRows.length - 2, workbookPath, tableName, accessToken);
             [0, 1].map(async (index) => {
                 //!We use map because forEach doesn't await
                 await filterExcelTable(workbookPath, tableName, TableRows[0]?.[index], row[index]?.toString(), accessToken);

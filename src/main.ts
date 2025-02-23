@@ -505,7 +505,7 @@ function getRowsData(tableData: any[][], discount: number, lang: string): string
           else undefined
         });
       
-      addNewEntry(true, [newRow])
+      addNewEntry(true, newRow)
       
     }
 
