@@ -195,7 +195,8 @@ async function invoice(issue = false) {
         const contentControls = getContentControlsValues(invoice, date);
         const filePath = `${destinationFolder}/${getInvoiceFileName(invoice.clientName, invoice.matters, invoice.number)}`;
         await createAndUploadXmlDocument(wordRows, contentControls, accessToken, templatePath, filePath, totalsRows);
-        (function filterTable() {
+        (async function filterTable() {
+            await clearFilterExcelTableGraphAPI(workbookPath, tableName, accessToken); //We start by clearing the filter of the table, otherwise the insertion will fail
             [0, 1].map(async (index) => {
                 await filterExcelTable(workbookPath, tableName, TableRows[0][index], getUniqueValues(index, filtered), accessToken);
             });
@@ -556,7 +557,7 @@ function getNewExcelRow(inputs) {
     });
 }
 async function addRowToExcelTableWithGraphAPI(row, index, filePath, tableName, accessToken) {
-    await clearFliter(); //We start by clearing the filter of the table, otherwise the insertion will fail
+    await clearFilterExcelTableGraphAPI(filePath, tableName, accessToken); //We start by clearing the filter of the table, otherwise the insertion will fail
     const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/rows`;
     const body = {
         index: index,
@@ -576,16 +577,6 @@ async function addRowToExcelTableWithGraphAPI(row, index, filePath, tableName, a
     }
     else {
         alert(`Error adding row: ${await response.text()}`);
-    }
-    async function clearFliter() {
-        // First, clear filters on the table (optional step)
-        await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/clearFilters`, {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${accessToken}`,
-                "Content-Type": "application/json"
-            }
-        });
     }
 }
 async function filterExcelTable(filePath, tableName, columnName, values, accessToken) {

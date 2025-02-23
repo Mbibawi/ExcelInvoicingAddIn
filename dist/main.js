@@ -581,6 +581,16 @@ async function fetchExcelTableWithGraphAPI(accessToken, filePath, tableName, ran
     else
         return data.value.map((v) => v.values);
 }
+async function clearFilterExcelTableGraphAPI(filePath, tableName, accessToken) {
+    // First, clear filters on the table (optional step)
+    await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/clearFilters`, {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": "application/json"
+        }
+    });
+}
 /**
  * Returns a blob from a file stored on OneDrive, using the Graph API and the file path
  * @param {string} accessToken

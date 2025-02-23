@@ -27,20 +27,20 @@ var TableRows: string[][], accessToken: string;
 (function RegisterServiceWorker() {
   // Check if the browser supports service workers
   if ("serviceWorker" in navigator) {
-      window.addEventListener("load", async () => {
-          try {
-              const registration = await navigator.serviceWorker.register("/ExcelInvoicingAddIn/dist/sw.js");
-              console.log("Service Worker registered successfully:", registration);
-          } catch (error) {
-              console.error("Service Worker registration failed:", error);
-          }
-      });
+    window.addEventListener("load", async () => {
+      try {
+        const registration = await navigator.serviceWorker.register("/ExcelInvoicingAddIn/dist/sw.js");
+        console.log("Service Worker registered successfully:", registration);
+      } catch (error) {
+        console.error("Service Worker registration failed:", error);
+      }
+    });
   }
 
   // Handle updates to the service worker
   navigator.serviceWorker.addEventListener("controllerchange", () => {
-      console.log("New service worker activated. Reloading page...");
-      window.location.reload();
+    console.log("New service worker activated. Reloading page...");
+    window.location.reload();
   });
 
   //@ts-ignore Handling the "beforeinstallprompt" event for PWA installability
@@ -48,23 +48,23 @@ var TableRows: string[][], accessToken: string;
 
   //@ts-ignore
   window.addEventListener("beforeinstallprompt", (event: BeforeInstallPromptEvent) => {
-      event.preventDefault();  // Prevent the default mini-infobar
-      installPromptEvent = event;
+    event.preventDefault();  // Prevent the default mini-infobar
+    installPromptEvent = event;
 
-      const installButton = document.getElementById("install-button");
-      if (installButton) {
-          installButton.style.display = "block";  // Show the install button
-          installButton.addEventListener("click", async () => {
-              if (installPromptEvent) {
-                  await installPromptEvent.prompt();  // Show the install prompt
-                  const choiceResult = await installPromptEvent.userChoice;
-                  console.log("User install choice:", choiceResult.outcome);
+    const installButton = document.getElementById("install-button");
+    if (installButton) {
+      installButton.style.display = "block";  // Show the install button
+      installButton.addEventListener("click", async () => {
+        if (installPromptEvent) {
+          await installPromptEvent.prompt();  // Show the install prompt
+          const choiceResult = await installPromptEvent.userChoice;
+          console.log("User install choice:", choiceResult.outcome);
 
-                  installPromptEvent = null;  // Clear the event after the prompt
-                  installButton.style.display = "none";  // Hide the button
-              }
-          });
-      }
+          installPromptEvent = null;  // Clear the event after the prompt
+          installButton.style.display = "none";  // Hide the button
+        }
+      });
+    }
   });
 })();
 
@@ -366,10 +366,10 @@ function getRowsData(tableData: any[][], discount: number, lang: string): [strin
   type lable = {
     FR: string;
     EN: string;
-    nature:string
+    nature: string
   }
-  
-  const labels:{[index:string]: lable} = {
+
+  const labels: { [index: string]: lable } = {
     totalFees: {
       nature: 'Honoraire',
       FR: 'Total honoraires',
@@ -391,7 +391,7 @@ function getRowsData(tableData: any[][], discount: number, lang: string): [strin
       EN: 'Total billable hours (other than lump-sum billed services)'
     },
     totalDue: {
-      nature:'',
+      nature: '',
       FR: 'Montant dû',
       EN: 'Total Due'
     },
@@ -406,7 +406,7 @@ function getRowsData(tableData: any[][], discount: number, lang: string): [strin
       EN: 'Discount'
     },
     totalFeesAfterDeduction: {
-      nature:'',
+      nature: '',
       FR: 'Total honoraires après remise',
       EN: 'Total fee after discount'
     },
@@ -454,7 +454,7 @@ function getRowsData(tableData: any[][], discount: number, lang: string): [strin
   });
 
   pushTotalsRows();
-  
+
   return [data, Object.values(labels).map(value => value[lang as keyof lable])];
 
   function pushTotalsRows() {
@@ -469,7 +469,7 @@ function getRowsData(tableData: any[][], discount: number, lang: string): [strin
     const totalDue = totalFee + totalExpenses + totalPayments;
     const totalDueVAT = totalFeeVAT + totalExpensesVAT;
     const insert = (sum: number) => Math.abs(sum) > 0;
-    
+
     (function subTotalsRows() {
       push(insert(totalFee), labels.totalFees, totalFee, totalFeeVAT);
       push(insert(totalExpenses), labels.totalExpenses, totalExpenses, totalExpensesVAT);
@@ -477,60 +477,60 @@ function getRowsData(tableData: any[][], discount: number, lang: string): [strin
       push(insert(totalTimeSpent), labels.totalTimeSpent, Math.abs(totalTimeSpent), NaN);//!We don't pass the vat argument in order to get the corresponding cell of the Word table empty
     })();
 
-    (function dueRow() { 
-        if (!discount) return totalDueRow(totalDue, totalDueVAT);//If there is no discount to be applied on the fees, we return the "Total Due" row;
+    (function dueRow() {
+      if (!discount) return totalDueRow(totalDue, totalDueVAT);//If there is no discount to be applied on the fees, we return the "Total Due" row;
 
-        const feeDiscount = (fee: number) => fee * (discount/100);//returns the amount to be deducted from the fees or from the VAT on the fees as a negative number
-        const deduction = feeDiscount(totalFee);
-        const deductionVAT = feeDiscount(totalFeeVAT);
+      const feeDiscount = (fee: number) => fee * (discount / 100);//returns the amount to be deducted from the fees or from the VAT on the fees as a negative number
+      const deduction = feeDiscount(totalFee);
+      const deductionVAT = feeDiscount(totalFeeVAT);
 
-        if (!insert(deduction)) return totalDueRow(totalDue, totalDueVAT);//If the total fee is 0 for whatever reason, it means that deduction will be = 0. In such case we return the "Total Due" row as if there were no deduction applied.
-    
-        push(true, labels.FeesDeduction, deduction *-1, deductionVAT * -1, labels.discountDescription);//We add a description for this row. This is the amount that will be deducted from the fee and from the fee pplied on the fee
+      if (!insert(deduction)) return totalDueRow(totalDue, totalDueVAT);//If the total fee is 0 for whatever reason, it means that deduction will be = 0. In such case we return the "Total Due" row as if there were no deduction applied.
 
-        push(true, labels.totalFeesAfterDeduction, (totalFee - deduction), (totalFeeVAT - deductionVAT));//This is the amount that will be deducted from the fee and from the fee pplied on the fee. 
+      push(true, labels.FeesDeduction, deduction * -1, deductionVAT * -1, labels.discountDescription);//We add a description for this row. This is the amount that will be deducted from the fee and from the fee pplied on the fee
 
-        totalDueRow(totalDue - deduction, totalDueVAT - deductionVAT);
-        addDiscountRowToExcel(deduction, deductionVAT)
+      push(true, labels.totalFeesAfterDeduction, (totalFee - deduction), (totalFeeVAT - deductionVAT));//This is the amount that will be deducted from the fee and from the fee pplied on the fee. 
+
+      totalDueRow(totalDue - deduction, totalDueVAT - deductionVAT);
+      addDiscountRowToExcel(deduction, deductionVAT)
     })();
 
-    function addDiscountRowToExcel(amount: number, vat:number) {
+    function addDiscountRowToExcel(amount: number, vat: number) {
       const newRow = tableData
         .find(row => row[2] === 'Honoraire')
         ?.map((cell, index) => {
           if ([0, 1, 11, 15].includes(index))
             return cell
           else if (index === 2) return 'Réduction';
-          else if ([3,4].includes(index)) return getISODate(new Date());
+          else if ([3, 4].includes(index)) return getISODate(new Date());
           else if (index === 9) return amount;//When the amount represents a fee or expense billed to the client,  it is a negative value. That's why in this case we will add it as a positive value in order to deduct the it from the already billed fees 
           else if (index === 10) return vat * -1;//VAT is usually added as a positive value, but since we want to deduct this amount from the total VAT, we will add it as a negative value
           else undefined
         });
 
-        addNewEntry(true, newRow);
-      
+      addNewEntry(true, newRow);
+
     }
 
-    function totalDueRow(total:number, vat:number){
+    function totalDueRow(total: number, vat: number) {
       total >= 0 ? push(true, labels.totalDue, total, vat)
         : push(true, labels.totalReinbursement, total, vat)
     }
- 
-    function push(insert: boolean, label: lable, amount: number, vat: number, description?:lable) {
+
+    function push(insert: boolean, label: lable, amount: number, vat: number, description?: lable) {
       if (!insert) return;
       data.push(
         [
-          label?.[lang as keyof lable] ||'',
+          label?.[lang as keyof lable] || '',
           description?.[lang as keyof lable] || '',
-          label === labels.totalTimeSpent? getTimeSpent(amount) : getAmountString(amount),
+          label === labels.totalTimeSpent ? getTimeSpent(amount) : getAmountString(amount),
           getAmountString(Math.abs(vat)), //Column VAT: always a positive value
         ]);
-      
+
     }
 
     function getTotals(index: number, nature: string | null) {
       const total =
-        tableData.filter(row => nature? nature.split(', ').includes(row[2]) : row === row)
+        tableData.filter(row => nature ? nature.split(', ').includes(row[2]) : row === row)
           .map(row => Number(row[index]));
       let sum = 0;
       for (let i = 0; i < total.length; i++) {
@@ -544,7 +544,7 @@ function getRowsData(tableData: any[][], discount: number, lang: string): [strin
   function getAmountString(value: number): string {
     if (isNaN(value)) return '';
     return '€\u00A0' + value.toFixed(2).replace('.', labels.decimal[lang as keyof lable]);
-}
+  }
 
   /**
    * Convert the time as retrieved from an Excel cell into 'hh:mm' format
@@ -655,6 +655,17 @@ async function fetchExcelTableWithGraphAPI(accessToken: string, filePath: string
   if (range)
     return data.values;
   else return data.value.map((v: any) => v.values);
+}
+
+async function clearFilterExcelTableGraphAPI(filePath:string, tableName:string, accessToken:string) {
+  // First, clear filters on the table (optional step)
+  await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/clearFilters`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
+    }
+  });
 }
 
 /**
@@ -837,7 +848,7 @@ function convertBlobToBase64(blob: Blob): Promise<string> {
     reader.readAsDataURL(blob);
   });
 }
-async function addEntry(tableName: string, rows?:any[][]) {
+async function addEntry(tableName: string, rows?: any[][]) {
   await Excel.run(async (context) => {
     const sheet = context.workbook.worksheets.getActiveWorksheet();
     const table = sheet.tables.getItem(tableName);
@@ -1191,21 +1202,21 @@ function settings() {
   form.innerHTML = '';
   const inputs = [
     {
-    label: 'Workbook Path: ',
-    name: 'excelPath'
-  },
+      label: 'Workbook Path: ',
+      name: 'excelPath'
+    },
     {
-    label: 'Word Template Path: ',
-    name: 'templatePath'
-  },
+      label: 'Word Template Path: ',
+      name: 'templatePath'
+    },
     {
-    label: 'Destination Folder: ',
-    name: 'destinationFolder'
-  },
+      label: 'Destination Folder: ',
+      name: 'destinationFolder'
+    },
     {
-    label: 'Table Name: ',
-    name: 'tableName'
-  },
+      label: 'Table Name: ',
+      name: 'tableName'
+    },
   ];
   inputs.forEach((el, index) => {
     const label = document.createElement('label');
@@ -1223,6 +1234,6 @@ function settings() {
       localStorage.setItem(name, input.value);
       alert(`${label} has been updated`);
     }
-    
+
   });
 }

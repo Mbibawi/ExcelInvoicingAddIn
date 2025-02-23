@@ -23,7 +23,7 @@ function getAccessToken() {
  * @param {boolean} add - If false, the function will only show a form containing input fields for the user to provide the data for the new row to be added to the Excel Table. If true, the function will parse the values from the input fields in the form, and will add them as a new row to the Excel Table. Its default value is false.
  * @param {any[]} row - If provided, the function will add the row directly to the Excel Table without needing to retrieve the data from the inputs.
  */
-async function addNewEntry(add: boolean = false, row?:any[]) {
+async function addNewEntry(add: boolean = false, row?: any[]) {
     accessToken = await getAccessToken() || '';
 
     (async function show() {
@@ -41,22 +41,22 @@ async function addNewEntry(add: boolean = false, row?:any[]) {
         if (!add) return;
         if (row) return await addRow(row);//If a row is already passed, we will add them directly
 
-        await addRow(parseInputs()|| undefined, true)
+        await addRow(parseInputs() || undefined, true)
 
         function parseInputs() {
-            const stop = (missing:string)=> alert(`${missing} missing. You must at least provide the client, matter, nature, date and the amount. If you provided a time start, you must provide the end time and the hourly rate. Please review your iputs`);
-            
+            const stop = (missing: string) => alert(`${missing} missing. You must at least provide the client, matter, nature, date and the amount. If you provided a time start, you must provide the end time and the hourly rate. Please review your iputs`);
+
             const inputs = Array.from(document.getElementsByTagName('input')) as HTMLInputElement[];//all inputs
 
             const nature = getInputByIndex(inputs, 2)?.value;
-            if(!nature) return stop('The matter is')
-            const date = getInputByIndex(inputs, 3)?.valueAsDate 
-            if(!date) return stop('The invoice date is');
+            if (!nature) return stop('The matter is')
+            const date = getInputByIndex(inputs, 3)?.valueAsDate
+            if (!date) return stop('The invoice date is');
             const amount = getInputByIndex(inputs, 9);
             const rate = getInputByIndex(inputs, 8)?.valueAsNumber;
-    
+
             const debit = ['Honoraire', 'Débours/Dépens', 'Débours/Dépens non facturables', 'Rétrocession d\'honoraires'].includes(nature);//We check if we need to change the value sign 
-    
+
             const row = inputs.map(input => {
                 const index = getIndex(input);
                 if ([3, 4].includes(index))
@@ -66,7 +66,7 @@ async function addNewEntry(add: boolean = false, row?:any[]) {
                 else if (index === 7) {
                     //!This is a hidden input
                     const totalTime = getTime([getInputByIndex(inputs, 5), getInputByIndex(inputs, 6)]);//Total time column
-    
+
                     if (totalTime > 0 && rate && amount && !amount.valueAsNumber) amount.valueAsNumber = totalTime * 24 * rate// making the amount equal the rate * totalTime
                     return totalTime
                 }
@@ -76,15 +76,15 @@ async function addNewEntry(add: boolean = false, row?:any[]) {
                     return input.valueAsNumber || 0;//Hourly Rate, Amount, VAT
                 else return input.value;
             });
-    
+
             if (missing()) return stop('Some of the required fields are');
 
             return row
-    
+
             function missing() {
                 if (row.filter((value, i) => (i < 4 || i === 9) && !value).length > 0) return true;//if client name, matter, nature, date or amount are missing
                 //else if (row[9]) return [5, 6,7,8].map(index => row[index] = 0).length < 1;//This means the amount has been provided and does not  depend on the time spent or the hourly rate. We set the values of the startTime and endTime to 0, and return false (length<1 must return false)
-    
+
                 if (row[5] === row[6]) return false;//If the total time = 0 we do not need to alert if the hourly rate is missing
                 else if (row[5] && (!row[6] || !row[8]))
                     return true//if startTime is provided but without endTime or without hourly rate
@@ -92,20 +92,20 @@ async function addNewEntry(add: boolean = false, row?:any[]) {
                     return true//if endTime is provided but without startTime or without hourly rate
             };
         }
-        
-        async function addRow(row: any[] | undefined, filter:boolean = false) {
+
+        async function addRow(row: any[] | undefined, filter: boolean = false) {
             if (!row) return;
             await addRowToExcelTableWithGraphAPI([row], TableRows.length - 2, workbookPath, tableName, accessToken);
 
             if (!filter) return;
-    
+
             [0, 1].map(async index => {
                 //!We use map because forEach doesn't await
-                await filterExcelTable(workbookPath, tableName, TableRows[0]?.[index], [row[index]?.toString()] ||[], accessToken);
+                await filterExcelTable(workbookPath, tableName, TableRows[0]?.[index], [row[index]?.toString()] || [], accessToken);
             });
-    
+
             alert('Row aded and table was filtered');
-            
+
         }
 
     })()
@@ -224,11 +224,12 @@ async function invoice(issue: boolean = false) {
 
         await createAndUploadXmlDocument(wordRows, contentControls, accessToken, templatePath, filePath, totalsRows);
 
-        (function filterTable() { 
-            [0, 1].map(async index =>{
+        (async function filterTable() {
+            await clearFilterExcelTableGraphAPI(workbookPath, tableName, accessToken); //We start by clearing the filter of the table, otherwise the insertion will fail
+            [0, 1].map(async index => {
                 await filterExcelTable(workbookPath, tableName, TableRows[0][index], getUniqueValues(index, filtered) as string[], accessToken)
             });
-          })();
+        })();
 
         /**
          * Filters the Excel table according to the values of each inputs, then returns the values of the Word table rows that will be added to the Word table in the invoice template document 
@@ -237,7 +238,7 @@ async function invoice(issue: boolean = false) {
          * @param {string} lang - The language in which the invoice will be issued 
          * @returns {string[][]} - The values of the rows that will be added to the Word table in the invoice template
          */
-        function filterExcelData(data: any[][], criteria: HTMLInputElement[], discount:number, lang: string):[string[][], string[], any[][]] {
+        function filterExcelData(data: any[][], criteria: HTMLInputElement[], discount: number, lang: string): [string[][], string[], any[][]] {
 
             //Filtering by Client (criteria[0])
             data = data.filter(row => row[getIndex(criteria[0])] === criteria[0].value);
@@ -254,13 +255,13 @@ async function invoice(issue: boolean = false) {
             return [...getRowsData(data, discount, lang), data];
 
             function filterByDate(data: string[][]) {
-                
+
                 const convertDate = (date: string | number) => dateFromExcel(Number(date)).getTime();
-                
+
                 const [from, to] = criteria
                     .filter(input => getIndex(input) === 3)
                     .map(input => input.valueAsDate?.getTime());
-                
+
                 if (from && to)
                     return data.filter(row => convertDate(row[3]) >= from && convertDate(row[3]) <= to); //we filter by the date
                 else if (from)
@@ -290,9 +291,9 @@ async function invoice(issue: boolean = false) {
 
         (function customizeDateLabels() {
             const [from, to] = Array.from(document.getElementsByTagName('label'))
-            ?.filter(label => label.htmlFor.endsWith('3'));
-            if(from) from.innerText += ' From (included)';
-            if(to) to.innerText += ' To/Before (included)';
+                ?.filter(label => label.htmlFor.endsWith('3'));
+            if (from) from.innerText += ' From (included)';
+            if (to) to.innerText += ' To/Before (included)';
         })();
 
         (function addIssueInvoiceBtn() {
@@ -303,7 +304,7 @@ async function invoice(issue: boolean = false) {
             form.appendChild(btnIssue);
         })();
 
-        function insertInputsAndLables(indexes: (number | string)[], id:string, checkBox: boolean = false): HTMLInputElement[] {
+        function insertInputsAndLables(indexes: (number | string)[], id: string, checkBox: boolean = false): HTMLInputElement[] {
             let css = 'field';
             if (checkBox) css = 'checkBox';
 
@@ -316,7 +317,7 @@ async function invoice(issue: boolean = false) {
                 const input = document.createElement('input');
                 input.classList.add(css);
                 !isNaN(Number(index)) ? input.id = id + index.toString() : input.id = id;
-                
+
                 (function setType() {
                     if (checkBox) input.type = 'checkbox';
                     else if (isNaN(Number(index)) || Number(index) < 3) input.type = 'text';
@@ -430,7 +431,7 @@ function inputOnChange(index: number, table: any[][] | undefined, invoice: boole
 };
 
 
-async function createAndUploadXmlDocument(rows: string[][], contentControls: string[][], accessToken: string, templatePath: string, filePath: string, totals:string[] = []) {
+async function createAndUploadXmlDocument(rows: string[][], contentControls: string[][], accessToken: string, templatePath: string, filePath: string, totals: string[] = []) {
 
     if (!accessToken) return;
     const schema = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
@@ -468,7 +469,7 @@ async function createAndUploadXmlDocument(rows: string[][], contentControls: str
 
         await uploadFileToOneDriveWithGraphAPI(newBlob, filePath, accessToken);
 
-        function getStyle(cell: number, isTotal: boolean=false) {
+        function getStyle(cell: number, isTotal: boolean = false) {
             let style = 'Invoice';
             if (cell === 0 && isTotal) style += 'BoldItalicLeft';
             else if (cell === 0) style += 'BoldLeft';
@@ -645,7 +646,7 @@ function getNewExcelRow(inputs: HTMLInputElement[]) {
 
 async function addRowToExcelTableWithGraphAPI(row: any[][], index: number, filePath: string, tableName: string, accessToken: string) {
 
-    await clearFliter(); //We start by clearing the filter of the table, otherwise the insertion will fail
+    await clearFilterExcelTableGraphAPI(filePath, tableName, accessToken); //We start by clearing the filter of the table, otherwise the insertion will fail
 
     const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/rows`;
 
@@ -670,16 +671,6 @@ async function addRowToExcelTableWithGraphAPI(row: any[][], index: number, fileP
         alert(`Error adding row: ${await response.text()}`);
     }
 
-    async function clearFliter() {
-        // First, clear filters on the table (optional step)
-        await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/clearFilters`, {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${accessToken}`,
-                "Content-Type": "application/json"
-            }
-        });
-    }
 }
 
 async function filterExcelTable(filePath: string, tableName: string, columnName: string, values: string[], accessToken: string) {
