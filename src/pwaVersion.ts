@@ -226,8 +226,12 @@ async function invoice(issue: boolean = false) {
         await createAndUploadXmlDocument(wordRows, contentControls, accessToken, templatePath, filePath, totalsRows);
 
         (function filterTable() { 
-            [0, 1].map(async index =>
-              await filterExcelTable(workbookPath, tableName, TableRows[0][index], getUniqueValues(index, filtered).map(value =>`'${value}'`).join(' or '), accessToken));
+            [0, 1].map(async index =>{
+            let criteria: string;
+            index > 0 ? criteria = getUniqueValues(index, filtered).map(value => `'${value}'`).join(' or ')
+                : criteria = filtered[0][index];
+                await filterExcelTable(workbookPath, tableName, TableRows[0][index], criteria, accessToken)
+            });
           })();
 
         /**
