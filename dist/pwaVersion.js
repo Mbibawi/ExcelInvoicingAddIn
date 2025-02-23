@@ -38,7 +38,7 @@ async function addNewEntry(add = false, row) {
         if (!add)
             return;
         if (row)
-            return addRow([row]); //If a row is already passed, we will add them directly
+            return addRow(row); //If a row is already passed, we will add them directly
         await addRow(parseInputs() || undefined);
         function parseInputs() {
             const stop = (missing) => alert(`${missing} missing. You must at least provide the client, matter, nature, date and the amount. If you provided a time start, you must provide the end time and the hourly rate. Please review your iputs`);

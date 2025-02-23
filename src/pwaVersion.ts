@@ -39,7 +39,7 @@ async function addNewEntry(add: boolean = false, row?:any[]) {
 
     (async function addEntry() {
         if (!add) return;
-        if (row) return addRow([row]);//If a row is already passed, we will add them directly
+        if (row) return addRow(row);//If a row is already passed, we will add them directly
 
         await addRow(parseInputs()|| undefined)
 

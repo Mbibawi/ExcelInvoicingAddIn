@@ -425,7 +425,7 @@ function getRowsData(tableData, discount, lang) {
         })();
         function addDiscountRowToExcel(amount, vat) {
             const newRow = tableData
-                .filter(row => row[2] === 'Honoraire')[0]
+                .find(row => row[2] === 'Honoraire')
                 ?.map((cell, index) => {
                 if ([0, 1, 11, 15].includes(index))
                     return cell;

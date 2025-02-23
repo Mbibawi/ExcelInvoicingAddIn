@@ -494,7 +494,7 @@ function getRowsData(tableData: any[][], discount: number, lang: string): string
     
     function addDiscountRowToExcel(amount: number, vat:number) {
       const newRow = tableData
-        .filter(row => row[2] === 'Honoraire')[0]
+        .find(row => row[2] === 'Honoraire')
         ?.map((cell, index) => {
           if ([0, 1, 11, 15].includes(index))
             return cell
