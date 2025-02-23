@@ -226,9 +226,8 @@ async function invoice(issue: boolean = false) {
         await createAndUploadXmlDocument(wordRows, contentControls, accessToken, templatePath, filePath, totalsRows);
 
         (function filterTable() { 
-            const matters = getUniqueValues(1, filtered).map(matter =>`'${matter}'`).join(' or ');
             [0, 1].map(async index =>
-              await filterExcelTable(workbookPath, tableName, TableRows[0][index], matters, accessToken));
+              await filterExcelTable(workbookPath, tableName, TableRows[0][index], getUniqueValues(index, filtered).map(value =>`'${value}'`).join(' or '), accessToken));
           })();
 
         /**

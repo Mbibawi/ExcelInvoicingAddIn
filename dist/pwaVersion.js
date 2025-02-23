@@ -196,8 +196,7 @@ async function invoice(issue = false) {
         const filePath = `${destinationFolder}/${getInvoiceFileName(invoice.clientName, invoice.matters, invoice.number)}`;
         await createAndUploadXmlDocument(wordRows, contentControls, accessToken, templatePath, filePath, totalsRows);
         (function filterTable() {
-            const matters = getUniqueValues(1, filtered).map(matter => `'${matter}'`).join(' or ');
-            [0, 1].map(async (index) => await filterExcelTable(workbookPath, tableName, TableRows[0][index], matters, accessToken));
+            [0, 1].map(async (index) => await filterExcelTable(workbookPath, tableName, TableRows[0][index], getUniqueValues(index, filtered).map(value => `'${value}'`).join(' or '), accessToken));
         })();
         /**
          * Filters the Excel table according to the values of each inputs, then returns the values of the Word table rows that will be added to the Word table in the invoice template document
