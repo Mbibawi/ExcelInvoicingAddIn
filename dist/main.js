@@ -324,7 +324,7 @@ function getRowsData(tableData, discount, lang) {
             EN: 'Total Expenses'
         },
         totalPayments: {
-            nature: 'Provision/Règlement',
+            nature: 'Provision/Règlement, Réduction',
             FR: 'Total provisions reçues',
             EN: 'Total Payments'
         },
@@ -345,17 +345,17 @@ function getRowsData(tableData, discount, lang) {
         },
         FeesDeduction: {
             nature: '',
-            FR: 'Remise sur les honoraires',
-            EN: 'Fees discount'
+            FR: 'Remise',
+            EN: 'Discount'
         },
         totalFeesAfterDeduction: {
             nature: '',
-            FR: 'Total des honoraires après remise',
+            FR: 'Total honoraires après remise',
             EN: 'Total fee after discount'
         },
         discountDescription: {
             nature: '',
-            FR: `${discount.toString()}% de remise sur les honoraries`,
+            FR: `${discount.toString()}% de remise sur les honoraires`,
             EN: `${discount.toString()}% discount on accrued fees`
         },
         hourlyBilled: {

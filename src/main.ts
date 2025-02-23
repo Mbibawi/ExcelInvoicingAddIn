@@ -363,11 +363,12 @@ async function generateInvoice() {
  */
 function getRowsData(tableData: any[][], discount: number, lang: string): string[][] {
   type lable = {
-    FR: string,
-    EN: string,
-    nature?:string
+    FR: string;
+    EN: string;
+    nature:string
   }
-  const lables = {
+  
+  const lables:{[index:string]: lable} = {
     totalFees: {
       nature: 'Honoraire',
       FR: 'Total honoraires',
@@ -379,12 +380,12 @@ function getRowsData(tableData: any[][], discount: number, lang: string): string
       EN: 'Total Expenses'
     },
     totalPayments: {
-      nature: 'Provision/Règlement',
+      nature: 'Provision/Règlement, Réduction',
       FR: 'Total provisions reçues',
       EN: 'Total Payments'
     },
     totalTimeSpent: {
-      nature:'',
+      nature: '',
       FR: 'Total des heures facturables (hors prestations facturées au forfait) ',
       EN: 'Total billable hours (other than lump-sum billed services)'
     },
@@ -394,23 +395,23 @@ function getRowsData(tableData: any[][], discount: number, lang: string): string
       EN: 'Total Due'
     },
     totalReinbursement: {
-      nature:'',
+      nature: '',
       FR: 'A rembourser',
       EN: 'To reimburse'
     },
     FeesDeduction: {
       nature: '',
-      FR: 'Remise sur les honoraires',
-      EN: 'Fees discount'
+      FR: 'Remise',
+      EN: 'Discount'
     },
     totalFeesAfterDeduction: {
-      nature: '',
-      FR: 'Total des honoraires après remise',
+      nature:'',
+      FR: 'Total honoraires après remise',
       EN: 'Total fee after discount'
     },
     discountDescription: {
       nature: '',
-      FR: `${discount.toString()}% de remise sur les honoraries`,
+      FR: `${discount.toString()}% de remise sur les honoraires`,
       EN: `${discount.toString()}% discount on accrued fees`
     },
     hourlyBilled: {
@@ -439,7 +440,7 @@ function getRowsData(tableData: any[][], discount: number, lang: string): string
 
     //If the billable hours are > 0, we add to the description: time spent and hourly rate
     if (time)
-      description += `(${lables.hourlyBilled[lang as 'FR' | 'EN']} ${time} ${lables.hourlyRate[lang as 'FR' | 'EN']} ${Math.abs(row[rate]).toString()}\u00A0€)`;
+      description += `(${lables.hourlyBilled[lang as keyof lable]} ${time} ${lables.hourlyRate[lang as keyof lable]} ${Math.abs(row[rate]).toString()}\u00A0€)`;
 
 
     const rowValues: string[] = [
@@ -525,7 +526,6 @@ function getRowsData(tableData: any[][], discount: number, lang: string): string
       
     }
 
-
     function getTotals(index: number, nature: string | null) {
       const total =
         tableData.filter(row => nature? nature.split(', ').includes(row[2]) : row === row)
@@ -541,7 +541,7 @@ function getRowsData(tableData: any[][], discount: number, lang: string): string
 
   function getAmountString(value: number): string {
     if (isNaN(value)) return '';
-    return '€\u00A0' + value.toFixed(2).replace('.', lables.decimal[lang as 'FR' | 'EN']);
+    return '€\u00A0' + value.toFixed(2).replace('.', lables.decimal[lang as keyof lable]);
 }
 
   /**
