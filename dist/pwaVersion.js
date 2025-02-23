@@ -38,8 +38,8 @@ async function addNewEntry(add = false, row) {
         if (!add)
             return;
         if (row)
-            return addRow(row); //If a row is already passed, we will add them directly
-        await addRow(parseInputs() || undefined);
+            return await addRow(row); //If a row is already passed, we will add them directly
+        await addRow(parseInputs() || undefined, true);
         function parseInputs() {
             const stop = (missing) => alert(`${missing} missing. You must at least provide the client, matter, nature, date and the amount. If you provided a time start, you must provide the end time and the hourly rate. Please review your iputs`);
             const inputs = Array.from(document.getElementsByTagName('input')); //all inputs
@@ -88,10 +88,12 @@ async function addNewEntry(add = false, row) {
             }
             ;
         }
-        async function addRow(row) {
+        async function addRow(row, filter = false) {
             if (!row)
                 return;
             await addRowToExcelTableWithGraphAPI([row], TableRows.length - 2, workbookPath, tableName, accessToken);
+            if (!filter)
+                return;
             [0, 1].map(async (index) => {
                 //!We use map because forEach doesn't await
                 await filterExcelTable(workbookPath, tableName, TableRows[0]?.[index], row[index]?.toString(), accessToken);
@@ -193,6 +195,10 @@ async function invoice(issue = false) {
         const contentControls = getContentControlsValues(invoice, date);
         const filePath = `${destinationFolder}/${getInvoiceFileName(invoice.clientName, invoice.matters, invoice.number)}`;
         await createAndUploadXmlDocument(filtered, contentControls, accessToken, templatePath, filePath);
+        (function filterTable() {
+            const matters = getUniqueValues(1, filtered).map(matter => `'${matter}'`).join(' or ');
+            [0, 1].map(async (index) => await filterExcelTable(workbookPath, tableName, TableRows[0][index], matters, accessToken));
+        })();
         /**
          * Filters the Excel table according to the values of each inputs, then returns the values of the Word table rows that will be added to the Word table in the invoice template document
          * @param {any[][]} data - The Excel table rows that will be filtered
@@ -581,6 +587,8 @@ async function addRowToExcelTableWithGraphAPI(row, index, filePath, tableName, a
     }
 }
 async function filterExcelTable(filePath, tableName, columnName, filterValue, accessToken) {
+    if (!accessToken)
+        return;
     // Step 3: Apply filter using the column name
     const filterUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/columns/${columnName}/filter/apply`;
     const body = {

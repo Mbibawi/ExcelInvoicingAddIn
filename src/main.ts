@@ -475,7 +475,7 @@ function getRowsData(tableData: any[][], discount: number, lang: string): string
       push(insert(totalTimeSpent), lables.totalTimeSpent, Math.abs(totalTimeSpent), NaN);//!We don't pass the vat argument in order to get the corresponding cell of the Word table empty
     })();
 
-      (function dueRow() { 
+    (function dueRow() { 
         if (!discount) return totalDueRow(totalDue, totalDueVAT);//If there is no discount to be applied on the fees, we return the "Total Due" row;
 
         const feeDiscount = (fee: number) => fee * (discount/100);//returns the amount to be deducted from the fees or from the VAT on the fees as a negative number
@@ -491,7 +491,7 @@ function getRowsData(tableData: any[][], discount: number, lang: string): string
         totalDueRow(totalDue - deduction, totalDueVAT - deductionVAT);
         addDiscountRowToExcel(deduction, deductionVAT)
     })();
-    
+
     function addDiscountRowToExcel(amount: number, vat:number) {
       const newRow = tableData
         .find(row => row[2] === 'Honoraire')
@@ -504,8 +504,8 @@ function getRowsData(tableData: any[][], discount: number, lang: string): string
           else if (index === 10) return vat * -1;//VAT is usually added as a positive value, but since we want to deduct this amount from the total VAT, we will add it as a negative value
           else undefined
         });
-      
-      addNewEntry(true, newRow)
+
+        addNewEntry(true, newRow);
       
     }
 
