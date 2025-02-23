@@ -95,7 +95,7 @@ async function addNewEntry(add: boolean = false, rows?:any[][]) {
     
             [0, 1].map(async index => {
                 //!We use map because forEach doesn't await
-                
+
                 await filterExcelTable(workbookPath, tableName, TableRows[0]?.[index], row[index]?.toString(), accessToken);
             });
     
@@ -279,8 +279,8 @@ async function invoice(issue: boolean = false) {
         (function customizeDateLabels() {
             const [from, to] = Array.from(document.getElementsByTagName('label'))
             ?.filter(label => label.htmlFor.endsWith('3'));
-            if(from) to.innerText += ' From (included)';
-            if(to) from.innerText += ' To/Before (included)';
+            if(from) from.innerText += ' From (included)';
+            if(to) to.innerText += ' To/Before (included)';
         })();
 
         (function addIssueInvoiceBtn() {

@@ -235,9 +235,9 @@ async function invoice(issue = false) {
             const [from, to] = Array.from(document.getElementsByTagName('label'))
                 ?.filter(label => label.htmlFor.endsWith('3'));
             if (from)
-                to.innerText += ' From (included)';
+                from.innerText += ' From (included)';
             if (to)
-                from.innerText += ' To/Before (included)';
+                to.innerText += ' To/Before (included)';
         })();
         (function addIssueInvoiceBtn() {
             const btnIssue = document.createElement('button');
