@@ -183,20 +183,20 @@ async function invoice(issue = false) {
         const discount = parseInt(inputs.find(input => input.id === 'discount')?.value || '0%');
         const lang = inputs.find(input => input.dataset.language && input.checked === true)?.dataset.language || 'FR';
         TableRows = await fetchExcelTableWithGraphAPI(accessToken, workbookPath, tableName); //We fetch the table again in case there where changes made since it was fetched the first time when the userform was inserted
-        const [wordRows, totalsRows, adress] = filterExcelData(TableRows, criteria, discount, lang);
+        const [wordRows, totalsRows, filtered] = filterExcelData(TableRows, criteria, discount, lang);
         const date = new Date();
         const invoice = {
             number: getInvoiceNumber(date),
             clientName: getInputValue(0, criteria),
             matters: getArray(getInputValue(1, criteria)),
-            adress: adress,
+            adress: getUniqueValues(15, filtered),
             lang: lang
         };
         const contentControls = getContentControlsValues(invoice, date);
         const filePath = `${destinationFolder}/${getInvoiceFileName(invoice.clientName, invoice.matters, invoice.number)}`;
         await createAndUploadXmlDocument(wordRows, contentControls, accessToken, templatePath, filePath, totalsRows);
         (function filterTable() {
-            const matters = getUniqueValues(1, wordRows).map(matter => `'${matter}'`).join(' or ');
+            const matters = getUniqueValues(1, filtered).map(matter => `'${matter}'`).join(' or ');
             [0, 1].map(async (index) => await filterExcelTable(workbookPath, tableName, TableRows[0][index], matters, accessToken));
         })();
         /**
@@ -209,7 +209,7 @@ async function invoice(issue = false) {
         function filterExcelData(data, criteria, discount, lang) {
             //Filtering by Client (criteria[0])
             data = data.filter(row => row[getIndex(criteria[0])] === criteria[0].value);
-            const adress = getUniqueValues(15, data); //!We retrieve the adresse at this stage before filtering by "Matter" or any other criteria
+            const adress = getUniqueValues(15, data); //!We must retrieve the adresses at this stage before filtering by "Matter" or any other column
             [1, 2].forEach(index => {
                 //!Matter and Nature inputs (from columns 2 & 3 of the Excel table) may include multiple entries separated by ', ' not only one entry.
                 const list = criteria[index].value.split(',').map(el => el.trimStart().trimEnd()); //We generate a string[] from the input.value
@@ -217,7 +217,7 @@ async function invoice(issue = false) {
             });
             //We finaly filter by date
             data = filterByDate(data);
-            return [...getRowsData(data, discount, lang), adress];
+            return [...getRowsData(data, discount, lang), data];
             function filterByDate(data) {
                 const convertDate = (date) => dateFromExcel(Number(date)).getTime();
                 const [from, to] = criteria

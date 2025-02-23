@@ -208,7 +208,7 @@ async function invoice(issue: boolean = false) {
 
         TableRows = await fetchExcelTableWithGraphAPI(accessToken, workbookPath, tableName) as string[][];//We fetch the table again in case there where changes made since it was fetched the first time when the userform was inserted
 
-        const [wordRows, totalsRows, adress] = filterExcelData(TableRows, criteria, discount, lang);
+        const [wordRows, totalsRows, filtered] = filterExcelData(TableRows, criteria, discount, lang);
 
         const date = new Date();
 
@@ -216,7 +216,7 @@ async function invoice(issue: boolean = false) {
             number: getInvoiceNumber(date),
             clientName: getInputValue(0, criteria),
             matters: getArray(getInputValue(1, criteria)),
-            adress: adress,
+            adress: getUniqueValues(15, filtered) as string[],
             lang: lang
         }
         const contentControls = getContentControlsValues(invoice, date);
@@ -226,7 +226,7 @@ async function invoice(issue: boolean = false) {
         await createAndUploadXmlDocument(wordRows, contentControls, accessToken, templatePath, filePath, totalsRows);
 
         (function filterTable() { 
-            const matters = getUniqueValues(1, wordRows).map(matter =>`'${matter}'`).join(' or ');
+            const matters = getUniqueValues(1, filtered).map(matter =>`'${matter}'`).join(' or ');
             [0, 1].map(async index =>
               await filterExcelTable(workbookPath, tableName, TableRows[0][index], matters, accessToken));
           })();
@@ -238,11 +238,11 @@ async function invoice(issue: boolean = false) {
          * @param {string} lang - The language in which the invoice will be issued 
          * @returns {string[][]} - The values of the rows that will be added to the Word table in the invoice template
          */
-        function filterExcelData(data: any[][], criteria: HTMLInputElement[], discount:number, lang: string):[string[][], string[], string[]] {
+        function filterExcelData(data: any[][], criteria: HTMLInputElement[], discount:number, lang: string):[string[][], string[], any[][]] {
 
             //Filtering by Client (criteria[0])
             data = data.filter(row => row[getIndex(criteria[0])] === criteria[0].value);
-            const adress = getUniqueValues(15, data);//!We retrieve the adresse at this stage before filtering by "Matter" or any other criteria
+            const adress = getUniqueValues(15, data);//!We must retrieve the adresses at this stage before filtering by "Matter" or any other column
 
             [1, 2].forEach(index => {
                 //!Matter and Nature inputs (from columns 2 & 3 of the Excel table) may include multiple entries separated by ', ' not only one entry.
@@ -252,7 +252,7 @@ async function invoice(issue: boolean = false) {
             //We finaly filter by date
             data = filterByDate(data);
 
-            return [...getRowsData(data, discount, lang), adress];
+            return [...getRowsData(data, discount, lang), data];
 
             function filterByDate(data: string[][]) {
                 
