@@ -470,7 +470,10 @@ function getRowsData(tableData, discount, lang) {
     function getAmountString(value) {
         if (isNaN(value))
             return '';
-        const amount = value.toFixed(2).replace('.', labels.decimal[lang]);
+        const amount = value.toLocaleString(`${lang.toLowerCase()}-${lang.toUpperCase()}`, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
         const versions = {
             FR: `${amount}\u00A0€`,
             EN: `€\u00A0${amount}`,
