@@ -208,7 +208,7 @@ async function invoice(issue: boolean = false) {
 
         TableRows = await fetchExcelTableWithGraphAPI(accessToken, workbookPath, tableName) as string[][];//We fetch the table again in case there where changes made since it was fetched the first time when the userform was inserted
 
-        const filtered = filterExcelData(TableRows, criteria, discount, lang);
+        const [filtered, totals] = filterExcelData(TableRows, criteria, discount, lang);
 
         const date = new Date();
 
@@ -216,14 +216,14 @@ async function invoice(issue: boolean = false) {
             number: getInvoiceNumber(date),
             clientName: getInputValue(0, criteria),
             matters: getArray(getInputValue(1, criteria)),
-            adress: getArray(getInputValue(15, criteria)),
+            adress: getUniqueValues(15, filtered),
             lang: lang
         }
         const contentControls = getContentControlsValues(invoice, date);
 
         const filePath = `${destinationFolder}/${getInvoiceFileName(invoice.clientName, invoice.matters, invoice.number)}`;
 
-        await createAndUploadXmlDocument(filtered, contentControls, accessToken, templatePath, filePath);
+        await createAndUploadXmlDocument(filtered, contentControls, accessToken, templatePath, filePath, totals);
 
         (function filterTable() { 
             const matters = getUniqueValues(1, filtered).map(matter =>`'${matter}'`).join(' or ');
@@ -430,7 +430,7 @@ function inputOnChange(index: number, table: any[][] | undefined, invoice: boole
 };
 
 
-async function createAndUploadXmlDocument(rows: string[][], contentControls: string[][], accessToken: string, templatePath: string, filePath: string) {
+async function createAndUploadXmlDocument(rows: string[][], contentControls: string[][], accessToken: string, templatePath: string, filePath: string, totals:string[] = []) {
 
     if (!accessToken) return;
     const schema = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
@@ -445,11 +445,11 @@ async function createAndUploadXmlDocument(rows: string[][], contentControls: str
         if (!doc) return;
         const table = getXMLElement(doc, "w:tbl", 0);
 
-        rows.forEach((row, x) => {
+        rows.forEach((row, index) => {
             const newXmlRow = insertRowToXMLTable(doc, table);
             if (!newXmlRow) return;
-            const isTotal = row[0]?.startsWith('Total');
-            const isLast = x === rows.length - 1;
+            const isTotal = totals.includes(row[0]);
+            const isLast = index === rows.length - 1;
             row.forEach((text, index) => {
                 addCellToXMLTableRow(doc, newXmlRow, getStyle(index, isTotal), [isTotal, isLast].includes(true), text)
             })

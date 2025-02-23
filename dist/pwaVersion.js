@@ -183,18 +183,18 @@ async function invoice(issue = false) {
         const discount = parseInt(inputs.find(input => input.id === 'discount')?.value || '0%');
         const lang = inputs.find(input => input.dataset.language && input.checked === true)?.dataset.language || 'FR';
         TableRows = await fetchExcelTableWithGraphAPI(accessToken, workbookPath, tableName); //We fetch the table again in case there where changes made since it was fetched the first time when the userform was inserted
-        const filtered = filterExcelData(TableRows, criteria, discount, lang);
+        const [filtered, totals] = filterExcelData(TableRows, criteria, discount, lang);
         const date = new Date();
         const invoice = {
             number: getInvoiceNumber(date),
             clientName: getInputValue(0, criteria),
             matters: getArray(getInputValue(1, criteria)),
-            adress: getArray(getInputValue(15, criteria)),
+            adress: getUniqueValues(15, filtered),
             lang: lang
         };
         const contentControls = getContentControlsValues(invoice, date);
         const filePath = `${destinationFolder}/${getInvoiceFileName(invoice.clientName, invoice.matters, invoice.number)}`;
-        await createAndUploadXmlDocument(filtered, contentControls, accessToken, templatePath, filePath);
+        await createAndUploadXmlDocument(filtered, contentControls, accessToken, templatePath, filePath, totals);
         (function filterTable() {
             const matters = getUniqueValues(1, filtered).map(matter => `'${matter}'`).join(' or ');
             [0, 1].map(async (index) => await filterExcelTable(workbookPath, tableName, TableRows[0][index], matters, accessToken));
@@ -363,7 +363,7 @@ function inputOnChange(index, table, invoice) {
     }
 }
 ;
-async function createAndUploadXmlDocument(rows, contentControls, accessToken, templatePath, filePath) {
+async function createAndUploadXmlDocument(rows, contentControls, accessToken, templatePath, filePath, totals = []) {
     if (!accessToken)
         return;
     const schema = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
@@ -377,12 +377,12 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
         if (!doc)
             return;
         const table = getXMLElement(doc, "w:tbl", 0);
-        rows.forEach((row, x) => {
+        rows.forEach((row, index) => {
             const newXmlRow = insertRowToXMLTable(doc, table);
             if (!newXmlRow)
                 return;
-            const isTotal = row[0]?.startsWith('Total');
-            const isLast = x === rows.length - 1;
+            const isTotal = totals.includes(row[0]);
+            const isLast = index === rows.length - 1;
             row.forEach((text, index) => {
                 addCellToXMLTableRow(doc, newXmlRow, getStyle(index, isTotal), [isTotal, isLast].includes(true), text);
             });

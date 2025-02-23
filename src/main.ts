@@ -352,7 +352,8 @@ async function generateInvoice() {
   };
 
   const filePath = `${destinationFolder}/${getInvoiceFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`
-  await createAndUploadXmlDocument(getRowsData(visible, discount, lang), getContentControlsValues(invoiceDetails, new Date()), await getAccessToken() || '', templatePath, filePath);
+  const [rows, totals] = getRowsData(visible, discount, lang);
+  await createAndUploadXmlDocument(rows, getContentControlsValues(invoiceDetails, new Date()), await getAccessToken() || '', templatePath, filePath, totals);
 
 }
 /**
@@ -361,14 +362,14 @@ async function generateInvoice() {
  * @param {string} lang - The language in which the invoice will issued
  * @returns {string[][]} - the rows to be added to the table. Each row has 4 elements
  */
-function getRowsData(tableData: any[][], discount: number, lang: string): string[][] {
+function getRowsData(tableData: any[][], discount: number, lang: string): [string[][], string[]] {
   type lable = {
     FR: string;
     EN: string;
     nature:string
   }
   
-  const lables:{[index:string]: lable} = {
+  const labels:{[index:string]: lable} = {
     totalFees: {
       nature: 'Honoraire',
       FR: 'Total honoraires',
@@ -440,7 +441,7 @@ function getRowsData(tableData: any[][], discount: number, lang: string): string
 
     //If the billable hours are > 0, we add to the description: time spent and hourly rate
     if (time)
-      description += `(${lables.hourlyBilled[lang as keyof lable]} ${time} ${lables.hourlyRate[lang as keyof lable]} ${Math.abs(row[rate]).toString()}\u00A0€)`;
+      description += `(${labels.hourlyBilled[lang as keyof lable]} ${time} ${labels.hourlyRate[lang as keyof lable]} ${Math.abs(row[rate]).toString()}\u00A0€)`;
 
 
     const rowValues: string[] = [
@@ -453,26 +454,27 @@ function getRowsData(tableData: any[][], discount: number, lang: string): string
   });
 
   pushTotalsRows();
-  return data
+  
+  return [data, Object.values(labels).map(value => value[lang as keyof lable])];
 
   function pushTotalsRows() {
     //Adding rows for the totals of the different categories and amounts
-    const totalFee = getTotals(amount, lables.totalFees.nature);
-    const totalFeeVAT = getTotals(vat, lables.totalFees.nature);
-    const totalPayments = getTotals(amount, lables.totalPayments.nature);
-    const totalPaymentsVAT = getTotals(vat, lables.totalPayments.nature);
-    const totalExpenses = getTotals(amount, lables.totalExpenses.nature);
-    const totalExpensesVAT = getTotals(vat, lables.totalExpenses.nature);
+    const totalFee = getTotals(amount, labels.totalFees.nature);
+    const totalFeeVAT = getTotals(vat, labels.totalFees.nature);
+    const totalPayments = getTotals(amount, labels.totalPayments.nature);
+    const totalPaymentsVAT = getTotals(vat, labels.totalPayments.nature);
+    const totalExpenses = getTotals(amount, labels.totalExpenses.nature);
+    const totalExpensesVAT = getTotals(vat, labels.totalExpenses.nature);
     const totalTimeSpent = getTotals(hours, null);//by passing the nature = null, we do not filter the "Total Time" column by any crieteria. We will get the sum of all the column.
     const totalDue = totalFee + totalExpenses + totalPayments;
     const totalDueVAT = totalFeeVAT + totalExpensesVAT;
     const insert = (sum: number) => Math.abs(sum) > 0;
     
     (function subTotalsRows() {
-      push(insert(totalFee), lables.totalFees, totalFee, totalFeeVAT);
-      push(insert(totalExpenses), lables.totalExpenses, totalExpenses, totalExpensesVAT);
-      push(insert(totalPayments), lables.totalPayments, Math.abs(totalPayments), totalPaymentsVAT);
-      push(insert(totalTimeSpent), lables.totalTimeSpent, Math.abs(totalTimeSpent), NaN);//!We don't pass the vat argument in order to get the corresponding cell of the Word table empty
+      push(insert(totalFee), labels.totalFees, totalFee, totalFeeVAT);
+      push(insert(totalExpenses), labels.totalExpenses, totalExpenses, totalExpensesVAT);
+      push(insert(totalPayments), labels.totalPayments, Math.abs(totalPayments), totalPaymentsVAT);
+      push(insert(totalTimeSpent), labels.totalTimeSpent, Math.abs(totalTimeSpent), NaN);//!We don't pass the vat argument in order to get the corresponding cell of the Word table empty
     })();
 
     (function dueRow() { 
@@ -484,9 +486,9 @@ function getRowsData(tableData: any[][], discount: number, lang: string): string
 
         if (!insert(deduction)) return totalDueRow(totalDue, totalDueVAT);//If the total fee is 0 for whatever reason, it means that deduction will be = 0. In such case we return the "Total Due" row as if there were no deduction applied.
     
-        push(true, lables.FeesDeduction, deduction *-1, deductionVAT * -1, lables.discountDescription);//We add a description for this row. This is the amount that will be deducted from the fee and from the fee pplied on the fee
+        push(true, labels.FeesDeduction, deduction *-1, deductionVAT * -1, labels.discountDescription);//We add a description for this row. This is the amount that will be deducted from the fee and from the fee pplied on the fee
 
-        push(true, lables.totalFeesAfterDeduction, (totalFee - deduction), (totalFeeVAT - deductionVAT));//This is the amount that will be deducted from the fee and from the fee pplied on the fee. 
+        push(true, labels.totalFeesAfterDeduction, (totalFee - deduction), (totalFeeVAT - deductionVAT));//This is the amount that will be deducted from the fee and from the fee pplied on the fee. 
 
         totalDueRow(totalDue - deduction, totalDueVAT - deductionVAT);
         addDiscountRowToExcel(deduction, deductionVAT)
@@ -510,8 +512,8 @@ function getRowsData(tableData: any[][], discount: number, lang: string): string
     }
 
     function totalDueRow(total:number, vat:number){
-      total >= 0 ? push(true, lables.totalDue, total, vat)
-        : push(true, lables.totalReinbursement, total, vat)
+      total >= 0 ? push(true, labels.totalDue, total, vat)
+        : push(true, labels.totalReinbursement, total, vat)
     }
  
     function push(insert: boolean, label: lable, amount: number, vat: number, description?:lable) {
@@ -520,7 +522,7 @@ function getRowsData(tableData: any[][], discount: number, lang: string): string
         [
           label?.[lang as keyof lable] ||'',
           description?.[lang as keyof lable] || '',
-          label === lables.totalTimeSpent? getTimeSpent(amount) : getAmountString(amount),
+          label === labels.totalTimeSpent? getTimeSpent(amount) : getAmountString(amount),
           getAmountString(Math.abs(vat)), //Column VAT: always a positive value
         ]);
       
@@ -541,7 +543,7 @@ function getRowsData(tableData: any[][], discount: number, lang: string): string
 
   function getAmountString(value: number): string {
     if (isNaN(value)) return '';
-    return '€\u00A0' + value.toFixed(2).replace('.', lables.decimal[lang as keyof lable]);
+    return '€\u00A0' + value.toFixed(2).replace('.', labels.decimal[lang as keyof lable]);
 }
 
   /**
@@ -573,7 +575,7 @@ function getContentControlsValues(invoice: { number: string, clientName: string,
     },
     numberLabel: {
       title: 'LabelInvoiceNumber',
-      text: { FR: 'Facturen n°\u00A0', EN: 'Invoice No.:' }[invoice.lang] || '',
+      text: { FR: 'Facture n°\u00A0:', EN: 'Invoice No.:' }[invoice.lang] || '',
     },
     number: {
       title: 'RTInvoiceNumber',
@@ -581,7 +583,7 @@ function getContentControlsValues(invoice: { number: string, clientName: string,
     },
     subjectLable: {
       title: 'LabelSubject',
-      text: { FR: 'Objet\u00A0: ', EN: 'Subject: ' }[invoice.lang] || '',
+      text: { FR: 'Affaires\u00A0: ', EN: 'Matters: ' }[invoice.lang] || '',
     },
     subject: {
       title: 'RTMatter',
