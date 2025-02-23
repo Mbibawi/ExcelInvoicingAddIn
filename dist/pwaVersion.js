@@ -89,8 +89,7 @@ async function addNewEntry(add = false, rows) {
             await addRowToExcelTableWithGraphAPI(row, TableRows.length - 2, workbookPath, tableName, accessToken);
             [0, 1].map(async (index) => {
                 //!We use map because forEach doesn't await
-                //@ts-ignore
-                await filterExcelTable(workbookPath, tableName, TableRows[0][index], row[index].toString(), accessToken);
+                await filterExcelTable(workbookPath, tableName, TableRows[0]?.[index], row[index]?.toString(), accessToken);
             });
             alert('Row aded and table was filtered');
         }
@@ -236,9 +235,9 @@ async function invoice(issue = false) {
             const [from, to] = Array.from(document.getElementsByTagName('label'))
                 ?.filter(label => label.htmlFor.endsWith('3'));
             if (from)
-                from.innerText += ' From/Before (included)';
+                to.innerText += ' From (included)';
             if (to)
-                to.innerText += ' To (included)';
+                from.innerText += ' To/Before (included)';
         })();
         (function addIssueInvoiceBtn() {
             const btnIssue = document.createElement('button');

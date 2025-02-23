@@ -236,7 +236,6 @@ function createDataList(id, uniqueValues, multiple = false) {
     if (dataList)
         dataList.remove();
     dataList = document.createElement('datalist');
-    //@ts-ignore
     dataList.id = id;
     // Append options to the datalist
     uniqueValues.forEach(option => addOption(option));
@@ -330,28 +329,34 @@ function getRowsData(tableData, discount, lang) {
             EN: 'Total Payments'
         },
         totalTimeSpent: {
+            nature: '',
             FR: 'Total des heures facturables (hors prestations facturées au forfait) ',
             EN: 'Total billable hours (other than lump-sum billed services)'
         },
         totalDue: {
+            nature: '',
             FR: 'Montant dû',
             EN: 'Total Due'
         },
         totalReinbursement: {
+            nature: '',
             FR: 'A rembourser',
             EN: 'To reimburse'
         },
-        deductedFees: {
+        FeesDeduction: {
+            nature: '',
             FR: 'Remise sur les honoraires',
             EN: 'Fees discount'
         },
         totalFeesAfterDeduction: {
+            nature: '',
             FR: 'Total des honoraires après remise',
             EN: 'Total fee after discount'
         },
-        discountRate: {
-            FR: 'Taux de remise',
-            EN: 'Discount rate'
+        discountDescription: {
+            nature: '',
+            FR: `${discount.toString()}% de remise sur les honoraries`,
+            EN: `${discount.toString()}% discount on accrued fees`
         },
         hourlyBilled: {
             nature: '',
@@ -376,7 +381,6 @@ function getRowsData(tableData, discount, lang) {
         let description = `${String(row[nature])} : ${String(row[descr])}`; //Column Nature + Column Description;
         //If the billable hours are > 0, we add to the description: time spent and hourly rate
         if (time)
-            //@ts-ignore
             description += `(${lables.hourlyBilled[lang]} ${time} ${lables.hourlyRate[lang]} ${Math.abs(row[rate]).toString()}\u00A0€)`;
         const rowValues = [
             [date.getDate(), date.getMonth() + 1, date.getFullYear()].map(el => el.toString().padStart(2, '0')).join('/'), //Column Date
@@ -404,19 +408,18 @@ function getRowsData(tableData, discount, lang) {
             push(insert(totalFee), lables.totalFees, totalFee, totalFeeVAT);
             push(insert(totalExpenses), lables.totalExpenses, totalExpenses, totalExpensesVAT);
             push(insert(totalPayments), lables.totalPayments, Math.abs(totalPayments), totalPaymentsVAT);
-            push(insert(totalTimeSpent), lables.totalTimeSpent, Math.abs(totalTimeSpent), undefined); //!We don't pass the vat argument in order to get the corresponding cell of the Word table empty
+            push(insert(totalTimeSpent), lables.totalTimeSpent, Math.abs(totalTimeSpent), NaN); //!We don't pass the vat argument in order to get the corresponding cell of the Word table empty
         })();
         (function dueRow() {
             if (!discount)
-                return totalDueRow(totalDue, totalDueVAT); //If there is no discount to be applied on the fees, we return
+                return totalDueRow(totalDue, totalDueVAT); //If there is no discount to be applied on the fees, we return the "Total Due" row;
             const feeDiscount = (fee) => fee * (discount / 100); //returns the amount to be deducted from the fees or from the VAT on the fees as a negative number
             const deduction = feeDiscount(totalFee);
             const deductionVAT = feeDiscount(totalFeeVAT);
             if (!insert(deduction))
                 return totalDueRow(totalDue, totalDueVAT); //If the total fee is 0 for whatever reason, it means that deduction will be = 0. In such case we return the "Total Due" row as if there were no deduction applied.
-            push(true, lables.discountRate, discount, undefined, true); //This is the row indicating the discount rate applied on the fees. isRate = true in order to get a % not an amount string. 
-            push(true, lables.deductedFees, deduction * -1, deductionVAT * -1); //This is the amount that will be deducted from the fee and from the fee pplied on the fee
-            push(true, lables.totalFeesAfterDeduction, totalFee - deduction, totalFeeVAT - deductionVAT); //This is the amount that will be deducted from the fee and from the fee pplied on the fee. 
+            push(true, lables.FeesDeduction, deduction * -1, deductionVAT * -1, lables.discountDescription); //We add a description for this row. This is the amount that will be deducted from the fee and from the fee pplied on the fee
+            push(true, lables.totalFeesAfterDeduction, (totalFee - deduction), (totalFeeVAT - deductionVAT)); //This is the amount that will be deducted from the fee and from the fee pplied on the fee. 
             totalDueRow(totalDue - deduction, totalDueVAT - deductionVAT);
             addDiscountRowToExcel(deduction, deductionVAT);
         })();
@@ -431,9 +434,9 @@ function getRowsData(tableData, discount, lang) {
                 else if ([3, 4].includes(index))
                     return getISODate(new Date());
                 else if (index === 9)
-                    return amount * -1;
+                    return amount; //When the amount represents a fee or expense billed to the client,  it is a negative value. That's why in this case we will add it as a positive value in order to deduct the it from the already billed fees 
                 else if (index === 10)
-                    return vat * -1;
+                    return vat * -1; //VAT is usually added as a positive value, but since we want to deduct this amount from the total VAT, we will add it as a negative value
                 else
                     undefined;
             });
@@ -443,25 +446,15 @@ function getRowsData(tableData, discount, lang) {
             total >= 0 ? push(true, lables.totalDue, total, vat)
                 : push(true, lables.totalReinbursement, total, vat);
         }
-        function push(insert, label, amount, vat, isRate = false) {
+        function push(insert, label, amount, vat, description) {
             if (!insert)
                 return;
             data.push([
-                //@ts-ignore
-                label[lang],
-                '',
-                valueString(amount),
-                //@ts-ignore
-                valueString(Math.abs(vat)), //Column VAT: always a positive value
+                label?.[lang] || '',
+                description?.[lang] || '',
+                label === lables.totalTimeSpent ? getTimeSpent(amount) : getAmountString(amount),
+                getAmountString(Math.abs(vat)), //Column VAT: always a positive value
             ]);
-            function valueString(amount) {
-                if (isRate)
-                    return amount.toString() + '%';
-                else if (label === lables.totalTimeSpent)
-                    return getTimeSpent(amount);
-                else
-                    return getAmountString(amount);
-            }
         }
         function getTotals(index, nature) {
             const total = tableData.filter(row => nature ? nature.split(', ').includes(row[2]) : row === row)
@@ -474,10 +467,9 @@ function getRowsData(tableData, discount, lang) {
         }
     }
     function getAmountString(value) {
-        if (Math.abs(Number(value)) >= 0)
-            //@ts-expect-error
-            return '€\u00A0' + Number(value).toFixed(2).replace('.', lables.decimal[lang]);
-        return '';
+        if (isNaN(value))
+            return '';
+        return '€\u00A0' + value.toFixed(2).replace('.', lables.decimal[lang]);
     }
     /**
      * Convert the time as retrieved from an Excel cell into 'hh:mm' format

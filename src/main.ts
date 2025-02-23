@@ -274,7 +274,6 @@ function createDataList(id: string, uniqueValues: string[], multiple: boolean = 
   let dataList = Array.from(document.getElementsByTagName('datalist')).find(list => list.id === id);
   if (dataList) dataList.remove();
   dataList = document.createElement('datalist');
-  //@ts-ignore
   dataList.id = id;
   // Append options to the datalist
   uniqueValues.forEach(option => addOption(option));
@@ -338,7 +337,7 @@ function getArray(value: string): string[] {
 async function generateInvoice() {
   const inputs = Array.from(document.getElementsByName('input')) as HTMLInputElement[];
   if (!inputs) return;
-  const lang: string = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.id.slice(0, 3).toUpperCase() || 'FR';
+  const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.id.slice(0, 3).toUpperCase() || 'FR';
 
   const discount = parseInt(inputs.find(input => input.id = 'discount')?.value || '0%');
 
@@ -362,7 +361,12 @@ async function generateInvoice() {
  * @param {string} lang - The language in which the invoice will issued
  * @returns {string[][]} - the rows to be added to the table. Each row has 4 elements
  */
-function getRowsData(tableData: any[][], discount:number, lang: string): string[][] {
+function getRowsData(tableData: any[][], discount: number, lang: string): string[][] {
+  type lable = {
+    FR: string,
+    EN: string,
+    nature?:string
+  }
   const lables = {
     totalFees: {
       nature: 'Honoraire',
@@ -380,28 +384,34 @@ function getRowsData(tableData: any[][], discount:number, lang: string): string[
       EN: 'Total Payments'
     },
     totalTimeSpent: {
+      nature:'',
       FR: 'Total des heures facturables (hors prestations facturées au forfait) ',
       EN: 'Total billable hours (other than lump-sum billed services)'
     },
     totalDue: {
+      nature:'',
       FR: 'Montant dû',
       EN: 'Total Due'
     },
     totalReinbursement: {
+      nature:'',
       FR: 'A rembourser',
       EN: 'To reimburse'
     },
-    deductedFees: {
+    FeesDeduction: {
+      nature: '',
       FR: 'Remise sur les honoraires',
       EN: 'Fees discount'
     },
     totalFeesAfterDeduction: {
+      nature: '',
       FR: 'Total des honoraires après remise',
       EN: 'Total fee after discount'
     },
-    discountRate: {
-      FR: 'Taux de remise',
-      EN: 'Discount rate'
+    discountDescription: {
+      nature: '',
+      FR: `${discount.toString()}% de remise sur les honoraries`,
+      EN: `${discount.toString()}% discount on accrued fees`
     },
     hourlyBilled: {
       nature: '',
@@ -429,8 +439,7 @@ function getRowsData(tableData: any[][], discount:number, lang: string): string[
 
     //If the billable hours are > 0, we add to the description: time spent and hourly rate
     if (time)
-      //@ts-ignore
-      description += `(${lables.hourlyBilled[lang]} ${time} ${lables.hourlyRate[lang]} ${Math.abs(row[rate]).toString()}\u00A0€)`;
+      description += `(${lables.hourlyBilled[lang as 'FR' | 'EN']} ${time} ${lables.hourlyRate[lang as 'FR' | 'EN']} ${Math.abs(row[rate]).toString()}\u00A0€)`;
 
 
     const rowValues: string[] = [
@@ -462,22 +471,21 @@ function getRowsData(tableData: any[][], discount:number, lang: string): string[
       push(insert(totalFee), lables.totalFees, totalFee, totalFeeVAT);
       push(insert(totalExpenses), lables.totalExpenses, totalExpenses, totalExpensesVAT);
       push(insert(totalPayments), lables.totalPayments, Math.abs(totalPayments), totalPaymentsVAT);
-      push(insert(totalTimeSpent), lables.totalTimeSpent, Math.abs(totalTimeSpent), undefined);//!We don't pass the vat argument in order to get the corresponding cell of the Word table empty
+      push(insert(totalTimeSpent), lables.totalTimeSpent, Math.abs(totalTimeSpent), NaN);//!We don't pass the vat argument in order to get the corresponding cell of the Word table empty
     })();
 
       (function dueRow() { 
-        if (!discount) return totalDueRow(totalDue, totalDueVAT);//If there is no discount to be applied on the fees, we return
+        if (!discount) return totalDueRow(totalDue, totalDueVAT);//If there is no discount to be applied on the fees, we return the "Total Due" row;
+
         const feeDiscount = (fee: number) => fee * (discount/100);//returns the amount to be deducted from the fees or from the VAT on the fees as a negative number
         const deduction = feeDiscount(totalFee);
         const deductionVAT = feeDiscount(totalFeeVAT);
 
         if (!insert(deduction)) return totalDueRow(totalDue, totalDueVAT);//If the total fee is 0 for whatever reason, it means that deduction will be = 0. In such case we return the "Total Due" row as if there were no deduction applied.
     
-        push(true, lables.discountRate, discount, undefined, true);//This is the row indicating the discount rate applied on the fees. isRate = true in order to get a % not an amount string. 
-    
-        push(true, lables.deductedFees, deduction *-1, deductionVAT * -1);//This is the amount that will be deducted from the fee and from the fee pplied on the fee
+        push(true, lables.FeesDeduction, deduction *-1, deductionVAT * -1, lables.discountDescription);//We add a description for this row. This is the amount that will be deducted from the fee and from the fee pplied on the fee
 
-        push(true, lables.totalFeesAfterDeduction, totalFee - deduction, totalFeeVAT - deductionVAT);//This is the amount that will be deducted from the fee and from the fee pplied on the fee. 
+        push(true, lables.totalFeesAfterDeduction, (totalFee - deduction), (totalFeeVAT - deductionVAT));//This is the amount that will be deducted from the fee and from the fee pplied on the fee. 
 
         totalDueRow(totalDue - deduction, totalDueVAT - deductionVAT);
         addDiscountRowToExcel(deduction, deductionVAT)
@@ -491,8 +499,8 @@ function getRowsData(tableData: any[][], discount:number, lang: string): string[
             return cell
           else if (index === 2) return 'Réduction';
           else if ([3,4].includes(index)) return getISODate(new Date());
-          else if (index === 9) return amount *-1;
-          else if (index === 10) return vat * -1;
+          else if (index === 9) return amount;//When the amount represents a fee or expense billed to the client,  it is a negative value. That's why in this case we will add it as a positive value in order to deduct the it from the already billed fees 
+          else if (index === 10) return vat * -1;//VAT is usually added as a positive value, but since we want to deduct this amount from the total VAT, we will add it as a negative value
           else undefined
         });
       
@@ -505,24 +513,16 @@ function getRowsData(tableData: any[][], discount:number, lang: string): string[
         : push(true, lables.totalReinbursement, total, vat)
     }
  
-    function push(insert: boolean, label: { FR: string, EN: string }, amount: number, vat?: number, isRate = false) {
+    function push(insert: boolean, label: lable, amount: number, vat: number, description?:lable) {
       if (!insert) return;
       data.push(
         [
-          //@ts-ignore
-          label[lang],
-          '',
-         valueString(amount),
-          //@ts-ignore
-          valueString(Math.abs(vat)), //Column VAT: always a positive value
+          label?.[lang as keyof lable] ||'',
+          description?.[lang as keyof lable] || '',
+          label === lables.totalTimeSpent? getTimeSpent(amount) : getAmountString(amount),
+          getAmountString(Math.abs(vat)), //Column VAT: always a positive value
         ]);
       
-      function valueString(amount:number) {
-        if (isRate) return amount.toString() + '%';
-        else if (label === lables.totalTimeSpent)
-          return getTimeSpent(amount);
-        else return getAmountString(amount);
-      }
     }
 
 
@@ -539,12 +539,10 @@ function getRowsData(tableData: any[][], discount:number, lang: string): string[
 
   }
 
-  function getAmountString(value: string | number): string {
-    if (Math.abs(Number(value)) >= 0)
-      //@ts-expect-error
-      return '€\u00A0' + Number(value).toFixed(2).replace('.', lables.decimal[lang]);
-    return ''
-  }
+  function getAmountString(value: number): string {
+    if (isNaN(value)) return '';
+    return '€\u00A0' + value.toFixed(2).replace('.', lables.decimal[lang as 'FR' | 'EN']);
+}
 
   /**
    * Convert the time as retrieved from an Excel cell into 'hh:mm' format
