@@ -628,6 +628,7 @@ function getContentControlsValues(invoice: { number: string, clientName: string,
 function getUniqueValues(index: number, array: any[][]): any[] {
   if (!array) array = [];
   return Array.from(new Set(array.map(row => row[index])))
+    .map(el => el)//we remove empty strings/values
 };
 
 /**
