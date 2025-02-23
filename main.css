@@ -12,7 +12,7 @@ section.samples {
     width: 100%;
     align-self: center;
     min-height: none;
-    padding: 5px;
+    padding: 9px;
     border-radius: 5px;
     margin: 3px;
 }
@@ -52,6 +52,7 @@ section.samples {
     min-height: 4vh;
     font-size: 12pt;
     font-family: serif;
+    border-radius: 7px;
   }
 
   label{
