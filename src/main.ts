@@ -619,7 +619,7 @@ function getContentControlsValues(invoice: { number: string, clientName: string,
     },
     adress: {
       title: 'RTClientAdresse',
-      text: invoice.adress.join('\/n'),
+      text: invoice.adress.join(' & '),
     },
   };
   return Object.keys(fields).map(key => [fields[key].title, fields[key].text]);
