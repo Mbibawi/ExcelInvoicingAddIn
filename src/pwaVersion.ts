@@ -480,7 +480,7 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
 
     if (!blob) return;
 
-    const [doc, zip] = convertBlobIntoXML(blob);
+    const [doc, zip] = await convertBlobIntoXML(blob);
 
     if (!doc) return;
 

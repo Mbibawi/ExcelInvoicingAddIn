@@ -413,7 +413,7 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
     const blob = await fetchFileFromOneDriveWithGraphAPI(accessToken, templatePath);
     if (!blob)
         return;
-    const [doc, zip] = convertBlobIntoXML(blob);
+    const [doc, zip] = await convertBlobIntoXML(blob);
     if (!doc)
         return;
     (function editTable() {
