@@ -348,7 +348,7 @@ async function issueLetter(create = false) {
         const fileName = prompt('Provide the file name without special characthers');
         if (!fileName)
             return;
-        const filePath = `${prompt('Provide the destination folder', "Legal/Mon Cabinet d'Avocat/Clients")}/${fileName}`;
+        const filePath = `${prompt('Provide the destination folder', "Legal/Mon Cabinet d'Avocat/Clients")}/${fileName}.docx`;
         if (!filePath)
             return;
         const contentControls = [['RTCoreText', input.value], ['RTReference', ''], ['RTClientName']];
