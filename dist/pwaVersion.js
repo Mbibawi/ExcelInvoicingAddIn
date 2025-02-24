@@ -1,6 +1,4 @@
 "use strict";
-// Authentication
-//const accessToken = getAccessToken();
 function getAccessToken() {
     const clientId = "157dd297-447d-4592-b2d3-76b643b97132";
     const redirectUri = "https://mbibawi.github.io/ExcelInvoicingAddIn"; //!must be the same domain as the app
@@ -297,6 +295,9 @@ async function invoice(issue = false) {
                     if (!checkBox)
                         return;
                     input.dataset.language = index.toString().slice(0, 2).toUpperCase();
+                    input.onchange = () => Array.from(document.getElementsByTagName('input'))
+                        .filter((checkBox) => checkBox.dataset.language && checkBox !== input)
+                        .forEach(checkBox => checkBox.checked = false);
                 })();
                 form?.appendChild(input);
                 return input;
@@ -331,8 +332,9 @@ function inputOnChange(index, table, invoice) {
             const input = getInputByIndex(inputs, i);
             if (!input)
                 return;
-            input.valueAsNumber = 0;
             input.value = '';
+            if (input.valueAsNumber)
+                input.valueAsNumber = 0;
         }
     }
     if (!table)
@@ -352,11 +354,6 @@ function inputOnChange(index, table, invoice) {
     if (filtered.length < 1)
         return;
     boundInputs.map(input => createDataList(input?.id, getUniqueValues(getIndex(input), filtered), invoice));
-    /* if (invoice) {
-        const nature = getInputByIndex(inputs, 2);//We get the nature input in order to fill automaticaly its values by a ', ' separated string
-        if (!nature) return;
-        nature.value = Array.from(document.getElementById(nature?.id + 's')?.children as HTMLCollectionOf<HTMLOptionElement>)?.map((option) => option.value).join(', ');
-    } */
     function filterOnInput(inputs, filled, table) {
         let filtered = table;
         for (let i = 0; i < filled.length; i++) {

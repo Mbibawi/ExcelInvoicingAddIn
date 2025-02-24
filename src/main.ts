@@ -728,7 +728,7 @@ async function uploadFileToOneDriveWithGraphAPI(blob: Blob, filePath: string, ac
  */
 function getInvoiceFileName(clientName: string, matters: string[], invoiceNumber: string): string {
   // return 'test file name for now.docx'
-  return `_Test_Facture_${clientName}_${Array.from(matters).join('&')}_No.${invoiceNumber.replace('/', '@')}.docx`
+  return `${clientName}_Facture_${Array.from(matters).join('&')}_No.${invoiceNumber.replace('/', '@')}.docx`
     .replaceAll('/', '_')
     .replaceAll('"', '')
     .replaceAll("\\", '');

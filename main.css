@@ -61,3 +61,7 @@ section.samples {
     margin-bottom: 3px;
     font-family: serif;
   }
+
+  body{
+    background-color: #61616178;
+  }

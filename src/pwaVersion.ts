@@ -1,6 +1,3 @@
-// Authentication
-//const accessToken = getAccessToken();
-
 
 function getAccessToken() {
     const clientId = "157dd297-447d-4592-b2d3-76b643b97132";
@@ -342,6 +339,10 @@ async function invoice(issue: boolean = false) {
                 (function isCheckBox() {
                     if (!checkBox) return;
                     input.dataset.language = index.toString().slice(0, 2).toUpperCase();
+                    input.onchange = () =>
+                        Array.from(document.getElementsByTagName('input'))
+                            .filter((checkBox: HTMLInputElement) => checkBox.dataset.language && checkBox !== input)
+                            .forEach(checkBox => checkBox.checked = false); 
                 })();
 
                 form?.appendChild(input);
@@ -384,8 +385,8 @@ function inputOnChange(index: number, table: any[][] | undefined, invoice: boole
         function reset(i: number) {
             const input = getInputByIndex(inputs, i);
             if (!input) return;
-            input.valueAsNumber = 0;
             input.value = '';
+            if (input.valueAsNumber) input.valueAsNumber = 0;
         }
     }
 
@@ -414,12 +415,6 @@ function inputOnChange(index: number, table: any[][] | undefined, invoice: boole
     if (filtered.length < 1) return;
 
     boundInputs.map(input => createDataList(input?.id, getUniqueValues(getIndex(input), filtered), invoice));
-
-    /* if (invoice) {
-        const nature = getInputByIndex(inputs, 2);//We get the nature input in order to fill automaticaly its values by a ', ' separated string
-        if (!nature) return;
-        nature.value = Array.from(document.getElementById(nature?.id + 's')?.children as HTMLCollectionOf<HTMLOptionElement>)?.map((option) => option.value).join(', ');
-    } */
 
     function filterOnInput(inputs: HTMLInputElement[], filled: number[], table: any[][]) {
         let filtered: any[][] = table;
