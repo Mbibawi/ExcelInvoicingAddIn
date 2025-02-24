@@ -365,11 +365,11 @@ async function invoice(issue: boolean = false) {
 
 }
 
-async function issueLetter(issue: boolean = false) {
+async function issueLetter(create: boolean = false) {
     accessToken = await getAccessToken() || '';
     const templatePath = '';
     (function showForm() {
-        if (issue) return;
+        if (create) return;
         const form = document.getElementById('form');
         if (!form) return;
         form.innerHTML = '';
@@ -383,13 +383,16 @@ async function issueLetter(issue: boolean = false) {
         (function generateBtn() {
             const btn = document.createElement('button');
             form?.appendChild(btn);
-            btn.classList.add('button')
-            btn.onclick = () => generate(input);
+            btn.classList.add('button');
+            btn.innerText = 'Créer lettre'
+            btn.onclick = () => issueLetter(true);
         })();
     })();
 
-    async function generate(input: HTMLTextAreaElement) {
-        if (!issue || !input) return;
+    (async function generate() {
+        if (!create) return;
+        const input = document.getElementById('textInput') as HTMLTextAreaElement;
+        if (!input) return;
         const templatePath = "Legal/Mon Cabinet d'Avocat/Administratif/Modèles Actes/Template_Lettre With Letter Head [DO NOT MODIFY].docx";
         const fileName = prompt('Provide the file name without special characthers');
         if (!fileName) return;
@@ -399,7 +402,7 @@ async function issueLetter(issue: boolean = false) {
         const contentControls = [['RTCoreText', input.value], ['RTReference', ''], ['RTClientName']];
 
         createAndUploadXmlDocument(undefined, contentControls, accessToken, templatePath, filePath);
-    };
+    })();
 
 }
 

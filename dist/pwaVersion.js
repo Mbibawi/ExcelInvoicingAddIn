@@ -314,11 +314,11 @@ async function invoice(issue = false) {
         ;
     }
 }
-async function issueLetter(issue = false) {
+async function issueLetter(create = false) {
     accessToken = await getAccessToken() || '';
     const templatePath = '';
     (function showForm() {
-        if (issue)
+        if (create)
             return;
         const form = document.getElementById('form');
         if (!form)
@@ -334,11 +334,15 @@ async function issueLetter(issue = false) {
             const btn = document.createElement('button');
             form?.appendChild(btn);
             btn.classList.add('button');
-            btn.onclick = () => generate(input);
+            btn.innerText = 'Créer lettre';
+            btn.onclick = () => issueLetter(true);
         })();
     })();
-    async function generate(input) {
-        if (!issue || !input)
+    (async function generate() {
+        if (!create)
+            return;
+        const input = document.getElementById('textInput');
+        if (!input)
             return;
         const templatePath = "Legal/Mon Cabinet d'Avocat/Administratif/Modèles Actes/Template_Lettre With Letter Head [DO NOT MODIFY].docx";
         const fileName = prompt('Provide the file name without special characthers');
@@ -349,8 +353,7 @@ async function issueLetter(issue = false) {
             return;
         const contentControls = [['RTCoreText', input.value], ['RTReference', ''], ['RTClientName']];
         createAndUploadXmlDocument(undefined, contentControls, accessToken, templatePath, filePath);
-    }
-    ;
+    })();
 }
 /**
  * Updates the data list or the value of bound inputs according to the value of the input that has been changed
