@@ -376,7 +376,7 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
         const doc = zip.xmlDoc;
         if (!doc)
             return;
-        const table = getXMLElement(doc, "w:tbl", 0);
+        const table = getXMLElement(doc, "w:tbl", 1);
         rows.forEach((row, index) => {
             const newXmlRow = insertRowToXMLTable(doc, table);
             if (!newXmlRow)
