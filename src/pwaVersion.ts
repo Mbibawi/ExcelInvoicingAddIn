@@ -399,7 +399,7 @@ async function issueLetter(create: boolean = false) {
         const filePath = `${prompt('Provide the destination folder', "Legal/Mon Cabinet d'Avocat/Clients")}/${fileName}.docx`;
         if (!filePath) return;
 
-        const contentControls = [['RTCoreText', input.value], ['RTReference', ''], ['RTClientName']];
+        const contentControls = [['RTCoreText', input.value], ['RTReference', 'Référence'], ['RTClientName', 'Nom du Client'], ['RTEmail', 'Email du client']];
 
         createAndUploadXmlDocument(undefined, contentControls, accessToken, templatePath, filePath);
     })();
