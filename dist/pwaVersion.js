@@ -314,6 +314,44 @@ async function invoice(issue = false) {
         ;
     }
 }
+async function issueLetter(issue = false) {
+    accessToken = await getAccessToken() || '';
+    const templatePath = '';
+    (function showForm() {
+        if (issue)
+            return;
+        const form = document.getElementById('form');
+        if (!form)
+            return;
+        form.innerHTML = '';
+        const input = document.createElement('textarea');
+        (function inputAttributes() {
+            input.id = 'textInput';
+            input.classList.add('field');
+            form.appendChild(input);
+        })();
+        (function generateBtn() {
+            const btn = document.createElement('button');
+            form?.appendChild(btn);
+            btn.classList.add('button');
+            btn.onclick = () => generate(input);
+        })();
+    })();
+    async function generate(input) {
+        if (!issue || !input)
+            return;
+        const templatePath = "Legal/Mon Cabinet d'Avocat/Administratif/Modèles Actes/Template_Lettre With Letter Head [DO NOT MODIFY].docx";
+        const fileName = prompt('Provide the file name without special characthers');
+        if (!fileName)
+            return;
+        const filePath = `${prompt('Provide the destination folder', "Legal/Mon Cabinet d'Avocat/Clients")}/${fileName}`;
+        if (!filePath)
+            return;
+        const contentControls = [['RTCoreText', input.value], ['RTReference', ''], ['RTClientName']];
+        createAndUploadXmlDocument(undefined, contentControls, accessToken, templatePath, filePath);
+    }
+    ;
+}
 /**
  * Updates the data list or the value of bound inputs according to the value of the input that has been changed
  * @param {number} index - the dataset.index of the input that has been changed
@@ -366,39 +404,39 @@ function inputOnChange(index, table, invoice) {
 }
 ;
 async function createAndUploadXmlDocument(rows, contentControls, accessToken, templatePath, filePath, totals = []) {
-    if (!accessToken)
+    if (!accessToken || !templatePath || !filePath)
         return;
     const schema = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
-    return await createAndEditNewXmlDoc();
-    async function createAndEditNewXmlDoc() {
-        const blob = await fetchFileFromOneDriveWithGraphAPI(accessToken, templatePath);
-        if (!blob)
+    const blob = await fetchFileFromOneDriveWithGraphAPI(accessToken, templatePath);
+    if (!blob)
+        return;
+    const [doc, zip] = convertBlobIntoXML(blob);
+    if (!doc)
+        return;
+    (function editTable() {
+        if (!rows)
             return;
-        const zip = await convertBlobIntoXML(blob);
-        const doc = zip.xmlDoc;
-        if (!doc)
+        const table = getXMLElements(doc, "w:tbl", 1);
+        if (!table)
             return;
-        const table = getXMLElement(doc, "w:tbl", 1);
         rows.forEach((row, index) => {
-            const newXmlRow = insertRowToXMLTable(doc, table);
+            const newXmlRow = insertRowToXMLTable();
             if (!newXmlRow)
                 return;
             const isTotal = totals.includes(row[0]);
             const isLast = index === rows.length - 1;
             row.forEach((text, index) => {
-                addCellToXMLTableRow(doc, newXmlRow, getStyle(index, isTotal && !isLast), [isTotal, isLast].includes(true), text);
+                addCellToXMLTableRow(newXmlRow, getStyle(index, isTotal && !isLast), [isTotal, isLast].includes(true), text);
             });
         });
-        contentControls
-            .forEach(([title, text]) => {
-            const control = findXMLContentControlByTitle(doc, title);
-            if (!control)
+        function insertRowToXMLTable(after = -1) {
+            if (!table)
                 return;
-            editXMLContentControl(control, text);
-        });
-        console.log('doc = ', doc.children[0]);
-        const newBlob = await convertXMLIntoBlob(doc, zip.zip);
-        await uploadFileToOneDriveWithGraphAPI(newBlob, filePath, accessToken);
+            const row = createTableElement("w:tr");
+            after >= 0 ? getXMLElements(table, 'w:tr', after)?.insertAdjacentElement('afterend', row) :
+                table.appendChild(row);
+            return row;
+        }
         function getStyle(cell, isTotal = false) {
             let style = 'Invoice';
             if (cell === 0 && isTotal)
@@ -417,117 +455,129 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
                 style = '';
             return style;
         }
-    }
-    //await editDocumentWordJSAPI(await copyTemplate()?.id, accessToken, data, getContentControlsValues(invoice.lang))
-    async function fetchBlobFromFile(templatePath, accessToken) {
-        const response = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${templatePath}:/content`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-            },
+        function setStyle(targetElement, style, backGroundColor = '') {
+            // Create or find the run properties element
+            //const styleProps = createAndAppend(runElement, "w:rPr", false);
+            const tag = targetElement.tagName.toLocaleLowerCase();
+            (function cell() {
+                if (tag !== 'w:tc')
+                    return;
+                const cellProp = createAndAppend(targetElement, 'w:tcPr', false);
+                createAndAppend(cellProp, 'w:vAlign').setAttribute('w:val', "center");
+                //createAndAppend(cellProp, 'w:tcStyle').setAttribute('w:val', 'InvoiceCellCentered');
+                if (!backGroundColor)
+                    return;
+                const background = createAndAppend(cellProp, 'w:shd'); //Adding background color to cell
+                background.setAttribute('w:val', "clear");
+                background.setAttribute('w:fill', backGroundColor);
+            })();
+            (function parag() {
+                if (tag !== 'w:p')
+                    return;
+                if (!style)
+                    return;
+                const props = createAndAppend(targetElement, "w:pPr", false);
+                createAndAppend(props, "w:pStyle").setAttribute("w:val", style);
+            })();
+            function createAndAppend(parent, tag, append = true) {
+                const newElement = createTableElement(tag);
+                if (append)
+                    parent.appendChild(newElement);
+                else
+                    parent.insertBefore(newElement, parent.firstChild);
+                return newElement;
+            }
+        }
+        function addCellToXMLTableRow(row, style, isTotal, text) {
+            if (!row)
+                return;
+            const cell = createTableElement("w:tc"); //new table cell
+            row.appendChild(cell);
+            if (isTotal)
+                setStyle(cell, style, 'D9D9D9'); //We set the background color of the cell
+            else
+                setStyle(cell, style, '');
+            const parag = createTableElement("w:p"); //new table paragraph
+            cell.appendChild(parag);
+            setStyle(parag, style, '');
+            const newRun = createTableElement("w:r"); // new run
+            parag.appendChild(newRun);
+            if (!text)
+                return;
+            const newText = createTableElement("w:t");
+            newText.textContent = text;
+            newRun.appendChild(newText);
+        }
+        function createTableElement(tag) {
+            return doc.createElement(tag);
+        }
+    })();
+    (function editContentControls() {
+        if (!contentControls)
+            return;
+        const ctrls = getXMLElements(doc, "w:sdt");
+        contentControls
+            .forEach(([title, text]) => {
+            const control = findXMLContentControlByTitle(ctrls, title);
+            if (!control)
+                return;
+            editXMLContentControl(control, text);
         });
-        if (!response.ok)
-            throw new Error('Failed to fetch the Word file from OneDrive');
-        return await response.blob();
+        function findXMLContentControlByTitle(ctrls, title) {
+            return ctrls.find(control => control.getElementsByTagName("w:alias")[0]?.getAttribute("w:val") === title);
+        }
+        function editXMLContentControl(control, text) {
+            if (!text)
+                return control.remove();
+            const textElement = control.getElementsByTagName("w:t")[0];
+            if (!textElement)
+                return; //!need to insert a text element instead of returning
+            textElement.textContent = text;
+        }
+    })();
+    await convertXMLToBlobAndUpload(doc, zip, filePath, accessToken);
+    function getXMLElements(xmlDoc, tag, index) {
+        const elements = xmlDoc.getElementsByTagName(tag);
+        if (index)
+            return elements[index];
+        return Array.from(elements);
     }
-    async function convertBlobIntoXML(blob) {
-        //@ts-ignore
-        const zip = new JSZip();
-        const arrayBuffer = await blob.arrayBuffer();
-        await zip.loadAsync(arrayBuffer);
-        const documentXml = await zip.file("word/document.xml").async("string");
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(documentXml, "application/xml");
-        return { xmlDoc, zip };
-    }
-    //@ts-expect-error
-    async function convertXMLIntoBlob(editedXml, zip) {
+}
+;
+/**
+ * Converts the blob of a Word document into an XML
+ * @param blob - the blob of the file to be converted
+ * @returns {[XMLDocument, JSZip]} - The xml document, and the zip containing all the xml files
+ */
+//@ts-expect-error
+async function convertBlobIntoXML(blob) {
+    //@ts-ignore
+    const zip = new JSZip();
+    const arrayBuffer = await blob.arrayBuffer();
+    await zip.loadAsync(arrayBuffer);
+    const documentXml = await zip.file("word/document.xml").async("string");
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(documentXml, "application/xml");
+    return [xmlDoc, zip];
+}
+/**
+ * Converts an XML Word document into a Blob, and uploads it to OneDrive using the Graph API
+ * @param {XMLDocument} doc
+ * @param {JSZip} zip
+ * @param {string} filePath - the full OneDrive file path (including file name and extension) of the file that will be uploaded
+ * @param {string} accessToken - the Graph API accessToken
+ */
+//@ts-expect-error
+async function convertXMLToBlobAndUpload(doc, zip, filePath, accessToken) {
+    const blob = await convertXMLIntoBlob();
+    if (!blob)
+        return;
+    await uploadFileToOneDriveWithGraphAPI(blob, filePath, accessToken);
+    async function convertXMLIntoBlob() {
         const serializer = new XMLSerializer();
-        let modifiedDocumentXml = serializer.serializeToString(editedXml);
+        let modifiedDocumentXml = serializer.serializeToString(doc);
         zip.file("word/document.xml", modifiedDocumentXml);
         return await zip.generateAsync({ type: "blob" });
-    }
-    function getXMLElement(xmlDoc, tag, index) {
-        const elements = xmlDoc.getElementsByTagName(tag);
-        return elements[index];
-    }
-    function insertRowToXMLTable(xmlDoc, table, after = -1) {
-        if (!table)
-            return;
-        const row = createTableElement(xmlDoc, "w:tr");
-        after >= 0 ? getXMLElement(table, 'w:tr', after)?.insertAdjacentElement('afterend', row) :
-            table.appendChild(row);
-        return row;
-    }
-    function setStyle(targetElement, style, backGroundColor = '', doc) {
-        // Create or find the run properties element
-        //const styleProps = createAndAppend(runElement, "w:rPr", false);
-        const tag = targetElement.tagName.toLocaleLowerCase();
-        (function cell() {
-            if (tag !== 'w:tc')
-                return;
-            const cellProp = createAndAppend(targetElement, 'w:tcPr', false);
-            createAndAppend(cellProp, 'w:vAlign').setAttribute('w:val', "center");
-            //createAndAppend(cellProp, 'w:tcStyle').setAttribute('w:val', 'InvoiceCellCentered');
-            if (!backGroundColor)
-                return;
-            const background = createAndAppend(cellProp, 'w:shd'); //Adding background color to cell
-            background.setAttribute('w:val', "clear");
-            background.setAttribute('w:fill', backGroundColor);
-        })();
-        (function parag() {
-            if (tag !== 'w:p')
-                return;
-            if (!style)
-                return;
-            const props = createAndAppend(targetElement, "w:pPr", false);
-            createAndAppend(props, "w:pStyle").setAttribute("w:val", style);
-        })();
-        function createAndAppend(parent, tag, append = true) {
-            const newElement = createTableElement(doc, tag);
-            if (append)
-                parent.appendChild(newElement);
-            else
-                parent.insertBefore(newElement, parent.firstChild);
-            return newElement;
-        }
-    }
-    function addCellToXMLTableRow(xmlDoc, row, style, isTotal, text) {
-        if (!xmlDoc || !row)
-            return;
-        const cell = createTableElement(xmlDoc, "w:tc"); //new table cell
-        row.appendChild(cell);
-        if (isTotal)
-            setStyle(cell, style, 'D9D9D9', xmlDoc); //We set the background color of the cell
-        else
-            setStyle(cell, style, '', xmlDoc);
-        const parag = createTableElement(xmlDoc, "w:p"); //new table paragraph
-        cell.appendChild(parag);
-        setStyle(parag, style, '', xmlDoc);
-        const newRun = createTableElement(xmlDoc, "w:r"); // new run
-        parag.appendChild(newRun);
-        if (!text)
-            return;
-        const newText = createTableElement(xmlDoc, "w:t");
-        newText.textContent = text;
-        newRun.appendChild(newText);
-    }
-    function createTableElement(xmlDoc, tag) {
-        return xmlDoc.createElement(tag);
-    }
-    function findXMLContentControlByTitle(xmlDoc, title) {
-        const contentControls = Array.from(xmlDoc.getElementsByTagName("w:sdt"));
-        return contentControls.find(control => control.getElementsByTagName("w:alias")[0]?.getAttribute("w:val") === title);
-    }
-    function editXMLContentControl(control, text) {
-        if (!control)
-            return;
-        if (!text)
-            return control.remove();
-        const textElement = control.getElementsByTagName("w:t")[0];
-        if (!textElement)
-            return;
-        textElement.textContent = text;
     }
 }
 ;
