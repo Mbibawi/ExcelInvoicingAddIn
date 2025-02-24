@@ -191,7 +191,9 @@ async function invoice(issue = false) {
             lang: lang
         };
         const contentControls = getContentControlsValues(invoice, date);
-        const filePath = `${destinationFolder}/${getInvoiceFileName(invoice.clientName, invoice.matters, invoice.number)}`;
+        const fileName = getInvoiceFileName(invoice.clientName, invoice.matters, invoice.number);
+        let filePath = `${destinationFolder}/${fileName}`;
+        filePath = prompt(`The file will be saved in ${destinationFolder}, and will be named : ${fileName}./nIf you want to change the path or the name, provide the full file path and name of your choice without any sepcial characters`, filePath) || filePath;
         await createAndUploadXmlDocument(wordRows, contentControls, accessToken, templatePath, filePath, totalsRows);
         (async function filterTable() {
             await clearFilterExcelTableGraphAPI(workbookPath, tableName, accessToken); //We start by clearing the filter of the table, otherwise the insertion will fail

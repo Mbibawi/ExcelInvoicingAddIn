@@ -217,7 +217,10 @@ async function invoice(issue: boolean = false) {
         }
         const contentControls = getContentControlsValues(invoice, date);
 
-        const filePath = `${destinationFolder}/${getInvoiceFileName(invoice.clientName, invoice.matters, invoice.number)}`;
+        const fileName = getInvoiceFileName(invoice.clientName, invoice.matters, invoice.number);
+        let filePath = `${destinationFolder}/${fileName}`;
+
+        filePath = prompt(`The file will be saved in ${destinationFolder}, and will be named : ${fileName}./nIf you want to change the path or the name, provide the full file path and name of your choice without any sepcial characters`, filePath) || filePath;
 
         await createAndUploadXmlDocument(wordRows, contentControls, accessToken, templatePath, filePath, totalsRows);
 
@@ -440,7 +443,7 @@ async function createAndUploadXmlDocument(rows: string[][], contentControls: str
         const doc = zip.xmlDoc;
         if (!doc) return;
         const table = getXMLElement(doc, "w:tbl", 1);
-        
+
         rows.forEach((row, index) => {
             const newXmlRow = insertRowToXMLTable(doc, table);
             if (!newXmlRow) return;
