@@ -248,6 +248,7 @@ function createDataList(id, uniqueValues, multiple = false) {
         optionElement.value = option;
         dataList?.appendChild(optionElement);
     }
+    return dataList;
 }
 ;
 /**
@@ -1051,6 +1052,11 @@ function sortByColumn(data, columnIndex) {
 function getInputByIndex(inputs, index) {
     return inputs.find(input => Number(input.dataset.index) === index);
 }
+/**
+ * Returns the dataset.index value of the input as a number
+ * @param {HTMLInputElement} input - the input with a dataset.index attribute
+ * @returns {number} - the dataset.index value of the input as a number
+ */
 function getIndex(input) {
     return Number(input.dataset.index);
 }

@@ -23,7 +23,7 @@ function getAccessToken() {
 async function addNewEntry(add: boolean = false, row?: any[]) {
     accessToken = await getAccessToken() || '';
 
-    (async function show() {
+    (async function showForm() {
         if (add) return;
         if (!workbookPath || !tableName) return alert('The Excel Workbook Path or the name of the Excel table are not valid');
 
@@ -155,18 +155,28 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                     input.type = 'date';
                 else if ([5, 6].includes(index))
                     input.type = 'time';
-                else if ([4, 7].includes(index)) input.style.display = 'none';//We hide those 3 columns: 'Total Time' and the 'Year' and 'Link to a File'
-                else if (index < 3 || index > 10) {
-                    //We add a dataList for those fields
+                else if ([4, 7].includes(index)) input.style.display = 'none';//We hide those 2 columns: 'Total Time' and the 'Year'
+                
+                (function addDataLists() {
+                    if ([9,10,16].includes(index)) return;//We exclude the "Montant" (9), "TVA" (10) and the "Link to file" (16) columns;
+                    else if (index>2 && index<8) return; //We exclude the "Date" (3), "Année" (4), "Start Time" (5), "End Time" (6), "Total Time" (7) columns
+                    
                     input.setAttribute('list', input.id + 's');
-                    input.onchange = () => inputOnChange(index, TableRows.slice(1, -1), false);
-                    if (![1, 15].includes(index))
-                        createDataList(input.id, getUniqueValues(index, TableRows.slice(1, -1)));//We don't create the data list for columns 'Matter' (1) and 'Adress' (16) because it will be created when the 'Client' field is updated
-                }
 
-                if (index > 4 && index < 11)
-                    //Those are the "Start Time", "End Time", "Total Time", "Hourly Rate", "Amount", "VAT" columns . The "Hourly Rate" input is hidden, so it can't be changed by the user. We will add the onChange event to it by simplicity
-                    input.onchange = () => inputOnChange(index, undefined, false);//!We are passing the table[][] argument as undefined, and the invoice argument as false 
+                    if ([1, 8, 15].includes(index)) return;
+                        createDataList(input.id, getUniqueValues(index, TableRows.slice(1, -1)));//We don't create the data list for columns 'Matter' (1), "Hourly Rate" (8) and 'Adress' (15) because the data list will be created when the 'Client' input (0) is updated
+
+                    if (index > 1) return;//We add onChange for "Client" (0) and "Affaire" (1) columns only.
+
+                    input.onchange = () => inputOnChange(index, TableRows.slice(1, -1), false);
+                })();
+
+                (function addRestOnChange() {
+                    if (index < 5 || index > 10) return;
+                    //Only for the  "Start Time", "End Time", "Total Time", "Hourly Rate", "Amount", "VAT" columns . The "Total Time" input (7) is hidden, so it can't be changed by the user. We will add the onChange event to it by simplicity
+
+                    input.onchange = () => inputOnChange(index, undefined, false);//!We are passing the table[][] argument as undefined, and the invoice argument as false which means that the function will only reset the bound inputs without updating any data list
+                })();
             })();
 
             return input
@@ -410,22 +420,24 @@ async function issueLetter(create: boolean = false) {
 /**
  * Updates the data list or the value of bound inputs according to the value of the input that has been changed
  * @param {number} index - the dataset.index of the input that has been changed
- * @param {any[][]} table - the table that will be filtered. If undefined, it means that no data list will be updated.
+ * @param {any[][]} table - The table that will be filtered to update the data list of the button. If undefined, it means that the data list will not be updated.
  * @param {boolean} invoice - If true, it means that we called the function in order to generate an invoice. If false, we called it in order to add a new entry in the table
  * @returns 
  */
 function inputOnChange(index: number, table: any[][] | undefined, invoice: boolean) {
-    let inputs = Array.from(document.getElementsByTagName('input') as HTMLCollectionOf<HTMLInputElement>);
+    let inputs = Array.from(document.getElementsByTagName('input'))
+        .filter(input => input.dataset.index) as HTMLInputElement[];
 
-    if (!table && !invoice) {
+    (function resetInputs() {
+        //In some cases, we only need to rest the values of other inputs bound to the input that has been changed. If the function is called for this purpose, we will just rest those inputs without updating their data list.
+        if (table || invoice) return;
         const boundInputs = [5, 6, 7, 9, 10];//Those are "Start Time" (5), "End Time" (6), "Total Time" (7, although it is hidden), "Amount" (9), "VAT" (10) columns. We exclude the "Hourly Rate" column (8). We let the user rest it if he wants
         boundInputs
-            .forEach(i => i > index ? reset(i) : i = i);
+            .forEach(i => i > index ? reset(i) : i = i);//We reset any input which dataset-index is > than the dataset-index of the input that has been changed
 
         if (index === 9)
             boundInputs
-                .forEach(i => i < index ? reset(i) : i = i);
-
+                .forEach(i => i < index ? reset(i) : i = i);//If the input is the input for the "Montant" column of the Excel table, we also reset the "Start Time" (5), "End Time" (6) and "Hourly Rate" (7) columns' inputs. We do this because we assume that if the user provided the amount, it means that either this is not a fee, or the fee is not hourly billed.
 
         function reset(i: number) {
             const input = getInputByIndex(inputs, i);
@@ -433,19 +445,18 @@ function inputOnChange(index: number, table: any[][] | undefined, invoice: boole
             input.value = '';
             if (input.valueAsNumber) input.valueAsNumber = 0;
         }
-    }
+    })();
 
     if (!table) return;
 
     if (invoice)
-        inputs = inputs.filter(input => input.dataset.index && Number(input.dataset.index) < 3); //Those are all the inputs that serve to filter the table (first 3 columns only)
+        inputs = inputs.filter(input => getIndex(input) < 3); //Those are all the inputs that serve to filter the table (first 3 columns only) when we are invoicing the client
     else
-        inputs = inputs.filter(input => [0, 1, 15].includes(getIndex(input))); //Those are all the inputs that have data lists associated with them
+        inputs = inputs.filter(input =>[0, 1, 8, 15].includes(getIndex(input))); //Those are all the inputs that have data lists associated with them that need to be updated if an input calls inputOnChage(). Only the "Client" and "Affaire" inputs call this function in the context of adding a new entry, so index will always be <3
 
     const filledInputs =
         inputs
-            .filter(input => input.value && getIndex(input) <= index)
-            .map(input => getIndex(input));//Those are all the inputs that the user filled with data
+            .filter(input => input.value && getIndex(input) <= index)//Those are all the inputs that the user filled with data
 
 
     const boundInputs = inputs.filter(input => getIndex(input) > index);//Those are the inputs for which we want to create  or update their data lists
@@ -455,18 +466,21 @@ function inputOnChange(index: number, table: any[][] | undefined, invoice: boole
 
     boundInputs.forEach(input => input.value = '');
 
-    const filtered = filterOnInput(inputs, filledInputs, table);//We filter the table based on the filled inputs
+    const filtered = filterOnInput(filledInputs, table);//We filter the table based on the filled inputs
 
     if (filtered.length < 1) return;
 
-    boundInputs.map(input => createDataList(input?.id, getUniqueValues(getIndex(input), filtered), invoice));
+    boundInputs.map(input => {
+        const dataList = createDataList(input?.id, getUniqueValues(getIndex(input), filtered), invoice) as HTMLDataListElement;
+        if (dataList.options.length === 1)
+            input.value = dataList.options[0].value
+    });
 
-    function filterOnInput(inputs: HTMLInputElement[], filled: number[], table: any[][]) {
-        let filtered: any[][] = table;
-        for (let i = 0; i < filled.length; i++) {
-            filtered = filtered.filter(row => row[filled[i]].toString() === getInputByIndex(inputs, filled[i])?.value)
-        }
-        return filtered
+    
+    function filterOnInput(filled: HTMLInputElement[], table: any[][]) {
+        filled
+            .forEach(input => table = table.filter(row => row[getIndex(input)].toString() === input.value));
+        return table
     }
 };
 

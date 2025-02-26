@@ -9,12 +9,14 @@ section.samples {
 #form{
     background-color: #0b5f76;
     justify-self: center;
-    width: 100%;
+    width: 98%;
     align-self: center;
-    min-height: none;
     padding: 9px;
     border-radius: 5px;
     margin: 3px;
+    border-style: groove;
+    border-color: #2aa1a5;
+    border-width: 10px;
 }
 
 .hidden{
@@ -23,20 +25,24 @@ section.samples {
 
 #btns{
     display: flex;
-    justify-items: center;
+    justify-items: stretch;
     margin-top: 10px;
+    justify-self: center;
+    width: 50%;
 }
 
 .button, .ms-Button{
     display: block;
     background-color: #1ca9b2;
-    min-width: 20%;
+    color: whitesmoke;
+    padding: 4px;
     min-height: 15px;
     justify-self: center;
     margin-top: 20px;
     margin-left: 5px;
     margin-right: 5px;
     border-radius: 5px;
+    border-style: groove;
     font-family: 'Times New Roman', Times, serif;
     font-weight: bold;
 }
@@ -77,8 +83,10 @@ textarea:focus, label:focus, .field:focus {
     font-weight: bold;
     margin-bottom: 3px;
     font-family: serif;
+    color:whitesmoke;
   }
 
   body{
     background-color: #61616178;
+    justify-items: center;
   }

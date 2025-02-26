@@ -288,6 +288,7 @@ function createDataList(id: string, uniqueValues: string[], multiple: boolean = 
     optionElement.value = option;
     dataList?.appendChild(optionElement);
   }
+  return dataList
 };
 
 /**
@@ -1181,7 +1182,11 @@ function sortByColumn(data: any[][], columnIndex: number): any[][] {
 function getInputByIndex(inputs: HTMLInputElement[], index: number) {
   return inputs.find(input => Number(input.dataset.index) === index)
 }
-
+/**
+ * Returns the dataset.index value of the input as a number
+ * @param {HTMLInputElement} input - the input with a dataset.index attribute
+ * @returns {number} - the dataset.index value of the input as a number
+ */
 function getIndex(input: HTMLInputElement) {
   return Number(input.dataset.index)
 }
