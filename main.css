@@ -22,9 +22,9 @@ section.samples {
 .group{
     display: grid;
     justify-items: stretch;
-    column-gap: 5px;
+    column-gap: 2vw;
     grid-template-columns: auto auto auto;
-    margin-top: 7px;
+    margin-top: 2vh;
 }
 
 .hidden{

@@ -123,7 +123,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
 
         (function groupDivs() {
             [
-                [11, 12, 13],//"Moyen de Paiemenet", "Compte", "Tiers"
+                [11, 12, 13],//"Moyen de Paiement", "Compte", "Tiers"
                 [9, 10], //"Montant", "TVA"
                 [5, 6, 8], //"Start Time", "End Time", "Taux Horaire"
             ]
