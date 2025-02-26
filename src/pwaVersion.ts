@@ -158,7 +158,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                 else if ([4, 7].includes(index)) input.style.display = 'none';//We hide those 2 columns: 'Total Time' and the 'Year'
                 
                 (function addDataLists() {
-                    if ([9,10,16].includes(index)) return;//We exclude the "Montant" (9), "TVA" (10) and the "Link to file" (16) columns;
+                    if ([9,10,14,16].includes(index)) return;//We exclude the "Montant" (9), "TVA" (10), "Description" (14), and the "Link to file" (16) columns;
                     else if (index>2 && index<8) return; //We exclude the "Date" (3), "Année" (4), "Start Time" (5), "End Time" (6), "Total Time" (7) columns
                     
                     input.setAttribute('list', input.id + 's');
