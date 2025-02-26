@@ -112,8 +112,7 @@ async function addNewEntry(add = false, row) {
             return div;
         });
         (function groupDivs() {
-            //Grouping "Start Time", "End Time" and "Hourly Rate"
-            newDiv(NaN, divs.filter(div => [5, 6, 8].includes(Number(div.dataset.block))));
+            newDiv(NaN, divs.filter(div => [5, 6, 8].includes(Number(div.dataset.block)))); //Grouping "Start Time", "End Time" and "Hourly Rate"
             newDiv(NaN, divs.filter(div => [9, 10].includes(Number(div.dataset.block)))); //Grouping "Amount" and "VAT"
             newDiv(NaN, divs.filter(div => [11, 12, 13].includes(Number(div.dataset.block)))); //Grouping "Moyen de paiement", "Compte", "Tiers"
         })();
@@ -139,6 +138,7 @@ async function addNewEntry(add = false, row) {
             function groupDivs() {
                 const div = newDiv(i, undefined, "group");
                 divs?.forEach(el => div.appendChild(el));
+                form?.children[3]?.nextElementSibling?.insertAdjacentElement('beforebegin', div);
                 return div;
             }
         }

@@ -122,8 +122,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
         });
 
         (function groupDivs() {
-            //Grouping "Start Time", "End Time" and "Hourly Rate"
-            newDiv(NaN, divs.filter(div => [5, 6, 8].includes(Number(div.dataset.block))));
+            newDiv(NaN, divs.filter(div => [5, 6, 8].includes(Number(div.dataset.block))));  //Grouping "Start Time", "End Time" and "Hourly Rate"
 
             newDiv(NaN, divs.filter(div => [9, 10].includes(Number(div.dataset.block)))); //Grouping "Amount" and "VAT"
 
@@ -154,6 +153,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
             function groupDivs() {
                 const div = newDiv(i, undefined, "group") as HTMLDivElement;
                 divs?.forEach(el => div.appendChild(el));
+                form?.children[3]?.nextElementSibling?.insertAdjacentElement('beforebegin', div);
                 return div
             }
         }

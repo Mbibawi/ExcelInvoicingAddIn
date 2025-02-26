@@ -19,6 +19,13 @@ section.samples {
     border-width: 10px;
 }
 
+.group{
+    display: grid;
+    justify-items: stretch;
+    grid-template-columns: 33% 33% 33%;
+    margin-top: 7px;
+}
+
 .hidden{
     display: none;
 }
