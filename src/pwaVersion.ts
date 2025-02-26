@@ -122,11 +122,12 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
         });
 
         (function groupDivs() {
-            newDiv(NaN, divs.filter(div => [5, 6, 8].includes(Number(div.dataset.block))));  //Grouping "Start Time", "End Time" and "Hourly Rate"
-
-            newDiv(NaN, divs.filter(div => [9, 10].includes(Number(div.dataset.block)))); //Grouping "Amount" and "VAT"
-
-            newDiv(NaN, divs.filter(div => [11, 12, 13].includes(Number(div.dataset.block))));//Grouping "Moyen de paiement", "Compte", "Tiers"
+            [
+                [11, 12, 13],//"Moyen de Paiemenet", "Compte", "Tiers"
+                [9, 10], //"Montant", "TVA"
+                [5, 6, 8], //"Start Time", "End Time", "Taux Horaire"
+            ]
+                .forEach(group => newDiv(NaN, divs.filter(div => group.includes(Number(div.dataset.block)))));
         })();
 
 
@@ -153,7 +154,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
             function groupDivs() {
                 const div = newDiv(i, undefined, "group") as HTMLDivElement;
                 divs?.forEach(el => div.appendChild(el));
-                form?.children[3]?.nextElementSibling?.insertAdjacentElement('beforebegin', div);
+                form?.children[3]?.insertAdjacentElement('afterend', div);
                 return div
             }
         }

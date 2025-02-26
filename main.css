@@ -22,7 +22,8 @@ section.samples {
 .group{
     display: grid;
     justify-items: stretch;
-    grid-template-columns: 33% 33% 33%;
+    column-gap: 5px;
+    grid-template-columns: auto auto auto;
     margin-top: 7px;
 }
 
