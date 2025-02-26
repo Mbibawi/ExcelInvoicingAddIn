@@ -104,11 +104,19 @@ async function addNewEntry(add = false, row) {
         if (!form)
             return;
         form.innerHTML = '';
-        title.forEach((title, index) => {
+        const divs = title.map((title, index) => {
+            const div = newDiv(index);
             if (![4, 7].includes(index))
-                form.appendChild(createLable(title, index)); //We exclued the labels for "Total Time" and for "Year"
-            form.appendChild(createInput(index));
+                div.appendChild(createLable(title, index)); //We exclued the labels for "Total Time" and for "Year"
+            div.appendChild(createInput(index));
+            return div;
         });
+        (function groupDivs() {
+            //Grouping "Start Time", "End Time" and "Hourly Rate"
+            newDiv(NaN, divs.filter(div => [5, 6, 8].includes(Number(div.dataset.block))));
+            newDiv(NaN, divs.filter(div => [9, 10].includes(Number(div.dataset.block)))); //Grouping "Amount" and "VAT"
+            newDiv(NaN, divs.filter(div => [11, 12, 13].includes(Number(div.dataset.block)))); //Grouping "Moyen de paiement", "Compte", "Tiers"
+        })();
         (function addBtn() {
             const btnIssue = document.createElement('button');
             btnIssue.innerText = 'Add Entry';
@@ -116,6 +124,24 @@ async function addNewEntry(add = false, row) {
             btnIssue.onclick = () => addNewEntry(true);
             form.appendChild(btnIssue);
         })();
+        function newDiv(i, divs, css = "block") {
+            if (divs)
+                return groupDivs();
+            else
+                return create();
+            function create() {
+                const div = document.createElement('div');
+                div.dataset.block = i.toString();
+                form?.appendChild(div);
+                div.classList.add(css);
+                return div;
+            }
+            function groupDivs() {
+                const div = newDiv(i, undefined, "group");
+                divs?.forEach(el => div.appendChild(el));
+                return div;
+            }
+        }
         function createLable(title, i) {
             const label = document.createElement('label');
             label.htmlFor = 'input' + i.toString();

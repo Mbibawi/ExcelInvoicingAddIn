@@ -113,10 +113,23 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
         if (!form) return;
         form.innerHTML = '';
 
-        title.forEach((title, index) => {
-            if (![4, 7].includes(index)) form.appendChild(createLable(title, index));//We exclued the labels for "Total Time" and for "Year"
-            form.appendChild(createInput(index));
+        const divs = title.map((title, index) => {
+            const div = newDiv(index);
+            if (![4, 7].includes(index))
+                div.appendChild(createLable(title, index));//We exclued the labels for "Total Time" and for "Year"
+            div.appendChild(createInput(index));
+            return div;
         });
+
+        (function groupDivs() {
+            //Grouping "Start Time", "End Time" and "Hourly Rate"
+            newDiv(NaN, divs.filter(div => [5, 6, 8].includes(Number(div.dataset.block))));
+
+            newDiv(NaN, divs.filter(div => [9, 10].includes(Number(div.dataset.block)))); //Grouping "Amount" and "VAT"
+
+            newDiv(NaN, divs.filter(div => [11, 12, 13].includes(Number(div.dataset.block))));//Grouping "Moyen de paiement", "Compte", "Tiers"
+        })();
+
 
         (function addBtn() {
             const btnIssue = document.createElement('button');
@@ -125,6 +138,25 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
             btnIssue.onclick = () => addNewEntry(true);
             form.appendChild(btnIssue);
         })();
+
+        function newDiv(i: number, divs?: HTMLDivElement[], css: string = "block") {
+            if (divs) return groupDivs();
+            else return create();
+
+            function create() {
+                const div = document.createElement('div');
+                div.dataset.block = i.toString();
+                form?.appendChild(div);
+                div.classList.add(css);
+                return div;
+            }
+
+            function groupDivs() {
+                const div = newDiv(i, undefined, "group") as HTMLDivElement;
+                divs?.forEach(el => div.appendChild(el));
+                return div
+            }
+        }
 
         function createLable(title: string, i: number) {
             const label = document.createElement('label');
@@ -156,15 +188,15 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                 else if ([5, 6].includes(index))
                     input.type = 'time';
                 else if ([4, 7].includes(index)) input.style.display = 'none';//We hide those 2 columns: 'Total Time' and the 'Year'
-                
+
                 (function addDataLists() {
-                    if ([9,10,14,16].includes(index)) return;//We exclude the "Montant" (9), "TVA" (10), "Description" (14), and the "Link to file" (16) columns;
-                    else if (index>2 && index<8) return; //We exclude the "Date" (3), "Année" (4), "Start Time" (5), "End Time" (6), "Total Time" (7) columns
-                    
+                    if ([9, 10, 14, 16].includes(index)) return;//We exclude the "Montant" (9), "TVA" (10), "Description" (14), and the "Link to file" (16) columns;
+                    else if (index > 2 && index < 8) return; //We exclude the "Date" (3), "Année" (4), "Start Time" (5), "End Time" (6), "Total Time" (7) columns
+
                     input.setAttribute('list', input.id + 's');
 
                     if ([1, 8, 15].includes(index)) return;
-                        createDataList(input.id, getUniqueValues(index, TableRows.slice(1, -1)));//We don't create the data list for columns 'Matter' (1), "Hourly Rate" (8) and 'Adress' (15) because the data list will be created when the 'Client' input (0) is updated
+                    createDataList(input.id, getUniqueValues(index, TableRows.slice(1, -1)));//We don't create the data list for columns 'Matter' (1), "Hourly Rate" (8) and 'Adress' (15) because the data list will be created when the 'Client' input (0) is updated
 
                     if (index > 1) return;//We add onChange for "Client" (0) and "Affaire" (1) columns only.
 
@@ -452,7 +484,7 @@ function inputOnChange(index: number, table: any[][] | undefined, invoice: boole
     if (invoice)
         inputs = inputs.filter(input => getIndex(input) < 3); //Those are all the inputs that serve to filter the table (first 3 columns only) when we are invoicing the client
     else
-        inputs = inputs.filter(input =>[0, 1, 8, 15].includes(getIndex(input))); //Those are all the inputs that have data lists associated with them that need to be updated if an input calls inputOnChage(). Only the "Client" and "Affaire" inputs call this function in the context of adding a new entry, so index will always be <3
+        inputs = inputs.filter(input => [0, 1, 8, 15].includes(getIndex(input))); //Those are all the inputs that have data lists associated with them that need to be updated if an input calls inputOnChage(). Only the "Client" and "Affaire" inputs call this function in the context of adding a new entry, so index will always be <3
 
     const filledInputs =
         inputs
@@ -476,7 +508,7 @@ function inputOnChange(index: number, table: any[][] | undefined, invoice: boole
             input.value = dataList.options[0].value
     });
 
-    
+
     function filterOnInput(filled: HTMLInputElement[], table: any[][]) {
         filled
             .forEach(input => table = table.filter(row => row[getIndex(input)].toString() === input.value));
