@@ -461,7 +461,8 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
     (function editTable() {
         if (!rows)
             return;
-        const table = getXMLElements(doc, "tbl", 1);
+        const tables = getXMLElements(doc, "tbl");
+        const table = getXMLTableByTitle(tables, 'Invoice');
         if (!table)
             return;
         const firstRow = getXMLElements(table, 'tr', 1);
@@ -589,6 +590,14 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
             const newText = createXMLElement("t");
             newText.textContent = text;
             newRun.appendChild(newText);
+        }
+        function getXMLTableByTitle(tables, title, property = 'tblCaption') {
+            return tables
+                .filter(table => tblCaption(table))
+                .find(table => tblCaption(table).getAttribute('w:val') === title);
+            function tblCaption(table) {
+                return getXMLElements(table, property, 0);
+            }
         }
     })();
     (function editContentControls() {

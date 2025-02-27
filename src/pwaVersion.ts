@@ -532,7 +532,9 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
 
     (function editTable() {
         if (!rows) return;
-        const table = getXMLElements(doc, "tbl", 1) as Element;
+        const tables = getXMLElements(doc, "tbl") as Element[];
+        const table = getXMLTableByTitle(tables, 'Invoice');
+
         if (!table) return;
         const firstRow = getXMLElements(table, 'tr', 1) as Element;
 
@@ -550,10 +552,10 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
 
         firstRow.remove();//We remove the first row when we finish
 
-        function editCells(tableRow:Element, values:string[], isLast: boolean = false, isTotal: boolean = false) {
+        function editCells(tableRow: Element, values: string[], isLast: boolean = false, isTotal: boolean = false) {
             const cells = getXMLElements(tableRow, 'tc') as Element[];//getting all the cells in the row element
             cells.forEach((cell, index) => {
-                const textElement = getXMLElements(cell, 't', 0)as Element;
+                const textElement = getXMLElements(cell, 't', 0) as Element;
                 if (!textElement) return console.log('No text element was found !');
                 textElement.textContent = values[index];
 
@@ -575,18 +577,18 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
                 })();
 
             })
-            
+
         }
 
         function insertRowToXMLTable(after: number = -1, clone: boolean = false) {
 
             if (clone) return cloneFirstRow();
             else return create();
-            
+
             function create() {
                 const row = createXMLElement("tr");
                 after >= 0 ? (getXMLElements(table, 'tr', after) as Element)?.insertAdjacentElement('afterend', row) :
-                table.appendChild(row);
+                    table.appendChild(row);
                 return row;
             }
 
@@ -660,6 +662,16 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
             newRun.appendChild(newText);
 
         }
+
+        function getXMLTableByTitle(tables: Element[], title: string, property: string = 'tblCaption') {
+            return tables
+                .filter(table => tblCaption(table))
+                .find(table => tblCaption(table).getAttribute('w:val') === title) as Element;
+
+            function tblCaption(table: Element) {
+                return getXMLElements(table, property, 0) as Element
+            }
+        }
     })();
 
     (function editContentControls() {
@@ -679,7 +691,7 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
         function editXMLContentControl(control: Element, text: string) {
             if (!text) return control.remove();
             const sdtContent = getXMLElements(control, "sdtContent", 0) as Element;
-            const p = getXMLElements(sdtContent, 'p', 0) as Element|| getXMLElements(sdtContent, 'r', 0) as Element;
+            const p = getXMLElements(sdtContent, 'p', 0) as Element || getXMLElements(sdtContent, 'r', 0) as Element;
             if (!p) return;
             text.split('\n')
                 .forEach((parag, index) => editParagraph(parag, index));
@@ -689,12 +701,12 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
                 if (index < 1)
                     textElement = getXMLElements(p, 't', index) as Element;
                 else textElement = addParagraph();
-                
+
                 if (!textElement) return;
-                
+
                 textElement.textContent = parag;
-                
-              
+
+
                 function addParagraph() {
                     const newP = p.cloneNode(true) as Element;
                     sdtContent.appendChild(newP);
