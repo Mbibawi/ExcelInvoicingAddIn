@@ -572,7 +572,7 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
             if (!text)
                 return control.remove();
             const sdtContent = getXMLElements(control, "sdtContent", 0);
-            const p = getXMLElements(sdtContent, 'p', 0);
+            const p = getXMLElements(sdtContent, 'p', 0) || getXMLElements(sdtContent, 'r', 0);
             if (!p)
                 return;
             text.split('\n')
