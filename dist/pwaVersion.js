@@ -503,7 +503,7 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
         function setStyle(targetElement, style, backGroundColor = '') {
             // Create or find the run properties element
             //const styleProps = createAndAppend(runElement, "w:rPr", false);
-            const tag = targetElement.tagName.toLocaleLowerCase();
+            const tag = targetElement.tagName.toLowerCase();
             (function cell() {
                 if (tag !== 'w:tc')
                     return;

@@ -568,7 +568,7 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
         function setStyle(targetElement: Element, style: string, backGroundColor: string = ''): void {
             // Create or find the run properties element
             //const styleProps = createAndAppend(runElement, "w:rPr", false);
-            const tag = targetElement.tagName.toLocaleLowerCase();
+            const tag = targetElement.tagName.toLowerCase();
             (function cell() {
                 if (tag !== 'w:tc') return;
                 const cellProp = createAndAppend(targetElement, 'tcPr', false);
