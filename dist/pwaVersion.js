@@ -571,25 +571,23 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
         function editXMLContentControl(control, text) {
             if (!text)
                 return control.remove();
-            const sdtContent = control.getElementsByTagName("w:sdtContent")[0];
-            if (!sdtContent)
-                return;
+            const sdtContent = getXMLElements(control, "sdtContent", 0);
+            const p = getXMLElements(sdtContent, 'p', 0);
+            if (!p)
+                return alert('No paragraph was found');
             text.split('\n')
                 .forEach((parag, index) => editParagraph(parag, index));
             function editParagraph(parag, index) {
-                const textElement = getXMLElements(sdtContent, 't', index);
-                if (textElement)
-                    textElement.textContent = parag;
+                let textElement;
+                if (index < 1)
+                    textElement = getXMLElements(p, 't', index);
                 else
-                    addParagraph(parag);
-                function addParagraph(parag) {
-                    const paragElement = createXMLElement("w:p"); // Create a new paragraph
-                    const runElement = createXMLElement("w:r"); // Create a run
-                    const textElement = createXMLElement("w:t"); // Create text element
-                    textElement.textContent = parag; // Set the paragraph text
-                    runElement.appendChild(textElement);
-                    paragElement.appendChild(runElement);
-                    sdtContent.appendChild(paragElement); // Add paragraph to the content control
+                    textElement = addParagraph();
+                textElement.textContent = parag;
+                function addParagraph() {
+                    const newP = p.cloneNode(true);
+                    sdtContent.appendChild(newP);
+                    return getXMLElements(newP, 't', 0);
                 }
             }
         }

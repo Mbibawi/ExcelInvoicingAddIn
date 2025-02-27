@@ -634,24 +634,25 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
 
         function editXMLContentControl(control: Element, text: string) {
             if (!text) return control.remove();
-            const sdtContent = control.getElementsByTagName("w:sdtContent")[0];
-            if (!sdtContent) return;
+            const sdtContent = getXMLElements(control, "sdtContent", 0) as Element;
+            const p = getXMLElements(sdtContent, 'p', 0) as Element;
+            if (!p) return alert('No paragraph was found');
             text.split('\n')
                 .forEach((parag, index) => editParagraph(parag, index));
 
             function editParagraph(parag: string, index: number) {
-                const textElement = getXMLElements(sdtContent, 't', index) as Element;
-                if(textElement) textElement.textContent = parag;
-                else addParagraph(parag);
+                let textElement: Element;
+                if (index < 1)
+                    textElement = getXMLElements(p, 't', index) as Element;
+                else textElement = addParagraph();
 
-                function addParagraph(parag:string) {
-                    const paragElement = createXMLElement("w:p"); // Create a new paragraph
-                    const runElement = createXMLElement("w:r"); // Create a run
-                    const textElement = createXMLElement("w:t"); // Create text element
-                    textElement.textContent = parag; // Set the paragraph text
-                    runElement.appendChild(textElement);
-                    paragElement.appendChild(runElement);
-                    sdtContent.appendChild(paragElement); // Add paragraph to the content control
+                textElement.textContent = parag;
+                
+              
+                function addParagraph() {
+                    const newP = p.cloneNode(true) as Element;
+                    sdtContent.appendChild(newP);
+                    return getXMLElements(newP, 't', 0) as Element
                 }
             }
         }
