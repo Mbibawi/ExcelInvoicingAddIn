@@ -521,7 +521,6 @@ function inputOnChange(index: number, table: any[][] | undefined, invoice: boole
 async function createAndUploadXmlDocument(rows: string[][] | undefined, contentControls: string[][] | undefined, accessToken: string, templatePath: string, filePath: string, totals: string[] = []) {
 
     if (!accessToken || !templatePath || !filePath) return;
-    const schema = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 
     const blob = await fetchFileFromOneDriveWithGraphAPI(accessToken, templatePath);
 
@@ -548,7 +547,7 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
 
         function insertRowToXMLTable(after: number = -1) {
             if (!table) return;
-            const row = createTableElement("w:tr");
+            const row = createXMLElement("w:tr");
             after >= 0 ? (getXMLElements(table, 'w:tr', after) as Element)?.insertAdjacentElement('afterend', row) :
                 table.appendChild(row);
             return row;
@@ -589,7 +588,7 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
             })();
 
             function createAndAppend(parent: Element, tag: string, append: boolean = true) {
-                const newElement = createTableElement(tag);
+                const newElement = createXMLElement(tag);
                 if (append) parent.appendChild(newElement)
                 else parent.insertBefore(newElement, parent.firstChild);
                 return newElement
@@ -598,28 +597,24 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
 
         function addCellToXMLTableRow(row: Element, style: string, isTotal: boolean, text?: string) {
             if (!row) return;
-            const cell = createTableElement("w:tc");//new table cell
+            const cell = createXMLElement("w:tc");//new table cell
             row.appendChild(cell);
             if (isTotal)
                 setStyle(cell, style, 'D9D9D9');//We set the background color of the cell
             else setStyle(cell, style, '');
-            const parag = createTableElement("w:p");//new table paragraph
+            const parag = createXMLElement("w:p");//new table paragraph
             cell.appendChild(parag)
             setStyle(parag, style, '');
-            const newRun = createTableElement("w:r");// new run
+            const newRun = createXMLElement("w:r");// new run
             parag.appendChild(newRun);
 
             if (!text) return;
 
-            const newText = createTableElement("w:t");
+            const newText = createXMLElement("w:t");
             newText.textContent = text;
 
             newRun.appendChild(newText);
 
-        }
-
-        function createTableElement(tag: string) {
-            return doc.createElement(tag);
         }
     })();
 
@@ -639,14 +634,35 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
 
         function editXMLContentControl(control: Element, text: string) {
             if (!text) return control.remove();
+            const paragraphs = text.split('/n');
+            if (paragraphs.length > 1)
+                return paragraphs.forEach(parag => addNewParagraph(parag));
+
+
             const textElement = control.getElementsByTagName("w:t")[0];
-            if (!textElement) return;//!need to insert a text element instead of returning
+
+            if (!textElement) return addNewParagraph(text);
+
             textElement.textContent = text;
+
+            function addNewParagraph(text: string) {
+                const paragElement = createXMLElement("w:p"); // Create a new paragraph
+                const runElement = createXMLElement("w:r"); // Create a run
+                const textElement = createXMLElement("w:t"); // Create text element
+                textElement.textContent = text; // Set the paragraph text
+                runElement.appendChild(textElement);
+                paragElement.appendChild(runElement);
+                control.appendChild(paragElement); // Add paragraph to the content control
+            }
         }
 
     })();
 
     await convertXMLToBlobAndUpload(doc, zip, filePath, accessToken);
+
+    function createXMLElement(tag: string) {
+        return doc.createElementNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', tag);
+    }
 
     function getXMLElements(xmlDoc: XMLDocument | Element, tag: string, index?: number): Element[] | Element {
         const elements = xmlDoc.getElementsByTagName(tag);
