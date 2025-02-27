@@ -667,7 +667,7 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
 
     function getXMLElements(xmlDoc: XMLDocument | Element, tag: string, index?: number): Element[] | Element {
         const elements = xmlDoc.getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', tag);
-        if (index) return elements[index];
+        if (index !==undefined) return elements[index];
         return Array.from(elements)
     }
 };
