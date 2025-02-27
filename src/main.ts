@@ -418,13 +418,13 @@ function getRowsData(tableData: any[][], discount: number, lang: string): [strin
     },
     hourlyBilled: {
       nature: '',
-      FR: 'facturation au temps passé : ',
-      EN: 'hourly billed: ',
+      FR: 'facturation au temps passé\u00A0:',
+      EN: 'hourly billed:',
     },
     hourlyRate: {
       nature: '',
-      FR: ' au taux horaire de : ',
-      EN: ' at an hourly rate of: ',
+      FR: 'au taux horaire de\u00A0:',
+      EN: 'at an hourly rate of:',
     },
     decimal: {
       nature: '',
@@ -442,7 +442,7 @@ function getRowsData(tableData: any[][], discount: number, lang: string): [strin
 
     //If the billable hours are > 0, we add to the description: time spent and hourly rate
     if (time)
-      description += `(${labels.hourlyBilled[lang as keyof lable]} ${time} ${labels.hourlyRate[lang as keyof lable]} ${Math.abs(row[rate]).toString()}\u00A0€)`;
+      description += ` (${labels.hourlyBilled[lang as keyof lable]} ${time}, ${labels.hourlyRate[lang as keyof lable]} ${Math.abs(row[rate]).toString()}\u00A0€).`;
 
 
     const rowValues: string[] = [
@@ -545,10 +545,10 @@ function getRowsData(tableData: any[][], discount: number, lang: string): [strin
   function getAmountString(value: number): string {
     if (isNaN(value)) return '';
 
-    const amount = value.toLocaleString(`${lang.toLowerCase()}-${lang.toUpperCase()}`, { 
-      minimumFractionDigits: 2, 
+    const amount = value.toLocaleString(`${lang.toLowerCase()}-${lang.toUpperCase()}`, {
+      minimumFractionDigits: 2,
       maximumFractionDigits: 2
-  });
+    });
 
     const versions = {
       FR: `${amount}\u00A0€`,
@@ -670,7 +670,7 @@ async function fetchExcelTableWithGraphAPI(accessToken: string, filePath: string
   else return data.value.map((v: any) => v.values);
 }
 
-async function clearFilterExcelTableGraphAPI(filePath:string, tableName:string, accessToken:string) {
+async function clearFilterExcelTableGraphAPI(filePath: string, tableName: string, accessToken: string) {
   // First, clear filters on the table (optional step)
   await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/clearFilters`, {
     method: "POST",

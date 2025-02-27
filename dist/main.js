@@ -362,13 +362,13 @@ function getRowsData(tableData, discount, lang) {
         },
         hourlyBilled: {
             nature: '',
-            FR: 'facturation au temps passé : ',
-            EN: 'hourly billed: ',
+            FR: 'facturation au temps passé\u00A0:',
+            EN: 'hourly billed:',
         },
         hourlyRate: {
             nature: '',
-            FR: ' au taux horaire de : ',
-            EN: ' at an hourly rate of: ',
+            FR: 'au taux horaire de\u00A0:',
+            EN: 'at an hourly rate of:',
         },
         decimal: {
             nature: '',
@@ -383,7 +383,7 @@ function getRowsData(tableData, discount, lang) {
         let description = `${String(row[nature])} : ${String(row[descr])}`; //Column Nature + Column Description;
         //If the billable hours are > 0, we add to the description: time spent and hourly rate
         if (time)
-            description += `(${labels.hourlyBilled[lang]} ${time} ${labels.hourlyRate[lang]} ${Math.abs(row[rate]).toString()}\u00A0€)`;
+            description += ` (${labels.hourlyBilled[lang]} ${time}, ${labels.hourlyRate[lang]} ${Math.abs(row[rate]).toString()}\u00A0€).`;
         const rowValues = [
             [date.getDate(), date.getMonth() + 1, date.getFullYear()].map(el => el.toString().padStart(2, '0')).join('/'), //Column Date
             description,
