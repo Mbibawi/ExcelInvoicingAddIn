@@ -534,23 +534,68 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
         if (!rows) return;
         const table = getXMLElements(doc, "tbl", 1) as Element;
         if (!table) return;
+        const firstRow = getXMLElements(table, 'tr', 1) as Element;
 
         rows.forEach((row, index) => {
-            const newXmlRow = insertRowToXMLTable();
+            const newXmlRow = insertRowToXMLTable(NaN, true) as Element;
             if (!newXmlRow) return;
             const isTotal = totals.includes(row[0]);
             const isLast = index === rows.length - 1;
+            return editCells(newXmlRow, row, isLast, isTotal);
+
             row.forEach((text, index) => {
                 addCellToXMLTableRow(newXmlRow, getStyle(index, isTotal && !isLast), [isTotal, isLast].includes(true), text)
             })
         });
 
-        function insertRowToXMLTable(after: number = -1) {
-            if (!table) return;
-            const row = createXMLElement("tr");
-            after >= 0 ? (getXMLElements(table, 'tr', after) as Element)?.insertAdjacentElement('afterend', row) :
+        firstRow.remove();//We remove the first row when we finish
+
+        function editCells(tableRow:Element, values:string[], isLast: boolean = false, isTotal: boolean = false) {
+            const cells = getXMLElements(tableRow, 'tc') as Element[];//getting all the cells in the row element
+            cells.forEach((cell, index) => {
+                const textElement = getXMLElements(cell, 't', 0)as Element;
+                if (!textElement) return console.log('No text element was found !');
+                textElement.textContent = values[index];
+
+                if (!isLast && !isTotal) return;
+
+                const cellProp = getXMLElements(cell, 'tcPr', 0) as Element || cell.appendChild(createXMLElement('tcPr'));
+
+                (function backGroundColor() {
+                    const background = getXMLElements(cellProp, 'shd') as Element || cellProp.appendChild(createXMLElement('shd') as Element);//Adding background color to cell
+                    background.setAttribute('val', "clear");
+                    background.setAttribute('fill', 'D9D9D9');
+                })();
+
+                (function cellStyle() {
+                    if (index > 0) return;
+                    const pPr = getXMLElements(cell, 'pPr', 0) as Element;
+                    if (!pPr) return console.log('No paragaph property element was found !');
+                    const style = getXMLElements(pPr, 'pStyle', 0) as Element || pPr.appendChild(createXMLElement('pStyle'));
+                    style.setAttribute('val', getStyle(index, isTotal && !isLast));
+                })();
+
+            })
+            
+        }
+
+        function insertRowToXMLTable(after: number = -1, clone: boolean = false) {
+
+            if (clone) return cloneFirstRow();
+            else return create();
+            
+            function create() {
+                const row = createXMLElement("tr");
+                after >= 0 ? (getXMLElements(table, 'tr', after) as Element)?.insertAdjacentElement('afterend', row) :
                 table.appendChild(row);
-            return row;
+                return row;
+            }
+
+            function cloneFirstRow() {
+                const row = firstRow.cloneNode(true) as Element;
+                table.appendChild(row);
+                return row
+            };
         }
 
         function getStyle(cell: number, isTotal: boolean = false) {
@@ -595,7 +640,7 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
             }
         }
 
-        function addCellToXMLTableRow(row: Element, style: string, isTotal: boolean, text?: string) {
+        function addCellToXMLTableRow(row: Element | undefined, style: string, isTotal: boolean, text?: string) {
             if (!row) return;
             const cell = createXMLElement("tc");//new table cell
             row.appendChild(cell);

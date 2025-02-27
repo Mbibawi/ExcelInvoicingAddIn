@@ -464,23 +464,62 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
         const table = getXMLElements(doc, "tbl", 1);
         if (!table)
             return;
+        const firstRow = getXMLElements(table, 'tr', 1);
         rows.forEach((row, index) => {
-            const newXmlRow = insertRowToXMLTable();
+            const newXmlRow = insertRowToXMLTable(NaN, true);
             if (!newXmlRow)
                 return;
             const isTotal = totals.includes(row[0]);
             const isLast = index === rows.length - 1;
+            return editCells(newXmlRow, row, isLast, isTotal);
             row.forEach((text, index) => {
                 addCellToXMLTableRow(newXmlRow, getStyle(index, isTotal && !isLast), [isTotal, isLast].includes(true), text);
             });
         });
-        function insertRowToXMLTable(after = -1) {
-            if (!table)
-                return;
-            const row = createXMLElement("tr");
-            after >= 0 ? getXMLElements(table, 'tr', after)?.insertAdjacentElement('afterend', row) :
+        firstRow.remove(); //We remove the first row when we finish
+        function editCells(tableRow, values, isLast = false, isTotal = false) {
+            const cells = getXMLElements(tableRow, 'tc'); //getting all the cells in the row element
+            cells.forEach((cell, index) => {
+                const textElement = getXMLElements(cell, 't', 0);
+                if (!textElement)
+                    return console.log('No text element was found !');
+                textElement.textContent = values[index];
+                if (!isLast && !isTotal)
+                    return;
+                const cellProp = getXMLElements(cell, 'tcPr', 0) || cell.appendChild(createXMLElement('tcPr'));
+                (function backGroundColor() {
+                    const background = getXMLElements(cellProp, 'shd') || cellProp.appendChild(createXMLElement('shd')); //Adding background color to cell
+                    background.setAttribute('val', "clear");
+                    background.setAttribute('fill', 'D9D9D9');
+                })();
+                (function cellStyle() {
+                    if (index > 0)
+                        return;
+                    const pPr = getXMLElements(cell, 'pPr', 0);
+                    if (!pPr)
+                        return console.log('No paragaph property element was found !');
+                    const style = getXMLElements(pPr, 'pStyle', 0) || pPr.appendChild(createXMLElement('pStyle'));
+                    style.setAttribute('val', getStyle(index, isTotal && !isLast));
+                })();
+            });
+        }
+        function insertRowToXMLTable(after = -1, clone = false) {
+            if (clone)
+                return cloneFirstRow();
+            else
+                return create();
+            function create() {
+                const row = createXMLElement("tr");
+                after >= 0 ? getXMLElements(table, 'tr', after)?.insertAdjacentElement('afterend', row) :
+                    table.appendChild(row);
+                return row;
+            }
+            function cloneFirstRow() {
+                const row = firstRow.cloneNode(true);
                 table.appendChild(row);
-            return row;
+                return row;
+            }
+            ;
         }
         function getStyle(cell, isTotal = false) {
             let style = 'Invoice';
