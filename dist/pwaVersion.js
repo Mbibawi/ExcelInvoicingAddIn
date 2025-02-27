@@ -489,17 +489,15 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
                 const cellProp = getXMLElements(cell, 'tcPr', 0) || cell.appendChild(createXMLElement('tcPr'));
                 (function backGroundColor() {
                     const background = getXMLElements(cellProp, 'shd', 0) || cellProp.appendChild(createXMLElement('shd')); //Adding background color to cell
-                    background.setAttribute('val', "clear");
-                    background.setAttribute('fill', 'D9D9D9');
+                    background.setAttribute('w:val', "clear");
+                    background.setAttribute('w:fill', 'D9D9D9');
                 })();
                 (function cellStyle() {
-                    if (index > 0)
-                        return;
                     const pPr = getXMLElements(cell, 'pPr', 0);
                     if (!pPr)
                         return console.log('No paragaph property element was found !');
                     const style = getXMLElements(pPr, 'pStyle', 0) || pPr.appendChild(createXMLElement('pStyle'));
-                    style.setAttribute('val', getStyle(index, isTotal && !isLast));
+                    style.setAttribute('w:val', getStyle(index, isTotal && !isLast));
                 })();
             });
         }
