@@ -641,7 +641,7 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
 
             function editParagraph(parag: string, index: number) {
                 const textElement = getXMLElements(sdtContent, 't', index) as Element;
-                if(textElement) textElement.textContent = text;
+                if(textElement) textElement.textContent = parag;
                 else addParagraph(parag);
 
                 function addParagraph(parag:string) {
@@ -649,8 +649,8 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
                     const runElement = createXMLElement("w:r"); // Create a run
                     const textElement = createXMLElement("w:t"); // Create text element
                     textElement.textContent = parag; // Set the paragraph text
-                    runElement?.appendChild(textElement);
-                    paragElement?.appendChild(runElement);
+                    runElement.appendChild(textElement);
+                    paragElement.appendChild(runElement);
                     sdtContent.appendChild(paragElement); // Add paragraph to the content control
                 }
             }
