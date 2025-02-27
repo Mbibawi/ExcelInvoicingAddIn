@@ -477,7 +477,7 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
         function insertRowToXMLTable(after = -1) {
             if (!table)
                 return;
-            const row = createXMLElement("w:tr");
+            const row = createXMLElement("tr");
             after >= 0 ? getXMLElements(table, 'tr', after)?.insertAdjacentElement('afterend', row) :
                 table.appendChild(row);
             return row;
@@ -507,22 +507,22 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
             (function cell() {
                 if (tag !== 'w:tc')
                     return;
-                const cellProp = createAndAppend(targetElement, 'w:tcPr', false);
-                createAndAppend(cellProp, 'w:vAlign').setAttribute('w:val', "center");
+                const cellProp = createAndAppend(targetElement, 'tcPr', false);
+                createAndAppend(cellProp, 'vAlign').setAttribute('val', "center");
                 //createAndAppend(cellProp, 'w:tcStyle').setAttribute('w:val', 'InvoiceCellCentered');
                 if (!backGroundColor)
                     return;
-                const background = createAndAppend(cellProp, 'w:shd'); //Adding background color to cell
-                background.setAttribute('w:val', "clear");
-                background.setAttribute('w:fill', backGroundColor);
+                const background = createAndAppend(cellProp, 'shd'); //Adding background color to cell
+                background.setAttribute('val', "clear");
+                background.setAttribute('fill', backGroundColor);
             })();
             (function parag() {
                 if (tag !== 'w:p')
                     return;
                 if (!style)
                     return;
-                const props = createAndAppend(targetElement, "w:pPr", false);
-                createAndAppend(props, "w:pStyle").setAttribute("w:val", style);
+                const props = createAndAppend(targetElement, "pPr", false);
+                createAndAppend(props, "w:pStyle").setAttribute("val", style);
             })();
             function createAndAppend(parent, tag, append = true) {
                 const newElement = createXMLElement(tag);
@@ -536,20 +536,20 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
         function addCellToXMLTableRow(row, style, isTotal, text) {
             if (!row)
                 return;
-            const cell = createXMLElement("w:tc"); //new table cell
+            const cell = createXMLElement("tc"); //new table cell
             row.appendChild(cell);
             if (isTotal)
                 setStyle(cell, style, 'D9D9D9'); //We set the background color of the cell
             else
                 setStyle(cell, style, '');
-            const parag = createXMLElement("w:p"); //new table paragraph
+            const parag = createXMLElement("p"); //new table paragraph
             cell.appendChild(parag);
             setStyle(parag, style, '');
-            const newRun = createXMLElement("w:r"); // new run
+            const newRun = createXMLElement("r"); // new run
             parag.appendChild(newRun);
             if (!text)
                 return;
-            const newText = createXMLElement("w:t");
+            const newText = createXMLElement("t");
             newText.textContent = text;
             newRun.appendChild(newText);
         }
@@ -566,7 +566,7 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
             editXMLContentControl(control, text);
         });
         function findXMLContentControlByTitle(ctrls, title) {
-            return ctrls.find(control => control.getElementsByTagName("w:alias")[0]?.getAttribute("w:val") === title);
+            return ctrls.find(control => getXMLElements(control, "alias", 0)?.getAttribute("w:val") === title);
         }
         function editXMLContentControl(control, text) {
             if (!text)
