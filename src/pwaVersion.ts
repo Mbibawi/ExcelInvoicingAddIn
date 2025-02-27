@@ -636,6 +636,7 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
             if (!text) return control.remove();
             const sdtContent = getXMLElements(control, "sdtContent", 0) as Element;
             const p = getXMLElements(sdtContent, 'p', 0) as Element;
+            if (!p) return;
             text.split('\n')
                 .forEach((parag, index) => editParagraph(parag, index));
 
@@ -665,8 +666,8 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
     }
 
     function getXMLElements(xmlDoc: XMLDocument | Element, tag: string, index: number = NaN): Element[] | Element {
-        const elements = xmlDoc.getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', tag);
-        if (!isNaN(index)) return elements[index];
+        const elements = xmlDoc?.getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', tag);
+        if (!isNaN(index)) return elements?.[index];
         return Array.from(elements)
     }
 };

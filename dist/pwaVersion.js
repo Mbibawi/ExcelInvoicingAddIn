@@ -573,6 +573,8 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
                 return control.remove();
             const sdtContent = getXMLElements(control, "sdtContent", 0);
             const p = getXMLElements(sdtContent, 'p', 0);
+            if (!p)
+                return;
             text.split('\n')
                 .forEach((parag, index) => editParagraph(parag, index));
             function editParagraph(parag, index) {
@@ -595,9 +597,9 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
         return doc.createElementNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', tag);
     }
     function getXMLElements(xmlDoc, tag, index = NaN) {
-        const elements = xmlDoc.getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', tag);
+        const elements = xmlDoc?.getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', tag);
         if (!isNaN(index))
-            return elements[index];
+            return elements?.[index];
         return Array.from(elements);
     }
 }
