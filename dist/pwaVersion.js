@@ -461,7 +461,7 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
     (function editTable() {
         if (!rows)
             return;
-        const table = getXMLElements(doc, "w:tbl", 1);
+        const table = getXMLElements(doc, "tbl", 1);
         if (!table)
             return;
         rows.forEach((row, index) => {
@@ -478,7 +478,7 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
             if (!table)
                 return;
             const row = createXMLElement("w:tr");
-            after >= 0 ? getXMLElements(table, 'w:tr', after)?.insertAdjacentElement('afterend', row) :
+            after >= 0 ? getXMLElements(table, 'tr', after)?.insertAdjacentElement('afterend', row) :
                 table.appendChild(row);
             return row;
         }
@@ -557,7 +557,7 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
     (function editContentControls() {
         if (!contentControls)
             return;
-        const ctrls = getXMLElements(doc, "w:sdt");
+        const ctrls = getXMLElements(doc, "sdt");
         contentControls
             .forEach(([title, text]) => {
             const control = findXMLContentControlByTitle(ctrls, title);
@@ -571,33 +571,35 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
         function editXMLContentControl(control, text) {
             if (!text)
                 return control.remove();
-            const paragraphs = text.split('\n');
-            if (paragraphs.length > 1)
-                return paragraphs.forEach(parag => addNewParagraph(parag));
-            const textElement = control.getElementsByTagName("w:t")[0];
-            if (!textElement)
-                return addNewParagraph(text);
-            textElement.textContent = text;
-            function addNewParagraph(text) {
-                const sdtContent = control.getElementsByTagName("sdtContent")[0];
-                if (!sdtContent)
-                    alert("No sdtContent");
-                const paragElement = createXMLElement("w:p"); // Create a new paragraph
-                const runElement = createXMLElement("w:r"); // Create a run
-                const textElement = createXMLElement("w:t"); // Create text element
-                textElement.textContent = text; // Set the paragraph text
-                runElement.appendChild(textElement);
-                paragElement.appendChild(runElement);
-                sdtContent.appendChild(paragElement); // Add paragraph to the content control
+            const sdtContent = control.getElementsByTagName("w:sdtContent")[0];
+            if (!sdtContent)
+                return;
+            text.split('\n')
+                .forEach((parag, index) => editParagraph(parag, index));
+            function editParagraph(parag, index) {
+                const textElement = getXMLElements(sdtContent, 't', index);
+                if (textElement)
+                    textElement.textContent = text;
+                else
+                    addParagraph(parag);
+                function addParagraph(parag) {
+                    const paragElement = createXMLElement("w:p"); // Create a new paragraph
+                    const runElement = createXMLElement("w:r"); // Create a run
+                    const textElement = createXMLElement("w:t"); // Create text element
+                    textElement.textContent = parag; // Set the paragraph text
+                    runElement?.appendChild(textElement);
+                    paragElement?.appendChild(runElement);
+                    sdtContent.appendChild(paragElement); // Add paragraph to the content control
+                }
             }
         }
     })();
     await convertXMLToBlobAndUpload(doc, zip, filePath, accessToken);
-    function createXMLElement(tag) {
+    function createXMLElement(tag, parent) {
         return doc.createElementNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', tag);
     }
     function getXMLElements(xmlDoc, tag, index) {
-        const elements = xmlDoc.getElementsByTagName(tag);
+        const elements = xmlDoc.getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', tag);
         if (index)
             return elements[index];
         return Array.from(elements);

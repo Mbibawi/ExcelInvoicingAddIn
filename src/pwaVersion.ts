@@ -532,7 +532,7 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
 
     (function editTable() {
         if (!rows) return;
-        const table = getXMLElements(doc, "w:tbl", 1) as Element;
+        const table = getXMLElements(doc, "tbl", 1) as Element;
         if (!table) return;
 
         rows.forEach((row, index) => {
@@ -548,7 +548,7 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
         function insertRowToXMLTable(after: number = -1) {
             if (!table) return;
             const row = createXMLElement("w:tr");
-            after >= 0 ? (getXMLElements(table, 'w:tr', after) as Element)?.insertAdjacentElement('afterend', row) :
+            after >= 0 ? (getXMLElements(table, 'tr', after) as Element)?.insertAdjacentElement('afterend', row) :
                 table.appendChild(row);
             return row;
         }
@@ -620,7 +620,7 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
 
     (function editContentControls() {
         if (!contentControls) return;
-        const ctrls = getXMLElements(doc, "w:sdt") as Element[];
+        const ctrls = getXMLElements(doc, "sdt") as Element[];
         contentControls
             .forEach(([title, text]) => {
                 const control = findXMLContentControlByTitle(ctrls, title);
@@ -634,27 +634,25 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
 
         function editXMLContentControl(control: Element, text: string) {
             if (!text) return control.remove();
-            const paragraphs = text.split('\n');
-            if (paragraphs.length > 1)
-                return paragraphs.forEach(parag => addNewParagraph(parag));
+            const sdtContent = control.getElementsByTagName("w:sdtContent")[0];
+            if (!sdtContent) return;
+            text.split('\n')
+                .forEach((parag, index) => editParagraph(parag, index));
 
+            function editParagraph(parag: string, index: number) {
+                const textElement = getXMLElements(sdtContent, 't', index) as Element;
+                if(textElement) textElement.textContent = text;
+                else addParagraph(parag);
 
-            const textElement = control.getElementsByTagName("w:t")[0];
-
-            if (!textElement) return addNewParagraph(text);
-
-            textElement.textContent = text;
-
-            function addNewParagraph(text: string) {
-                const sdtContent = control.getElementsByTagName("sdtContent")[0];
-                if (!sdtContent) alert("No sdtContent");
-                const paragElement = createXMLElement("w:p"); // Create a new paragraph
-                const runElement = createXMLElement("w:r"); // Create a run
-                const textElement = createXMLElement("w:t"); // Create text element
-                textElement.textContent = text; // Set the paragraph text
-                runElement.appendChild(textElement);
-                paragElement.appendChild(runElement);
-                sdtContent.appendChild(paragElement); // Add paragraph to the content control
+                function addParagraph(parag:string) {
+                    const paragElement = createXMLElement("w:p"); // Create a new paragraph
+                    const runElement = createXMLElement("w:r"); // Create a run
+                    const textElement = createXMLElement("w:t"); // Create text element
+                    textElement.textContent = parag; // Set the paragraph text
+                    runElement?.appendChild(textElement);
+                    paragElement?.appendChild(runElement);
+                    sdtContent.appendChild(paragElement); // Add paragraph to the content control
+                }
             }
         }
 
@@ -662,12 +660,12 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
 
     await convertXMLToBlobAndUpload(doc, zip, filePath, accessToken);
 
-    function createXMLElement(tag: string) {
+    function createXMLElement(tag: string, parent?: HTMLElement) {
         return doc.createElementNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', tag);
     }
 
     function getXMLElements(xmlDoc: XMLDocument | Element, tag: string, index?: number): Element[] | Element {
-        const elements = xmlDoc.getElementsByTagName(tag);
+        const elements = xmlDoc.getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', tag);
         if (index) return elements[index];
         return Array.from(elements)
     }
