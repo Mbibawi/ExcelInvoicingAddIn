@@ -634,7 +634,7 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
 
         function editXMLContentControl(control: Element, text: string) {
             if (!text) return control.remove();
-            const paragraphs = text.split('/n');
+            const paragraphs = text.split('\n');
             if (paragraphs.length > 1)
                 return paragraphs.forEach(parag => addNewParagraph(parag));
 
