@@ -488,7 +488,7 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
                     return;
                 const cellProp = getXMLElements(cell, 'tcPr', 0) || cell.appendChild(createXMLElement('tcPr'));
                 (function backGroundColor() {
-                    const background = getXMLElements(cellProp, 'shd') || cellProp.appendChild(createXMLElement('shd')); //Adding background color to cell
+                    const background = getXMLElements(cellProp, 'shd', 0) || cellProp.appendChild(createXMLElement('shd')); //Adding background color to cell
                     background.setAttribute('val', "clear");
                     background.setAttribute('fill', 'D9D9D9');
                 })();
