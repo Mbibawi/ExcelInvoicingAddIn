@@ -579,13 +579,16 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
                 return addNewParagraph(text);
             textElement.textContent = text;
             function addNewParagraph(text) {
+                const sdtContent = control.getElementsByTagName("sdtContent")[0];
+                if (!sdtContent)
+                    alert("No sdtContent");
                 const paragElement = createXMLElement("w:p"); // Create a new paragraph
                 const runElement = createXMLElement("w:r"); // Create a run
                 const textElement = createXMLElement("w:t"); // Create text element
                 textElement.textContent = text; // Set the paragraph text
                 runElement.appendChild(textElement);
                 paragElement.appendChild(runElement);
-                control.appendChild(paragElement); // Add paragraph to the content control
+                sdtContent.appendChild(paragElement); // Add paragraph to the content control
             }
         }
     })();
