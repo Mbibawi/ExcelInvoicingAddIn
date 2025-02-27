@@ -573,8 +573,6 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
                 return control.remove();
             const sdtContent = getXMLElements(control, "sdtContent", 0);
             const p = getXMLElements(sdtContent, 'p', 0);
-            if (!p)
-                return alert('No paragraph was found');
             text.split('\n')
                 .forEach((parag, index) => editParagraph(parag, index));
             function editParagraph(parag, index) {
