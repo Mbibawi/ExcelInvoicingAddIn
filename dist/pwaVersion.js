@@ -583,6 +583,8 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
                     textElement = getXMLElements(p, 't', index);
                 else
                     textElement = addParagraph();
+                if (!textElement)
+                    return;
                 textElement.textContent = parag;
                 function addParagraph() {
                     const newP = p.cloneNode(true);
