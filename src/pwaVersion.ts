@@ -665,9 +665,9 @@ async function createAndUploadXmlDocument(rows: string[][] | undefined, contentC
         return doc.createElementNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', tag);
     }
 
-    function getXMLElements(xmlDoc: XMLDocument | Element, tag: string, index?: number): Element[] | Element {
+    function getXMLElements(xmlDoc: XMLDocument | Element, tag: string, index: number = NaN): Element[] | Element {
         const elements = xmlDoc.getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', tag);
-        if (index !==undefined) return elements[index];
+        if (!isNaN(index)) return elements[index];
         return Array.from(elements)
     }
 };

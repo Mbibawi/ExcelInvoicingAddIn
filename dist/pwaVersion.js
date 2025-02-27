@@ -596,9 +596,9 @@ async function createAndUploadXmlDocument(rows, contentControls, accessToken, te
     function createXMLElement(tag, parent) {
         return doc.createElementNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', tag);
     }
-    function getXMLElements(xmlDoc, tag, index) {
+    function getXMLElements(xmlDoc, tag, index = NaN) {
         const elements = xmlDoc.getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', tag);
-        if (index !== undefined)
+        if (!isNaN(index))
             return elements[index];
         return Array.from(elements);
     }
