@@ -265,7 +265,7 @@ async function invoice(issue: boolean = false) {
 
         filePath = prompt(`The file will be saved in ${destinationFolder}, and will be named : ${fileName}./nIf you want to change the path or the name, provide the full file path and name of your choice without any sepcial characters`, filePath) || filePath;
 
-        await createAndUploadXmlDocument(accessToken, templatePath, filePath, 'Invoice', wordRows, contentControls, totalsRows);
+        await createAndUploadXmlDocument(accessToken, templatePath, filePath, 'Invoice', lang, wordRows, contentControls, totalsRows);
 
         (async function filterTable() {
             await clearFilterExcelTableGraphAPI(workbookPath, tableName, accessToken); //We start by clearing the filter of the table, otherwise the insertion will fail
@@ -444,7 +444,7 @@ async function issueLetter(create: boolean = false) {
 
         const contentControls = [['RTCoreText', input.value], ['RTReference', 'Référence'], ['RTClientName', 'Nom du Client'], ['RTEmail', 'Email du client']];
 
-        createAndUploadXmlDocument(accessToken, templatePath, filePath, undefined, undefined, contentControls);
+        createAndUploadXmlDocument(accessToken, templatePath, filePath, 'FR', undefined, undefined, contentControls);
     })();
 
 }
@@ -518,7 +518,7 @@ function inputOnChange(index: number, table: any[][] | undefined, invoice: boole
 };
 
 
-async function createAndUploadXmlDocument(accessToken: string, templatePath: string, filePath: string, tableTitle?: string, rows?: string[][] | undefined, contentControls?: string[][] | undefined, totals?: string[]) {
+async function createAndUploadXmlDocument(accessToken: string, templatePath: string, filePath: string, lang: string, tableTitle?: string, rows?: string[][] | undefined, contentControls?: string[][] | undefined, totals?: string[]) {
 
     if (!accessToken || !templatePath || !filePath) return;
 
@@ -553,13 +553,13 @@ async function createAndUploadXmlDocument(accessToken: string, templatePath: str
             const cells = getXMLElements(tableRow, 'tc') as Element[] || values.map(v => tableRow.appendChild(createXMLElement('tc')));//getting all the cells in the row element
 
             cells.forEach((cell, index) => {
-                const textElement = getXMLElements(cell, 't', 0) as Element || addParagraph(cell);
+                const textElement = getXMLElements(cell, 't', 0) as Element || appendParagraph(cell);
                 if (!textElement) return console.log('No text element was found !');
+                const pPr = setTextLanguage(cell);//We call this here in order to set the language for all the cells. It returns the pPr element if any.
                 textElement.textContent = values[index];
 
                 (function totalsRowsFormatting() {
                     if (!isLast && !isTotal) return;
-
                     (function cellBackgroundColor() {
                         const tcPr = getXMLElements(cell, 'tcPr', 0) as Element || cell.prepend(createXMLElement('tcPr'));
                         const background = getXMLElements(tcPr, 'shd', 0) as Element || tcPr.appendChild(createXMLElement('shd') as Element);//Adding background color to cell
@@ -568,8 +568,7 @@ async function createAndUploadXmlDocument(accessToken: string, templatePath: str
                     })();
 
                     (function paragraphStyle() {
-                        const pPr = getXMLElements(cell, 'pPr', 0) as Element;
-                        if (!pPr) return console.log('No paragaph property element was found !');
+                        if (!pPr) return console.log('No "w:pPr" or "w:rPr" property element was found !');
                         const style = getXMLElements(pPr, 'pStyle', 0) as Element || pPr.appendChild(createXMLElement('pStyle'));
                         style.setAttributeNS(schema, 'val', getStyle(index, isTotal && !isLast));
                     })();
@@ -639,21 +638,23 @@ async function createAndUploadXmlDocument(accessToken: string, templatePath: str
         function editXMLContentControl(control: Element, text: string) {
             if (!text) return control.remove();
             const sdtContent = getXMLElements(control, "sdtContent", 0) as Element;
-            const p = getXMLElements(sdtContent, 'p', 0) as Element || getXMLElements(sdtContent, 'r', 0) as Element;
-            if (!p) return;
+            if (!sdtContent) return;
+            const paragTemplate = getParagraphOrRun(sdtContent) as Element;//This will set the language for the paragraph or the run
+            if (!paragTemplate) return console.log('No template paragraph or run were found !');
+            setTextLanguage(paragTemplate);//We amend the language element to the "w:pPr" or "r:pPr" child elements of paragTemplate
+
             text.split('\n')
                 .forEach((parag, index) => editParagraph(parag, index));
 
             function editParagraph(parag: string, index: number) {
                 let textElement: Element;
                 if (index < 1)
-                    textElement = getXMLElements(p, 't', index) as Element;
-                else textElement = addParagraph(p, sdtContent);
+                    textElement = getXMLElements(paragTemplate, 't', index) as Element;
+                else textElement = appendParagraph(paragTemplate, sdtContent);//We pass sdtContent as parent argument
 
-                if (!textElement) return;
+                if (!textElement) return console.log('No textElement was found !');
 
                 textElement.textContent = parag;
-
 
             }
         }
@@ -668,13 +669,13 @@ async function createAndUploadXmlDocument(accessToken: string, templatePath: str
      * @param {Elemenet} parent - If provided, element will be cloned and appended to parent.
      * @returns {Element} the textElemenet attached to the paragraph
      */
-    function addParagraph(element: Element, parent?:Element) {
+    function appendParagraph(element: Element, parent?: Element) {
         if (parent) return clone();
         else return create();
         function clone() {
-                const parag = element?.cloneNode(true) as Element;
-                parent?.appendChild(parag);
-                return getXMLElements(parag, 't', 0) as Element
+            const parag = element?.cloneNode(true) as Element;
+            parent?.appendChild(parag);
+            return getXMLElements(parag, 't', 0) as Element
         }
         function create() {
             const parag = element.appendChild(createXMLElement('p'));
@@ -692,6 +693,29 @@ async function createAndUploadXmlDocument(accessToken: string, templatePath: str
         const elements = xmlDoc.getElementsByTagNameNS(schema, tag);
         if (!isNaN(index)) return elements?.[index];
         return Array.from(elements)
+    }
+
+    /**
+     * Looks for a child "w:p" (paragraph) element, if it doesn't find any, it looks for a "w:r" (run) element.
+     * @param {Element} parent - the parent XML of the paragraph or run element we want to retrieve. 
+     * @returns {Element | undefined} - an XML element representing a "w:p" (paragraph) or, if not found, a "w:r" (run), or undefined
+     */
+    function getParagraphOrRun(parent:Element) {
+        return getXMLElements(parent, 'p', 0) as Element || getXMLElements(parent, 'r', 0) as Element;
+    }
+    /**
+     * Finds a "w:pPr" XML element (property element) which is a child of the XML parent element passed as argument. If does not find it, it looks for a "w:rPr" XML element. When it finds either a "w:pPr" or a "w:rPr" element, it appends a "w:lang" element to it, and sets its "w:val" attribute to the language passed as "lang"
+     * @param {Element} parent - the XML element containing the paragraph or the run for which we want to set the language.
+     * @returns {Element | undefined} - the "w:pPr" or "w:rPr" property XML element child of the parent element passed as argument
+     */
+    function setTextLanguage(parent: Element) {
+        const pPr = getXMLElements(parent, 'pPr', 0) as Element || 
+        getXMLElements(parent, 'rPr', 0) as Element;
+        if (!pPr) return;
+        pPr
+            .appendChild(createXMLElement('lang'))//appending a "w:lang" element
+            .setAttributeNS(schema, 'val', `${lang.toLowerCase()}-${lang.toUpperCase()}`);//setting the "w:val" attribute of "w:lang" to the appropriate language like "fr-FR"
+        return pPr as Element
     }
 };
 

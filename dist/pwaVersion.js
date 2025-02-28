@@ -232,7 +232,7 @@ async function invoice(issue = false) {
         const fileName = getInvoiceFileName(invoice.clientName, invoice.matters, invoice.number);
         let filePath = `${destinationFolder}/${fileName}`;
         filePath = prompt(`The file will be saved in ${destinationFolder}, and will be named : ${fileName}./nIf you want to change the path or the name, provide the full file path and name of your choice without any sepcial characters`, filePath) || filePath;
-        await createAndUploadXmlDocument(accessToken, templatePath, filePath, 'Invoice', wordRows, contentControls, totalsRows);
+        await createAndUploadXmlDocument(accessToken, templatePath, filePath, 'Invoice', lang, wordRows, contentControls, totalsRows);
         (async function filterTable() {
             await clearFilterExcelTableGraphAPI(workbookPath, tableName, accessToken); //We start by clearing the filter of the table, otherwise the insertion will fail
             [0, 1].map(async (index) => {
@@ -390,7 +390,7 @@ async function issueLetter(create = false) {
         if (!filePath)
             return;
         const contentControls = [['RTCoreText', input.value], ['RTReference', 'Référence'], ['RTClientName', 'Nom du Client'], ['RTEmail', 'Email du client']];
-        createAndUploadXmlDocument(accessToken, templatePath, filePath, undefined, undefined, contentControls);
+        createAndUploadXmlDocument(accessToken, templatePath, filePath, 'FR', undefined, undefined, contentControls);
     })();
 }
 /**
@@ -449,7 +449,7 @@ function inputOnChange(index, table, invoice) {
     }
 }
 ;
-async function createAndUploadXmlDocument(accessToken, templatePath, filePath, tableTitle, rows, contentControls, totals) {
+async function createAndUploadXmlDocument(accessToken, templatePath, filePath, lang, tableTitle, rows, contentControls, totals) {
     if (!accessToken || !templatePath || !filePath)
         return;
     const blob = await fetchFileFromOneDriveWithGraphAPI(accessToken, templatePath);
@@ -479,9 +479,10 @@ async function createAndUploadXmlDocument(accessToken, templatePath, filePath, t
         function editCells(tableRow, values, isLast = false, isTotal = false) {
             const cells = getXMLElements(tableRow, 'tc') || values.map(v => tableRow.appendChild(createXMLElement('tc'))); //getting all the cells in the row element
             cells.forEach((cell, index) => {
-                const textElement = getXMLElements(cell, 't', 0) || addParagraph(cell);
+                const textElement = getXMLElements(cell, 't', 0) || appendParagraph(cell);
                 if (!textElement)
                     return console.log('No text element was found !');
+                const pPr = setTextLanguage(cell); //We call this here in order to set the language for all the cells. It returns the pPr element if any.
                 textElement.textContent = values[index];
                 (function totalsRowsFormatting() {
                     if (!isLast && !isTotal)
@@ -493,9 +494,8 @@ async function createAndUploadXmlDocument(accessToken, templatePath, filePath, t
                         background.setAttributeNS(schema, 'fill', 'D9D9D9');
                     })();
                     (function paragraphStyle() {
-                        const pPr = getXMLElements(cell, 'pPr', 0);
                         if (!pPr)
-                            return console.log('No paragaph property element was found !');
+                            return console.log('No "w:pPr" or "w:rPr" property element was found !');
                         const style = getXMLElements(pPr, 'pStyle', 0) || pPr.appendChild(createXMLElement('pStyle'));
                         style.setAttributeNS(schema, 'val', getStyle(index, isTotal && !isLast));
                     })();
@@ -569,19 +569,22 @@ async function createAndUploadXmlDocument(accessToken, templatePath, filePath, t
             if (!text)
                 return control.remove();
             const sdtContent = getXMLElements(control, "sdtContent", 0);
-            const p = getXMLElements(sdtContent, 'p', 0) || getXMLElements(sdtContent, 'r', 0);
-            if (!p)
+            if (!sdtContent)
                 return;
+            const paragTemplate = getParagraphOrRun(sdtContent); //This will set the language for the paragraph or the run
+            if (!paragTemplate)
+                return console.log('No template paragraph or run were found !');
+            setTextLanguage(paragTemplate); //We amend the language element to the "w:pPr" or "r:pPr" child elements of paragTemplate
             text.split('\n')
                 .forEach((parag, index) => editParagraph(parag, index));
             function editParagraph(parag, index) {
                 let textElement;
                 if (index < 1)
-                    textElement = getXMLElements(p, 't', index);
+                    textElement = getXMLElements(paragTemplate, 't', index);
                 else
-                    textElement = addParagraph(p, sdtContent);
+                    textElement = appendParagraph(paragTemplate, sdtContent); //We pass sdtContent as parent argument
                 if (!textElement)
-                    return;
+                    return console.log('No textElement was found !');
                 textElement.textContent = parag;
             }
         }
@@ -593,7 +596,7 @@ async function createAndUploadXmlDocument(accessToken, templatePath, filePath, t
      * @param {Elemenet} parent - If provided, element will be cloned and appended to parent.
      * @returns {Element} the textElemenet attached to the paragraph
      */
-    function addParagraph(element, parent) {
+    function appendParagraph(element, parent) {
         if (parent)
             return clone();
         else
@@ -618,6 +621,29 @@ async function createAndUploadXmlDocument(accessToken, templatePath, filePath, t
         if (!isNaN(index))
             return elements?.[index];
         return Array.from(elements);
+    }
+    /**
+     * Looks for a child "w:p" (paragraph) element, if it doesn't find any, it looks for a "w:r" (run) element.
+     * @param {Element} parent - the parent XML of the paragraph or run element we want to retrieve.
+     * @returns {Element | undefined} - an XML element representing a "w:p" (paragraph) or, if not found, a "w:r" (run), or undefined
+     */
+    function getParagraphOrRun(parent) {
+        return getXMLElements(parent, 'p', 0) || getXMLElements(parent, 'r', 0);
+    }
+    /**
+     * Finds a "w:pPr" XML element (property element) which is a child of the XML parent element passed as argument. If does not find it, it looks for a "w:rPr" XML element. When it finds either a "w:pPr" or a "w:rPr" element, it appends a "w:lang" element to it, and sets its "w:val" attribute to the language passed as "lang"
+     * @param {Element} parent - the XML element containing the paragraph or the run for which we want to set the language.
+     * @returns {Element | undefined} - the "w:pPr" or "w:rPr" property XML element child of the parent element passed as argument
+     */
+    function setTextLanguage(parent) {
+        const pPr = getXMLElements(parent, 'pPr', 0) ||
+            getXMLElements(parent, 'rPr', 0);
+        if (!pPr)
+            return;
+        pPr
+            .appendChild(createXMLElement('lang')) //appending a "w:lang" element
+            .setAttributeNS(schema, 'val', `${lang.toLowerCase()}-${lang.toUpperCase()}`); //setting the "w:val" attribute of "w:lang" to the appropriate language like "fr-FR"
+        return pPr;
     }
 }
 ;
