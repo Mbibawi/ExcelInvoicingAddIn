@@ -265,7 +265,7 @@ async function invoice(issue: boolean = false) {
 
         filePath = prompt(`The file will be saved in ${destinationFolder}, and will be named : ${fileName}./nIf you want to change the path or the name, provide the full file path and name of your choice without any sepcial characters`, filePath) || filePath;
 
-        await createAndUploadXmlDocument(accessToken, templatePath, filePath, 'Invoice', lang, wordRows, contentControls, totalsRows);
+        await createAndUploadXmlDocument(accessToken, templatePath, filePath, lang, 'Invoice', wordRows, contentControls, totalsRows);
 
         (async function filterTable() {
             await clearFilterExcelTableGraphAPI(workbookPath, tableName, accessToken); //We start by clearing the filter of the table, otherwise the insertion will fail

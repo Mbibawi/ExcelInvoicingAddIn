@@ -354,7 +354,7 @@ async function generateInvoice() {
 
   const filePath = `${destinationFolder}/${getInvoiceFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`
   const [rows, totals] = getRowsData(visible, discount, lang);
-  await createAndUploadXmlDocument(await getAccessToken() || '', templatePath, filePath, 'Invoice', lang, rows, getContentControlsValues(invoiceDetails, new Date()));
+  await createAndUploadXmlDocument(await getAccessToken() || '', templatePath, filePath, lang, 'Invoice', rows, getContentControlsValues(invoiceDetails, new Date()));
 
 }
 /**
