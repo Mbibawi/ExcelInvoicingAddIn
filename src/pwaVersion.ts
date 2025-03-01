@@ -47,15 +47,21 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
 
             const nature = getInputByIndex(inputs, 2)?.value;
             if (!nature) return stop('The matter is')
-            const date = getInputByIndex(inputs, 3)?.valueAsDate
+            const date = getInputByIndex(inputs, 3)?.valueAsDate as Date | undefined;
             if (!date) return stop('The invoice date is');
             const amount = getInputByIndex(inputs, 9) as HTMLInputElement;
-            const rate = getInputByIndex(inputs, 8)?.valueAsNumber;
+            const rate = getInputByIndex(inputs, 8)?.valueAsNumber ||0;
 
             const debit = ['Honoraire', 'Débours/Dépens', 'Débours/Dépens non facturables', 'Rétrocession d\'honoraires'].includes(nature);//We check if we need to change the value sign
 
-            const row = Array(17).map((el, index) => {
-                //!We do this instead of inputs.map(input=>input.value) because the html inputs are not arranged according to their data-index. This will lead to values being assigned to wrong columns
+            const row =
+                inputs.map((input, index) => getInputValue(index));//!CAUTION: The html inputs are not arranged according to their dataset.index values. If we follow their order, some values will be assigned to the wrong column of the Excel table. That's why we do not pass the input itself or the dataset.index of the input to getInputValue(), but instead we pass the index of the column for which we want to retrieve the value from the relevant input.
+
+            if (missing()) return stop('Some of the required fields are');
+
+            return row
+
+            function getInputValue(index:number) {
                 const input = getInputByIndex(inputs, index) as HTMLInputElement;
                 if ([3, 4].includes(index))
                     return getISODate(date);//Those are the 2 date columns
@@ -64,8 +70,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                 else if (index === 7) {
                     //!This is a hidden input
                     const totalTime = getTime([getInputByIndex(inputs, 5), getInputByIndex(inputs, 6)]);//Total time column
-                    if (totalTime || !rate) return 0;
-                    if (!amount.valueAsNumber)
+                    if (totalTime && rate && !amount.valueAsNumber)
                         amount.valueAsNumber = totalTime * 24 * rate// making the amount equal the rate * totalTime
                     return totalTime
                 }
@@ -73,32 +78,9 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                     return input.valueAsNumber * -1 || 0;//This is the amount if negative
                 else if ([8, 9, 10].includes(index))
                     return input.valueAsNumber || 0;//Hourly Rate, Amount, VAT
-                else return input.value;     
-            });
-
-            /*const row = inputs.map(input => {
-                const index = getIndex(input);
-                if ([3, 4].includes(index))
-                    return getISODate(date);//Those are the 2 date columns
-                else if ([5, 6].includes(index))
-                    return getTime([input]);//time start and time end columns
-                else if (index === 7) {
-                    //!This is a hidden input
-                    const totalTime = getTime([getInputByIndex(inputs, 5), getInputByIndex(inputs, 6)]);//Total time column
-
-                    if (totalTime > 0 && rate && amount && !amount.valueAsNumber) amount.valueAsNumber = totalTime * 24 * rate// making the amount equal the rate * totalTime
-                    return totalTime
-                }
-                else if (debit && index === 9)
-                    return input.valueAsNumber * -1 || 0;//This is the amount if negative
-                else if ([8, 9, 10].includes(index))
-                    return input.valueAsNumber || 0;//Hourly Rate, Amount, VAT
-                else return input.value;
-            });*/
-
-            if (missing()) return stop('Some of the required fields are');
-
-            return row
+                else return input.value; 
+                
+            }
 
             function missing() {
                 if (row.filter((value, i) => (i < 4 || i === 9) && !value).length > 0) return true;//if client name, matter, nature, date or amount are missing
