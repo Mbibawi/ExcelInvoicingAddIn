@@ -23,16 +23,19 @@ section.samples {
     display:grid;
     justify-self: stretch ;
     max-width: 99cqi;
-    grid-template-rows: auto auto;
+    grid-template-rows: 50% 50%;
     grid-template-columns: 100%;
+}
+.block > .checkBox{
+    justify-self: left;
+    margin-left: 3vw;
 }
 .group{
     display: grid;
     justify-items: stretch;
+    justify-self: stretch;
     column-gap: 2vw;
-    grid-template-columns: 31vw 31vw 31vw;
-    max-width: 99vw;
-    margin-top: 2vh;
+    grid-template-columns: 29cqi 29cqi 29cqi;
 }
 
 .hidden{
