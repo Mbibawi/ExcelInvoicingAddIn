@@ -50,7 +50,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
             const date = getInputByIndex(inputs, 3)?.valueAsDate as Date | undefined;
             if (!date) return stop('The invoice date is');
             const amount = getInputByIndex(inputs, 9) as HTMLInputElement;
-            const rate = getInputByIndex(inputs, 8)?.valueAsNumber ||0;
+            const rate = getInputByIndex(inputs, 8)?.valueAsNumber || 0;
 
             const debit = ['Honoraire', 'Débours/Dépens', 'Débours/Dépens non facturables', 'Rétrocession d\'honoraires'].includes(nature);//We check if we need to change the value sign
 
@@ -61,7 +61,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
 
             return row
 
-            function getInputValue(index:number) {
+            function getInputValue(index: number) {
                 const input = getInputByIndex(inputs, index) as HTMLInputElement;
                 if ([3, 4].includes(index))
                     return getISODate(date);//Those are the 2 date columns
@@ -78,8 +78,8 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                     return input.valueAsNumber * -1 || 0;//This is the amount if negative
                 else if ([8, 9, 10].includes(index))
                     return input.valueAsNumber || 0;//Hourly Rate, Amount, VAT
-                else return input.value; 
-                
+                else return input.value;
+
             }
 
             function missing() {
@@ -354,13 +354,13 @@ async function invoice(issue: boolean = false) {
         function insertInputsAndLables(indexes: (number | string)[], id: string, checkBox: boolean = false): HTMLInputElement[] {
             let css = 'field';
             if (checkBox) css = 'checkBox';
-
             return indexes.map((index) => {
-                appendLable(index);
-                return appendInput(index);
+                const div = newDiv(String(index));
+                appendLable(index, div);
+                return appendInput(index, div);
             });
 
-            function appendInput(index: number | string) {
+            function appendInput(index: number | string, div: HTMLDivElement) {
                 const input = document.createElement('input');
                 input.classList.add(css);
                 !isNaN(Number(index)) ? input.id = id + index.toString() : input.id = id;
@@ -394,17 +394,23 @@ async function invoice(issue: boolean = false) {
                             .filter((checkBox: HTMLInputElement) => checkBox.dataset.language && checkBox !== input)
                             .forEach(checkBox => checkBox.checked = false);
                 })();
-
-                form?.appendChild(input);
-
+                div.appendChild(input);
                 return input;
             }
 
-            function appendLable(index: number | string) {
+            function appendLable(index:number | string, div: HTMLDivElement) {
                 const label = document.createElement('label');
                 isNaN(Number(index)) || checkBox ? label.innerText = index.toString() : label.innerText = title[Number(index)];
                 !isNaN(Number(index)) ? label.htmlFor = id + index.toString() : label.htmlFor = id;
-                form?.appendChild(label);
+                div?.appendChild(label);
+            }
+
+            function newDiv(i: string, css: string = "block") {
+                const div = document.createElement('div');
+                div.dataset.block = i;
+                form?.appendChild(div);
+                div.classList.add(css);
+                return div;
             }
         };
 
@@ -704,7 +710,7 @@ async function createAndUploadXmlDocument(accessToken: string, templatePath: str
      * @param {Element} parent - the parent XML of the paragraph or run element we want to retrieve. 
      * @returns {Element | undefined} - an XML element representing a "w:p" (paragraph) or, if not found, a "w:r" (run), or undefined
      */
-    function getParagraphOrRun(parent:Element) {
+    function getParagraphOrRun(parent: Element) {
         return getXMLElements(parent, 'p', 0) as Element || getXMLElements(parent, 'r', 0) as Element;
     }
     /**
@@ -713,8 +719,8 @@ async function createAndUploadXmlDocument(accessToken: string, templatePath: str
      * @returns {Element | undefined} - the "w:pPr" or "w:rPr" property XML element child of the parent element passed as argument
      */
     function setTextLanguage(parent: Element) {
-        const pPr = getXMLElements(parent, 'pPr', 0) as Element || 
-        getXMLElements(parent, 'rPr', 0) as Element;
+        const pPr = getXMLElements(parent, 'pPr', 0) as Element ||
+            getXMLElements(parent, 'rPr', 0) as Element;
         if (!pPr) return;
         pPr
             .appendChild(createXMLElement('lang'))//appending a "w:lang" element

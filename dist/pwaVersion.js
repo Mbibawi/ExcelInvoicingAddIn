@@ -304,10 +304,11 @@ async function invoice(issue = false) {
             if (checkBox)
                 css = 'checkBox';
             return indexes.map((index) => {
-                appendLable(index);
-                return appendInput(index);
+                const div = newDiv(String(index));
+                appendLable(index, div);
+                return appendInput(index, div);
             });
-            function appendInput(index) {
+            function appendInput(index, div) {
                 const input = document.createElement('input');
                 input.classList.add(css);
                 !isNaN(Number(index)) ? input.id = id + index.toString() : input.id = id;
@@ -340,14 +341,21 @@ async function invoice(issue = false) {
                         .filter((checkBox) => checkBox.dataset.language && checkBox !== input)
                         .forEach(checkBox => checkBox.checked = false);
                 })();
-                form?.appendChild(input);
+                div.appendChild(input);
                 return input;
             }
-            function appendLable(index) {
+            function appendLable(index, div) {
                 const label = document.createElement('label');
                 isNaN(Number(index)) || checkBox ? label.innerText = index.toString() : label.innerText = title[Number(index)];
                 !isNaN(Number(index)) ? label.htmlFor = id + index.toString() : label.htmlFor = id;
-                form?.appendChild(label);
+                div?.appendChild(label);
+            }
+            function newDiv(i, css = "block") {
+                const div = document.createElement('div');
+                div.dataset.block = i;
+                form?.appendChild(div);
+                div.classList.add(css);
+                return div;
             }
         }
         ;
