@@ -9,25 +9,29 @@ section.samples {
 #form{
     background-color: #0b5f76;
     justify-self: center;
-    width: 98%;
+    justify-items: center;
     align-self: center;
-    padding: 9px;
+    width: 98%;
+    padding: 1vw;
     border-radius: 5px;
-    margin: 3px;
     border-style: groove;
     border-color: #2aa1a5;
     border-width: 10px;
 }
 
-.block{
+.block{ 
     display:grid;
-    grid-template-rows: auto auto ;
+    justify-self: stretch ;
+    max-width: 99cqi;
+    grid-template-rows: auto auto;
+    grid-template-columns: 100%;
 }
 .group{
     display: grid;
     justify-items: stretch;
     column-gap: 2vw;
-    grid-template-columns: auto auto auto;
+    grid-template-columns: 31vw 31vw 31vw;
+    max-width: 99vw;
     margin-top: 2vh;
 }
 
@@ -36,11 +40,18 @@ section.samples {
 }
 
 #btns{
-    display: flex;
-    justify-items: stretch;
+    display: grid;
+    grid-template-columns: 25% 25% 25% 25%;
+    justify-items: center;
     margin-top: 10px;
     justify-self: center;
-    width: 50%;
+    width: 80vw;
+    background-color: #2b2c52;
+    border-radius: 5px;
+}
+#btns>.button{
+    background-color: #255571 !important;
+    
 }
 
 .button, .ms-Button{
@@ -65,8 +76,6 @@ section.samples {
 .field, .text{
     margin: 2px;
     display: block;
-    width: fit-content;
-    min-width: 90%;
     min-height: 4vh;
     font-size: 12pt;
     font-family: serif;
@@ -93,9 +102,10 @@ textarea:focus, label:focus, .field:focus {
   label{
     display: block;
     font-weight: bold;
-    margin-bottom: 3px;
+    margin: 5px;
     font-family: serif;
     color:whitesmoke;
+    width:fit-content;
   }
 
   body{
