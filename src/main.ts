@@ -652,12 +652,16 @@ async function createFileCession(filePath: string, accessToken: string, persist:
       body: JSON.stringify({ persistChanges: persist }),
     });
 
-  if (!response.ok)
+  if (!response.ok) {
+    alert(response.text);
     throw new Error("Failed to create workbook session");
-  const json = await response.json();
-  if (!json)
+  }
+  const session = await response.json();
+  if (!session) {
+    alert('Failed to create workbook session');
     throw new Error('Failed to create workbook session');
-  return json.id as string;
+  }
+  return session.id as string;
 }
 /**
  * Closes the current Excel file session
