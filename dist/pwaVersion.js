@@ -241,8 +241,11 @@ async function addNewEntry(add = false, row) {
                 function createDivContainer() {
                     const id = 'retrieved';
                     let tableDiv = document.getElementById(id);
-                    if (tableDiv)
+                    if (tableDiv) {
+                        tableDiv.innerHTML = '';
                         return tableDiv;
+                    }
+                    ;
                     tableDiv = document.createElement('div');
                     tableDiv.classList.add('table-div');
                     tableDiv.id = id;

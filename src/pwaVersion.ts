@@ -251,7 +251,6 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                 })();
 
 
-
                 const form = document.getElementById('form');
                 if (!form) return;
                 if (form) {
@@ -261,7 +260,10 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                 function createDivContainer() {
                     const id = 'retrieved';
                     let tableDiv = document.getElementById(id)
-                    if (tableDiv) return tableDiv;
+                    if (tableDiv) {
+                        tableDiv.innerHTML = '';
+                        return tableDiv;
+                    };
                     tableDiv = document.createElement('div');
                     tableDiv.classList.add('table-div');
                     tableDiv.id = id;
