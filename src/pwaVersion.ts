@@ -320,7 +320,8 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                     if (!cessionResponse) return;
                     const sessionData = await cessionResponse.json();
                     const sessionId = sessionData?.id;
-                    const cells = JSON.parse(await retrieveVisibleCells(sessionId)) as any[][];
+                    const response = await retrieveVisibleCells(sessionId);
+                    const cells = JSON.parse(response) as any[][];
                     await closeSession();
                     return cells;
 
