@@ -306,13 +306,17 @@ async function invoice(issue = false) {
         let filePath = `${destinationFolder}/${fileName}`;
         filePath = prompt(`The file will be saved in ${destinationFolder}, and will be named : ${fileName}./nIf you want to change the path or the name, provide the full file path and name of your choice without any sepcial characters`, filePath) || filePath;
         await createAndUploadXmlDocument(accessToken, templatePath, filePath, lang, 'Invoice', wordRows, contentControls, totalsRows);
-        (async function filterTable() {
-            await clearFilterExcelTableGraphAPI(workbookPath, tableName, sessionId, accessToken); //We start by clearing the filter of the table, otherwise the insertion will fail
-            [0, 1].map(async (index) => {
-                await filterExcelTableWithGraphAPI(workbookPath, tableName, TableRows[0][index], getUniqueValues(index, filtered), sessionId, accessToken);
-            });
-        })();
+        await filterTable();
         await closeFileSession(sessionId, workbookPath, accessToken);
+        async function filterTable() {
+            await clearFilterExcelTableGraphAPI(workbookPath, tableName, sessionId, accessToken); //We start by clearing the filter of the table, otherwise the insertion will fail
+            const criteria = [0, 1].map(index => [
+                TableRows[0][index],
+                getUniqueValues(index, filtered)
+            ]);
+            await filterExcelTableWithGraphAPI(workbookPath, tableName, criteria, sessionId, accessToken);
+        }
+        ;
         /**
          * Filters the Excel table according to the values of each inputs, then returns the values of the Word table rows that will be added to the Word table in the invoice template document
          * @param {any[][]} data - The Excel table rows that will be filtered
@@ -827,10 +831,11 @@ async function addRowToExcelTableWithGraphAPI(row, index, filePath, tableName, a
     async function filterTable() {
         if (!filter)
             return;
-        [0, 1].map(async (index) => {
-            //!We use map because forEach doesn't await
-            await filterExcelTableWithGraphAPI(workbookPath, tableName, TableRows[0]?.[index], [row[index]?.toString()] || [], sessionId, accessToken);
-        });
+        const criteria = [0, 1].map(index => [
+            TableRows[0][index],
+            [row[index]?.toString()] || []
+        ]);
+        await filterExcelTableWithGraphAPI(workbookPath, tableName, criteria, sessionId, accessToken);
     }
     ;
 }
