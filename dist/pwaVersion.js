@@ -31,6 +31,102 @@ async function addNewEntry(add = false, row) {
         if (!TableRows)
             return;
         insertAddForm(TableRows[0]);
+        function insertAddForm(title) {
+            const form = document.getElementById('form');
+            if (!form)
+                return;
+            form.innerHTML = '';
+            const divs = title.map((title, index) => {
+                const div = newDiv(index);
+                if (![4, 7].includes(index))
+                    div.appendChild(createLable(title, index)); //We exclued the labels for "Total Time" and for "Year"
+                div.appendChild(createInput(index));
+                return div;
+            });
+            (function groupDivs() {
+                [
+                    [11, 12, 13], //"Moyen de Paiement", "Compte", "Tiers"
+                    [9, 10], //"Montant", "TVA"
+                    [5, 6, 8], //"Start Time", "End Time", "Taux Horaire"
+                ]
+                    .forEach(group => newDiv(NaN, divs.filter(div => group.includes(Number(div.dataset.block)))));
+            })();
+            (function addBtn() {
+                const btnIssue = document.createElement('button');
+                btnIssue.innerText = 'Add Entry';
+                btnIssue.classList.add('button');
+                btnIssue.onclick = () => addNewEntry(true);
+                form.appendChild(btnIssue);
+            })();
+            function newDiv(i, divs, css = "block") {
+                if (divs)
+                    return groupDivs();
+                else
+                    return create();
+                function create() {
+                    const div = document.createElement('div');
+                    div.dataset.block = i.toString();
+                    form?.appendChild(div);
+                    div.classList.add(css);
+                    return div;
+                }
+                function groupDivs() {
+                    const div = newDiv(i, undefined, "group");
+                    divs?.forEach(el => div.appendChild(el));
+                    form?.children[3]?.insertAdjacentElement('afterend', div);
+                    return div;
+                }
+            }
+            function createLable(title, i) {
+                const label = document.createElement('label');
+                label.htmlFor = 'input' + i.toString();
+                label.innerHTML = title + ':';
+                return label;
+            }
+            function createInput(index) {
+                const css = 'field';
+                const input = document.createElement('input');
+                const id = 'input' + index.toString();
+                (function append() {
+                    input.classList.add(css);
+                    input.id = id;
+                    input.name = id;
+                    input.autocomplete = "on";
+                    input.dataset.index = index.toString();
+                    input.type = 'text';
+                })();
+                (function customize() {
+                    if ([8, 9, 10].includes(index))
+                        input.type = 'number';
+                    else if (index === 3)
+                        input.type = 'date';
+                    else if ([5, 6].includes(index))
+                        input.type = 'time';
+                    else if ([4, 7].includes(index))
+                        input.style.display = 'none'; //We hide those 2 columns: 'Total Time' and the 'Year'
+                    (function addDataLists() {
+                        if ([9, 10, 14, 16].includes(index))
+                            return; //We exclude the "Montant" (9), "TVA" (10), "Description" (14), and the "Link to file" (16) columns;
+                        else if (index > 2 && index < 8)
+                            return; //We exclude the "Date" (3), "Année" (4), "Start Time" (5), "End Time" (6), "Total Time" (7) columns
+                        input.setAttribute('list', input.id + 's');
+                        if ([1, 8, 15].includes(index))
+                            return;
+                        createDataList(input.id, getUniqueValues(index, TableRows.slice(1, -1))); //We don't create the data list for columns 'Matter' (1), "Hourly Rate" (8) and 'Adress' (15) because the data list will be created when the 'Client' input (0) is updated
+                        if (index > 1)
+                            return; //We add onChange for "Client" (0) and "Affaire" (1) columns only.
+                        input.onchange = () => inputOnChange(index, TableRows.slice(1, -1), false);
+                    })();
+                    (function addRestOnChange() {
+                        if (index < 5 || index > 10)
+                            return;
+                        //Only for the  "Start Time", "End Time", "Total Time", "Hourly Rate", "Amount", "VAT" columns . The "Total Time" input (7) is hidden, so it can't be changed by the user. We will add the onChange event to it by simplicity
+                        input.onchange = () => inputOnChange(index, undefined, false); //!We are passing the table[][] argument as undefined, and the invoice argument as false which means that the function will only reset the bound inputs without updating any data list
+                    })();
+                })();
+                return input;
+            }
+        }
     })();
     (async function addEntry() {
         if (!add)
@@ -90,113 +186,153 @@ async function addNewEntry(add = false, row) {
         async function addRow(row, filter = false) {
             if (!row)
                 return;
-            await addRowToExcelTableWithGraphAPI([row], TableRows.length - 2, workbookPath, tableName, accessToken);
-            if (!filter)
+            const response = await addRowToExcelTableWithGraphAPI([row], TableRows.length - 2, workbookPath, tableName, accessToken);
+            if (response)
+                alert('Row aded and table will be filtered');
+            (function filterTable() {
+                if (!filter)
+                    return;
+                [0, 1].map(async (index) => {
+                    //!We use map because forEach doesn't await
+                    await filterExcelTable(workbookPath, tableName, TableRows[0]?.[index], [row[index]?.toString()] || [], accessToken);
+                });
+            })();
+            (async function fetchAfterUpdate() {
                 return;
-            [0, 1].map(async (index) => {
-                //!We use map because forEach doesn't await
-                await filterExcelTable(workbookPath, tableName, TableRows[0]?.[index], [row[index]?.toString()] || [], accessToken);
-            });
-            alert('Row aded and table was filtered');
+                const updatedTableRows = await fetchExcelTableWithGraphAPI(accessToken, workbookPath, tableName);
+                console.log(updatedTableRows);
+                const filteredRows = updatedTableRows.filter(cells => cells[0] === row?.[0] && cells[1] === row[1]);
+                console.log(filteredRows);
+                (function displayTable() {
+                    const tableDiv = document.createElement('div');
+                    tableDiv.classList.add('table-div');
+                    const table = document.createElement('table');
+                    table.classList.add('table');
+                    const thead = document.createElement('thead');
+                    const tbody = document.createElement('tbody');
+                    const headerRow = document.createElement('tr');
+                    updatedTableRows[0].forEach((cell) => {
+                        const th = document.createElement('th');
+                        th.textContent = cell;
+                        headerRow.appendChild(th);
+                    });
+                    thead.appendChild(headerRow);
+                    filteredRows.forEach((row) => {
+                        const tr = document.createElement('tr');
+                        row.forEach((cell) => {
+                            const td = document.createElement('td');
+                            td.textContent = cell;
+                            tr.appendChild(td);
+                        });
+                        tbody.appendChild(tr);
+                    });
+                    table.appendChild(thead);
+                    table.appendChild(tbody);
+                    tableDiv.appendChild(table);
+                    const form = document.getElementById('form');
+                    if (!form)
+                        return;
+                    if (form) {
+                        form?.insertAdjacentElement('afterend', tableDiv);
+                    }
+                })();
+            })();
+            (async function afterUpdate() {
+                const visiblCells = await getVisibleCells();
+                debugger;
+                if (!visiblCells)
+                    return;
+                (function displayTable() {
+                    const tableDiv = document.createElement('div');
+                    tableDiv.classList.add('table-div');
+                    const table = document.createElement('table');
+                    table.classList.add('table');
+                    const thead = document.createElement('thead');
+                    const tbody = document.createElement('tbody');
+                    const headerRow = document.createElement('tr');
+                    visiblCells[0].forEach((cell) => {
+                        const th = document.createElement('th');
+                        th.textContent = cell;
+                        headerRow.appendChild(th);
+                    });
+                    thead.appendChild(headerRow);
+                    visiblCells.forEach((row) => {
+                        const tr = document.createElement('tr');
+                        row.forEach((cell, index) => {
+                            if ([0, 1, 2, 3, 8, 9, 10].includes(index))
+                                return;
+                            const td = document.createElement('td');
+                            td.textContent = cell;
+                            tr.appendChild(td);
+                        });
+                        tbody.appendChild(tr);
+                    });
+                    table.appendChild(thead);
+                    table.appendChild(tbody);
+                    tableDiv.appendChild(table);
+                    const form = document.getElementById('form');
+                    if (!form)
+                        return;
+                    if (form) {
+                        form?.insertAdjacentElement('afterend', tableDiv);
+                    }
+                })();
+                async function getVisibleCells() {
+                    const cessionResponse = await createNewCession();
+                    if (!cessionResponse)
+                        return;
+                    const sessionData = await cessionResponse.json();
+                    const sessionId = sessionData?.id;
+                    const cells = JSON.parse(await retrieveVisibleCells(sessionId));
+                    await closeSession();
+                    return cells;
+                    async function createNewCession() {
+                        const cessionResponse = await fetch(`${GRAPH_API_BASE_URL}${workbookPath}:/workbook/createSession`, {
+                            method: "POST",
+                            headers: {
+                                Authorization: `Bearer ${accessToken}`,
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({ persistChanges: false }),
+                        });
+                        if (!cessionResponse.ok)
+                            throw new Error("Failed to create workbook session");
+                        return cessionResponse;
+                    }
+                    async function retrieveVisibleCells(sessionId) {
+                        // Step 2: Get the visible range including headers and totals rows
+                        const response = await fetch(`${GRAPH_API_BASE_URL}${workbookPath}:/workbook/tables/${tableName}/range/visibleView`, {
+                            method: "GET",
+                            headers: {
+                                Authorization: `Bearer ${accessToken}`,
+                                "Content-Type": "application/json",
+                                WorkbookSessionId: sessionId, // Use the session ID
+                            },
+                        });
+                        if (!response.ok)
+                            throw new Error("Failed to retrieve visible cells");
+                        return await response.json();
+                    }
+                    async function closeSession() {
+                        // Step 3: Close the session
+                        const response = await fetch(`${GRAPH_API_BASE_URL}${workbookPath}:/workbook/closeSession`, {
+                            method: "POST",
+                            headers: {
+                                Authorization: `Bearer ${accessToken}`,
+                                "Content-Type": "application/json",
+                                WorkbookSessionId: sessionId,
+                            },
+                        });
+                        if (!response.ok)
+                            throw new Error("Failed to close workbook session");
+                    }
+                }
+            })();
         }
+        ;
     })();
-    function insertAddForm(title) {
-        const form = document.getElementById('form');
-        if (!form)
-            return;
-        form.innerHTML = '';
-        const divs = title.map((title, index) => {
-            const div = newDiv(index);
-            if (![4, 7].includes(index))
-                div.appendChild(createLable(title, index)); //We exclued the labels for "Total Time" and for "Year"
-            div.appendChild(createInput(index));
-            return div;
-        });
-        (function groupDivs() {
-            [
-                [11, 12, 13], //"Moyen de Paiement", "Compte", "Tiers"
-                [9, 10], //"Montant", "TVA"
-                [5, 6, 8], //"Start Time", "End Time", "Taux Horaire"
-            ]
-                .forEach(group => newDiv(NaN, divs.filter(div => group.includes(Number(div.dataset.block)))));
-        })();
-        (function addBtn() {
-            const btnIssue = document.createElement('button');
-            btnIssue.innerText = 'Add Entry';
-            btnIssue.classList.add('button');
-            btnIssue.onclick = () => addNewEntry(true);
-            form.appendChild(btnIssue);
-        })();
-        function newDiv(i, divs, css = "block") {
-            if (divs)
-                return groupDivs();
-            else
-                return create();
-            function create() {
-                const div = document.createElement('div');
-                div.dataset.block = i.toString();
-                form?.appendChild(div);
-                div.classList.add(css);
-                return div;
-            }
-            function groupDivs() {
-                const div = newDiv(i, undefined, "group");
-                divs?.forEach(el => div.appendChild(el));
-                form?.children[3]?.insertAdjacentElement('afterend', div);
-                return div;
-            }
-        }
-        function createLable(title, i) {
-            const label = document.createElement('label');
-            label.htmlFor = 'input' + i.toString();
-            label.innerHTML = title + ':';
-            return label;
-        }
-        function createInput(index) {
-            const css = 'field';
-            const input = document.createElement('input');
-            const id = 'input' + index.toString();
-            (function append() {
-                input.classList.add(css);
-                input.id = id;
-                input.name = id;
-                input.autocomplete = "on";
-                input.dataset.index = index.toString();
-                input.type = 'text';
-            })();
-            (function customize() {
-                if ([8, 9, 10].includes(index))
-                    input.type = 'number';
-                else if (index === 3)
-                    input.type = 'date';
-                else if ([5, 6].includes(index))
-                    input.type = 'time';
-                else if ([4, 7].includes(index))
-                    input.style.display = 'none'; //We hide those 2 columns: 'Total Time' and the 'Year'
-                (function addDataLists() {
-                    if ([9, 10, 14, 16].includes(index))
-                        return; //We exclude the "Montant" (9), "TVA" (10), "Description" (14), and the "Link to file" (16) columns;
-                    else if (index > 2 && index < 8)
-                        return; //We exclude the "Date" (3), "Année" (4), "Start Time" (5), "End Time" (6), "Total Time" (7) columns
-                    input.setAttribute('list', input.id + 's');
-                    if ([1, 8, 15].includes(index))
-                        return;
-                    createDataList(input.id, getUniqueValues(index, TableRows.slice(1, -1))); //We don't create the data list for columns 'Matter' (1), "Hourly Rate" (8) and 'Adress' (15) because the data list will be created when the 'Client' input (0) is updated
-                    if (index > 1)
-                        return; //We add onChange for "Client" (0) and "Affaire" (1) columns only.
-                    input.onchange = () => inputOnChange(index, TableRows.slice(1, -1), false);
-                })();
-                (function addRestOnChange() {
-                    if (index < 5 || index > 10)
-                        return;
-                    //Only for the  "Start Time", "End Time", "Total Time", "Hourly Rate", "Amount", "VAT" columns . The "Total Time" input (7) is hidden, so it can't be changed by the user. We will add the onChange event to it by simplicity
-                    input.onchange = () => inputOnChange(index, undefined, false); //!We are passing the table[][] argument as undefined, and the invoice argument as false which means that the function will only reset the bound inputs without updating any data list
-                })();
-            })();
-            return input;
-        }
-    }
 }
+;
 // Update Word Document
 async function invoice(issue = false) {
     accessToken = await getAccessToken() || '';

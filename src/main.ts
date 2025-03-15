@@ -1,3 +1,4 @@
+const GRAPH_API_BASE_URL = "https://graph.microsoft.com/v1.0/me/drive/root:/";
 if (!localStorage.excelPath)
   localStorage.excelPath = prompt('Please provide the OneDrive full path (including the file name and extension) for the Excel Workbook', "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm");
 const workbookPath = localStorage.excelPath || alert('The excel Workbook path is not valid');
@@ -648,7 +649,7 @@ async function fetchExcelTableWithGraphAPI(accessToken: string, filePath: string
 
   if (!accessToken) accessToken = await getAccessToken() || '';
 
-  let endPoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/`;
+  let endPoint = `${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/`;
 
   if (range) endPoint = endPoint += 'range';
   if (!range) endPoint = endPoint += 'rows';
@@ -672,7 +673,7 @@ async function fetchExcelTableWithGraphAPI(accessToken: string, filePath: string
 
 async function clearFilterExcelTableGraphAPI(filePath: string, tableName: string, accessToken: string) {
   // First, clear filters on the table (optional step)
-  await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/clearFilters`, {
+  await fetch(`${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/clearFilters`, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${accessToken}`,
@@ -688,7 +689,7 @@ async function clearFilterExcelTableGraphAPI(filePath: string, tableName: string
  * @returns {Blob} - A blob of the fetched file, if successful
  */
 async function fetchFileFromOneDriveWithGraphAPI(accessToken: string, filePath: string): Promise<Blob> {
-  const fileUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/content`;
+  const fileUrl = `${GRAPH_API_BASE_URL}${filePath}:/content`;
 
   const response = await fetch(fileUrl, {
     method: "GET",
@@ -707,7 +708,7 @@ async function fetchFileFromOneDriveWithGraphAPI(accessToken: string, filePath: 
  * @param {string} accessToken 
  */
 async function uploadFileToOneDriveWithGraphAPI(blob: Blob, filePath: string, accessToken: string) {
-  const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/content`
+  const endpoint = `${GRAPH_API_BASE_URL}${filePath}:/content`
 
   const response = await fetch(endpoint, {
     method: 'PUT',
@@ -736,7 +737,7 @@ function getInvoiceFileName(clientName: string, matters: string[], invoiceNumber
 }
 
 async function getExcelTableRowsCountViaGraphAPI(filePath: string, tableName: string, accessToken: string) {
-  const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/rows/$count`;
+  const url = `${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/rows/$count`;
 
   const response = await fetch(url, {
     method: "GET",
@@ -801,7 +802,7 @@ async function editDocumentWordJSAPI(id: string, accessToken: string, data: stri
 
   await Word.run(async (context) => {
     // Open the document by downloading its content
-    const fileResponse = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${id}/content`, {
+    const fileResponse = await fetch(`${GRAPH_API_BASE_URL}/items/${id}/content`, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${accessToken}`
