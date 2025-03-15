@@ -190,7 +190,7 @@ async function addNewEntry(add = false, row) {
         async function addRow(row, filter = false) {
             if (!row)
                 return;
-            const visibleCells = await addRowToExcelTableWithGraphAPI([row], TableRows.length - 2, workbookPath, tableName, accessToken, filter);
+            const visibleCells = await addRowToExcelTableWithGraphAPI(row, TableRows.length - 2, workbookPath, tableName, accessToken, filter);
             if (!visibleCells)
                 return alert('There was an issue with the adding or the filtering, check the console.log for more details');
             alert('Row aded and the table was filtered');
@@ -786,7 +786,7 @@ async function addRowToExcelTableWithGraphAPI(row, index, filePath, tableName, a
         const url = `${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/rows`; //The url to add a row to the table
         const body = {
             index: index,
-            values: row,
+            values: [row],
         };
         const response = await fetch(url, {
             method: "POST",

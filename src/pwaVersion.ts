@@ -207,7 +207,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
 
         async function addRow(row: any[] | undefined, filter: boolean = false) {
             if (!row) return;
-            const visibleCells = await addRowToExcelTableWithGraphAPI([row], TableRows.length - 2, workbookPath, tableName, accessToken, filter);
+            const visibleCells = await addRowToExcelTableWithGraphAPI(row, TableRows.length - 2, workbookPath, tableName, accessToken, filter);
             if(!visibleCells)
                 return alert('There was an issue with the adding or the filtering, check the console.log for more details');
 
@@ -861,7 +861,7 @@ function getNewExcelRow(inputs: HTMLInputElement[]) {
 
 }
 
-async function addRowToExcelTableWithGraphAPI(row: any[][], index: number, filePath: string, tableName: string, accessToken: string, filter:boolean = false) {
+async function addRowToExcelTableWithGraphAPI(row: any[], index: number, filePath: string, tableName: string, accessToken: string, filter:boolean = false) {
     const sessionId = await createFileCession(filePath, accessToken);
     if (!sessionId) return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
     await clearFilterExcelTableGraphAPI(filePath, tableName, sessionId, accessToken);
@@ -876,7 +876,7 @@ async function addRowToExcelTableWithGraphAPI(row: any[][], index: number, fileP
 
         const body = {
             index: index,
-            values: row,
+            values: [row],
         };
 
         const response = await fetch(url, {
