@@ -231,13 +231,9 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                     thead.appendChild(headerRow);
                     visibleCells[0].forEach((cell, index) => {
                         if (!columns.includes(index)) return;
-                        const th = document.createElement('th');
-                        th.classList.add('header');
-                        th.textContent = cell;
-                        headerRow.appendChild(th);
+                        addTableCell(headerRow, cell, 'th');
                     });
                 })();
-
                 (function insertTableRows() {
                     const tbody = document.createElement('tbody');
                     table.appendChild(tbody);
@@ -249,9 +245,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                         tbody.appendChild(tr);
                         row.forEach((cell, index) => {
                             if (!columns.includes(index)) return;
-                            const td = document.createElement('td');
-                            td.textContent = cell;
-                            tr.appendChild(td);
+                            addTableCell(tr, cell, 'td');
                         });
                     });
                 })();
@@ -272,6 +266,13 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                     tableDiv.classList.add('table-div');
                     tableDiv.id = id;
                     return tableDiv;
+                }
+
+                function addTableCell(parent:HTMLElement, text:string, tag:string) {
+                    const cell = document.createElement(tag);
+                 //   cell.classList.add(css);
+                    cell.textContent = text;
+                    parent.appendChild(cell);
                 }
             };
 
