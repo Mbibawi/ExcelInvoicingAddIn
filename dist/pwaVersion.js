@@ -200,7 +200,7 @@ async function addNewEntry(add = false, row) {
                 const table = document.createElement('table');
                 table.classList.add('table');
                 tableDiv.appendChild(table);
-                const columns = [0, 1, 2, 8, 9, 10]; //The columns that will be displayed in the table;
+                const columns = [0, 1, 2, 7, 8, 9, 10, 14]; //The columns that will be displayed in the table;
                 (function insertTableHeader() {
                     if (!visibleCells[0])
                         return;

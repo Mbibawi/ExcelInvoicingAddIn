@@ -221,7 +221,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                 table.classList.add('table');
                 tableDiv.appendChild(table);
 
-                const columns = [0, 1, 2, 8, 9, 10];//The columns that will be displayed in the table;
+                const columns = [0, 1, 2, 7, 8, 9, 10, 14];//The columns that will be displayed in the table;
 
                 (function insertTableHeader() {
                     if (!visibleCells[0]) return;
@@ -239,11 +239,11 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                 })();
 
                 (function insertTableRows() {
+                    const tbody = document.createElement('tbody');
+                    table.appendChild(tbody);
                     visibleCells.forEach((row, index) => {
                         if (index < 1) return;
                         if (!row) return;
-                        const tbody = document.createElement('tbody');
-                        table.appendChild(tbody);
                         const tr = document.createElement('tr');
                         tr.classList.add('row');
                         tbody.appendChild(tr);

@@ -19,6 +19,16 @@ section.samples {
     border-width: 10px;
 }
 
+tr{
+    display: grid;
+    grid-template-columns: 23% 23% 5% 5% 5% 5% 34%;
+    gap: 2vw;
+    justify-items: center;
+    justify-self: center;
+    width: 99%;
+    margin-top: 10px;
+}
+
 .block{ 
     display:grid;
     justify-self: stretch ;
