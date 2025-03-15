@@ -670,7 +670,7 @@ async function closeFileSession(sessionId: string, filePath: string, accessToken
       headers: {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
-        WorkbookSessionId: sessionId,
+        "workbook-session-id": sessionId,
       },
     });
 
