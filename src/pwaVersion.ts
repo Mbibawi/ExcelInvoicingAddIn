@@ -26,7 +26,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
         if (add) return;
         if (!workbookPath || !tableName) return alert('The Excel Workbook Path or the name of the Excel table are not valid');
         const sessionId = await createFileCession(workbookPath, accessToken) || '';
-        if(!sessionId) return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
+        if (!sessionId) return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
 
         TableRows = await fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName) as string[][];
 
@@ -208,62 +208,71 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
         async function addRow(row: any[] | undefined, filter: boolean = false) {
             if (!row) return;
             const visibleCells = await addRowToExcelTableWithGraphAPI(row, TableRows.length - 2, workbookPath, tableName, accessToken, filter);
-            if(!visibleCells)
+            if (!visibleCells)
                 return alert('There was an issue with the adding or the filtering, check the console.log for more details');
 
-                alert('Row aded and the table was filtered');
+            alert('Row aded and the table was filtered');
 
             displayVisibleCells(visibleCells)
-                  
+
             function displayVisibleCells(visibleCells: string[][]) {
-                    const tableDiv = createDivContainer();  
-                    const table = document.createElement('table');
-                    table.classList.add('table');
-                    
-                    const thead = document.createElement('thead');
-                    const tbody = document.createElement('tbody');
-                    
+                const tableDiv = createDivContainer();
+                const table = document.createElement('table');
+                table.classList.add('table');
+                tableDiv.appendChild(table);
+
+                const columns = [0, 1, 2, 8, 9, 10];//The columns that will be displayed in the table;
+
+                (function insertTableHeader() {
+                    if (!visibleCells[0]) return;
                     const headerRow = document.createElement('tr');
-                    visibleCells[0].forEach((cell) => {
+                    const thead = document.createElement('thead');
+                    table.appendChild(thead);
+                    thead.appendChild(headerRow);
+                    visibleCells[0].forEach((cell, index) => {
+                        if (!columns.includes(index)) return;
                         const th = document.createElement('th');
                         th.classList.add('header');
                         th.textContent = cell;
                         headerRow.appendChild(th);
                     });
+                })();
 
-                    thead.appendChild(headerRow);
-                    
-                    visibleCells.forEach((row) => {
+                (function insertTableRows() {
+                    visibleCells.forEach((row, index) => {
+                        if (index < 1) return;
+                        if (!row) return;
+                        const tbody = document.createElement('tbody');
+                        table.appendChild(tbody);
                         const tr = document.createElement('tr');
                         tr.classList.add('row');
+                        tbody.appendChild(tr);
                         row.forEach((cell, index) => {
-                            if (![0, 1, 2, 3, 8, 9, 10].includes(index)) return;
+                            if (!columns.includes(index)) return;
                             const td = document.createElement('td');
                             td.textContent = cell;
                             tr.appendChild(td);
                         });
-                        tbody.appendChild(tr);
                     });
-                    
-                    table.appendChild(thead);
-                    table.appendChild(tbody);
-                    tableDiv.appendChild(table);
-                    
-                    const form = document.getElementById('form');
-                    if(!form) return;
-                    if (form) {
-                        form?.insertAdjacentElement('afterend', tableDiv);
-                    }
-                    
-                    function createDivContainer() {
-                        const id = 'retrieved';
-                        let tableDiv = document.getElementById(id) 
-                        if(tableDiv) return tableDiv;
-                        tableDiv = document.createElement('div');
-                        tableDiv.classList.add('table-div');
-                        tableDiv.id = id;
-                        return tableDiv;
-                    }
+                })();
+
+
+
+                const form = document.getElementById('form');
+                if (!form) return;
+                if (form) {
+                    form?.insertAdjacentElement('afterend', tableDiv);
+                }
+
+                function createDivContainer() {
+                    const id = 'retrieved';
+                    let tableDiv = document.getElementById(id)
+                    if (tableDiv) return tableDiv;
+                    tableDiv = document.createElement('div');
+                    tableDiv.classList.add('table-div');
+                    tableDiv.id = id;
+                    return tableDiv;
+                }
             };
 
         };
@@ -275,12 +284,12 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
 // Update Word Document
 async function invoice(issue: boolean = false) {
     accessToken = await getAccessToken() || '';
-    
+
     (async function show() {
         if (issue) return;
         if (!workbookPath || !tableName) return alert('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
         const sessionId = await createFileCession(workbookPath, accessToken) || '';
-        
+
         TableRows = await fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName) as string[][];
 
         if (!TableRows) return;
@@ -295,7 +304,7 @@ async function invoice(issue: boolean = false) {
         if (!issue) return;
         if (!templatePath || !destinationFolder) return alert('The full path of the Word Invoice Template and/or the destination folder where the new invoice will be saved, are either missing or not valid');
         const sessionId = await createFileCession(workbookPath, accessToken) || '';
-        if(!sessionId) return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
+        if (!sessionId) return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
         const inputs = Array.from(document.getElementsByTagName('input'));
 
         const criteria = inputs.filter(input => Number(input.dataset.index) >= 0);
@@ -863,16 +872,16 @@ function getNewExcelRow(inputs: HTMLInputElement[]) {
 
 }
 
-async function addRowToExcelTableWithGraphAPI(row: any[], index: number, filePath: string, tableName: string, accessToken: string, filter:boolean = false) {
+async function addRowToExcelTableWithGraphAPI(row: any[], index: number, filePath: string, tableName: string, accessToken: string, filter: boolean = false) {
     const sessionId = await createFileCession(filePath, accessToken);
     if (!sessionId) return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
     await clearFilterExcelTableGraphAPI(filePath, tableName, sessionId, accessToken);
     await addRow();
-    if(filter) await filterTable();
+    if (filter) await filterTable();
     const visible = await getVisibleCellsWithGraphAPI(filePath, tableName, sessionId, accessToken);
     await closeFileSession(sessionId, filePath, accessToken);
     return visible;
-    
+
     async function addRow() {
         const url = `${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/rows`;//The url to add a row to the table
 

@@ -199,31 +199,44 @@ async function addNewEntry(add = false, row) {
                 const tableDiv = createDivContainer();
                 const table = document.createElement('table');
                 table.classList.add('table');
-                const thead = document.createElement('thead');
-                const tbody = document.createElement('tbody');
-                const headerRow = document.createElement('tr');
-                visibleCells[0].forEach((cell) => {
-                    const th = document.createElement('th');
-                    th.classList.add('header');
-                    th.textContent = cell;
-                    headerRow.appendChild(th);
-                });
-                thead.appendChild(headerRow);
-                visibleCells.forEach((row) => {
-                    const tr = document.createElement('tr');
-                    tr.classList.add('row');
-                    row.forEach((cell, index) => {
-                        if (![0, 1, 2, 3, 8, 9, 10].includes(index))
-                            return;
-                        const td = document.createElement('td');
-                        td.textContent = cell;
-                        tr.appendChild(td);
-                    });
-                    tbody.appendChild(tr);
-                });
-                table.appendChild(thead);
-                table.appendChild(tbody);
                 tableDiv.appendChild(table);
+                const columns = [0, 1, 2, 8, 9, 10]; //The columns that will be displayed in the table;
+                (function insertTableHeader() {
+                    if (!visibleCells[0])
+                        return;
+                    const headerRow = document.createElement('tr');
+                    const thead = document.createElement('thead');
+                    table.appendChild(thead);
+                    thead.appendChild(headerRow);
+                    visibleCells[0].forEach((cell, index) => {
+                        if (!columns.includes(index))
+                            return;
+                        const th = document.createElement('th');
+                        th.classList.add('header');
+                        th.textContent = cell;
+                        headerRow.appendChild(th);
+                    });
+                })();
+                (function insertTableRows() {
+                    visibleCells.forEach((row, index) => {
+                        if (index < 1)
+                            return;
+                        if (!row)
+                            return;
+                        const tbody = document.createElement('tbody');
+                        table.appendChild(tbody);
+                        const tr = document.createElement('tr');
+                        tr.classList.add('row');
+                        tbody.appendChild(tr);
+                        row.forEach((cell, index) => {
+                            if (!columns.includes(index))
+                                return;
+                            const td = document.createElement('td');
+                            td.textContent = cell;
+                            tr.appendChild(td);
+                        });
+                    });
+                })();
                 const form = document.getElementById('form');
                 if (!form)
                     return;
