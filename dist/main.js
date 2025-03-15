@@ -562,14 +562,14 @@ function getUniqueValues(index, array) {
  * Creates a new Graph API File session and returns its id
  * @returns
  */
-async function createFileCession(filePath, accessToken) {
+async function createFileCession(filePath, accessToken, persist = false) {
     const response = await fetch(`${GRAPH_API_BASE_URL}${filePath}:/workbook/createSession`, {
         method: "POST",
         headers: {
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
         },
-        body: JSON.stringify({ persistChanges: true }),
+        body: JSON.stringify({ persistChanges: persist }),
     });
     if (!response.ok)
         throw new Error("Failed to create workbook session");

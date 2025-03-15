@@ -640,7 +640,7 @@ function getUniqueValues(index: number, array: any[][]): any[] {
  * Creates a new Graph API File session and returns its id
  * @returns 
  */
-async function createFileCession(filePath: string, accessToken: string) {
+async function createFileCession(filePath: string, accessToken: string, persist:Boolean = false) {
   const response = await fetch(
     `${GRAPH_API_BASE_URL}${filePath}:/workbook/createSession`,
     {
@@ -649,7 +649,7 @@ async function createFileCession(filePath: string, accessToken: string) {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ persistChanges: true }),
+      body: JSON.stringify({ persistChanges: persist }),
     });
 
   if (!response.ok)

@@ -284,30 +284,35 @@ async function invoice(issue = false) {
             return;
         if (!templatePath || !destinationFolder)
             return alert('The full path of the Word Invoice Template and/or the destination folder where the new invoice will be saved, are either missing or not valid');
-        const sessionId = await createFileCession(workbookPath, accessToken) || '';
+        const client = TableRows[0][0], matter = TableRows[0][1]; //Those are the 'Client' and 'Matter' columns of the Excel table
+        const sessionId = await createFileCession(workbookPath, accessToken, true) || ''; //!persist must be = true because we might add a new row if there is a discount. If we don't persist the session, the table will be filtered and the new row will not be added.
         if (!sessionId)
             return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
         const inputs = Array.from(document.getElementsByTagName('input'));
         const criteria = inputs.filter(input => Number(input.dataset.index) >= 0);
         const discount = parseInt(inputs.find(input => input.id === 'discount')?.value || '0%');
         const lang = inputs.find(input => input.dataset.language && input.checked === true)?.dataset.language || 'FR';
-        TableRows = await fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName); //We fetch the table again in case there where changes made since it was fetched the first time when the userform was inserted
-        const [wordRows, totalsRows, filtered] = filterExcelData(TableRows, criteria, discount, lang);
+        const data = await filterExcelData(criteria, discount, lang);
+        if (!data)
+            return;
+        const [operationsRows, totalsLabels, matters, adress] = data;
         const date = new Date();
         const invoice = {
             number: getInvoiceNumber(date),
             clientName: getInputValue(0, criteria),
             matters: getArray(getInputValue(1, criteria)),
-            adress: getUniqueValues(15, filtered),
+            adress: adress,
             lang: lang
         };
         const contentControls = getContentControlsValues(invoice, date);
         const fileName = getInvoiceFileName(invoice.clientName, invoice.matters, invoice.number);
         let filePath = `${destinationFolder}/${fileName}`;
         filePath = prompt(`The file will be saved in ${destinationFolder}, and will be named : ${fileName}./nIf you want to change the path or the name, provide the full file path and name of your choice without any sepcial characters`, filePath) || filePath;
-        await createAndUploadXmlDocument(accessToken, templatePath, filePath, lang, 'Invoice', wordRows, contentControls, totalsRows);
-        await filterTable();
-        await closeFileSession(sessionId, workbookPath, accessToken);
+        (async function editInvoiceFilterExcelClose() {
+            await createAndUploadXmlDocument(accessToken, templatePath, filePath, lang, 'Invoice', operationsRows, contentControls, totalsLabels);
+            await filterExcelTableWithGraphAPI(workbookPath, tableName, matter, matters, sessionId, accessToken); //We filter the table by the matters that were invoiced
+            await closeFileSession(sessionId, workbookPath, accessToken);
+        })();
         async function filterTable() {
             await clearFilterExcelTableGraphAPI(workbookPath, tableName, sessionId, accessToken); //We start by clearing the filter of the table, otherwise the insertion will fail
             [0, 1].map(async (index) => {
@@ -322,31 +327,37 @@ async function invoice(issue = false) {
          * @param {string} lang - The language in which the invoice will be issued
          * @returns {string[][]} - The values of the rows that will be added to the Word table in the invoice template
          */
-        function filterExcelData(data, criteria, discount, lang) {
+        async function filterExcelData(criteria, discount, lang) {
+            await clearFilterExcelTableGraphAPI(workbookPath, tableName, sessionId, accessToken); //We unfilter the table;
             //Filtering by Client (criteria[0])
-            data = data.filter(row => row[getIndex(criteria[0])] === criteria[0].value);
-            const adress = getUniqueValues(15, data); //!We must retrieve the adresses at this stage before filtering by "Matter" or any other column
-            [1, 2].forEach(index => {
+            await filterExcelTableWithGraphAPI(workbookPath, tableName, client, [criteria[0].value], sessionId, accessToken);
+            let visible = await getVisibleCellsWithGraphAPI(workbookPath, tableName, sessionId, accessToken);
+            if (!visible) {
+                return alert('Could not retrieve the visible cells of the Excel table');
+            }
+            const adress = getUniqueValues(15, visible.filter((row, index) => index > 0)); //!We must retrieve the adresses at this stage before filtering by "Matter" or any other column
+            const [matters, natures] = [1, 2].map(index => {
                 //!Matter and Nature inputs (from columns 2 & 3 of the Excel table) may include multiple entries separated by ', ' not only one entry.
                 const list = criteria[index].value.split(',').map(el => el.trimStart().trimEnd()); //We generate a string[] from the input.value
-                data = data.filter(row => list.includes(row[index])); //We filter the data
+                visible = visible.filter(row => list.includes(row[index]));
+                return list;
             });
             //We finaly filter by date
-            data = filterByDate(data);
-            return [...getRowsData(data, discount, lang), data];
-            function filterByDate(data) {
+            visible = filterByDate(visible);
+            return [...getRowsData(visible, discount, lang), matters, adress];
+            function filterByDate(visible) {
                 const convertDate = (date) => dateFromExcel(Number(date)).getTime();
                 const [from, to] = criteria
                     .filter(input => getIndex(input) === 3)
                     .map(input => input.valueAsDate?.getTime());
                 if (from && to)
-                    return data.filter(row => convertDate(row[3]) >= from && convertDate(row[3]) <= to); //we filter by the date
+                    return visible.filter(row => convertDate(row[3]) >= from && convertDate(row[3]) <= to); //we filter by the date
                 else if (from)
-                    return data.filter(row => convertDate(row[3]) >= from); //we filter by the date
+                    return visible.filter(row => convertDate(row[3]) >= from); //we filter by the date
                 else if (to)
-                    return data.filter(row => convertDate(row[3]) <= to); //we filter by the date
+                    return visible.filter(row => convertDate(row[3]) <= to); //we filter by the date
                 else
-                    return data.filter(row => convertDate(row[3]) <= new Date().getTime()); //we filter by the date
+                    return visible.filter(row => convertDate(row[3]) <= new Date().getTime()); //we filter by the date
             }
         }
     })();
@@ -533,7 +544,19 @@ function inputOnChange(index, table, invoice) {
     }
 }
 ;
-async function createAndUploadXmlDocument(accessToken, templatePath, filePath, lang, tableTitle, rows, contentControls, totals) {
+/**
+ * Creates an invoice Word document from the invoice Word template, then uploads it to the destination folder
+ * @param {string} accessToken - The access token that will be used to authenticate the user
+ * @param {string} templatePath - The full path of the Word invoice template
+ * @param {string} filePath - The full path of the destination folder where the new invoice will be saved
+ * @param {string} lang - The language in which the invoice will be issued
+ * @param {string} tableTitle - The title of the table in the Word document that will be updated
+ * @param {string[][]} rows - The rows that will be added to the table in the Word document
+ * @param {string[][]} contentControls - The titles and text of each of the content controls that will be updated in the Word document
+ * @param {string[]} totalsLabels - The labels of the rows that will be formatted as totals
+ * @returns
+ */
+async function createAndUploadXmlDocument(accessToken, templatePath, filePath, lang, tableTitle, rows, contentControls, totalsLabels) {
     if (!accessToken || !templatePath || !filePath)
         return;
     const blob = await fetchFileFromOneDriveWithGraphAPI(accessToken, templatePath);
@@ -555,7 +578,7 @@ async function createAndUploadXmlDocument(accessToken, templatePath, filePath, l
             const newXmlRow = insertRowToXMLTable(NaN, true) || table.appendChild(createXMLElement('tr'));
             if (!newXmlRow)
                 return;
-            const isTotal = totals?.includes(row[0]);
+            const isTotal = totalsLabels?.includes(row[0]);
             const isLast = index === rows.length - 1;
             return editCells(newXmlRow, row, isLast, isTotal);
         });
@@ -792,8 +815,18 @@ function getNewExcelRow(inputs) {
         input.value;
     });
 }
+/**
+ * Adds a new row to the Excel table using the Grap API
+ * @param {string} row - The row that will be added to the Excel table
+ * @param {number} index - The index at which the row will be added
+ * @param {string} filePath - The full path of the Excel file
+ * @param {string} tableName - The name of the Excel table
+ * @param {string} accessToken - The Graph API access token
+ * @param {boolean} filter - If true, the table will be filtered after the row is added
+ * @returns
+ */
 async function addRowToExcelTableWithGraphAPI(row, index, filePath, tableName, accessToken, filter = false) {
-    const sessionId = await createFileCession(filePath, accessToken);
+    const sessionId = await createFileCession(filePath, accessToken, true); //!persist must be = true because 
     if (!sessionId)
         return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
     await clearFilterExcelTableGraphAPI(filePath, tableName, sessionId, accessToken);
