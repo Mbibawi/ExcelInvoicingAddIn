@@ -283,7 +283,8 @@ async function addNewEntry(add = false, row) {
                         return;
                     const sessionData = await cessionResponse.json();
                     const sessionId = sessionData?.id;
-                    const cells = JSON.parse(await retrieveVisibleCells(sessionId));
+                    const response = await retrieveVisibleCells(sessionId);
+                    const cells = JSON.parse(response);
                     await closeSession();
                     return cells;
                     async function createNewCession() {
