@@ -351,16 +351,6 @@ async function invoice(issue: boolean = false) {
             await closeFileSession(sessionId, workbookPath, accessToken);
         })();
 
-        async function filterTable() {
-           await clearFilterExcelTableGraphAPI(workbookPath, tableName, sessionId, accessToken); //We start by clearing the filter of the table, otherwise the insertion will fail
-        
-            [0, 1].map(async index => {
-                await filterExcelTableWithGraphAPI(workbookPath, tableName, TableRows[0][index], getUniqueValues(index, filtered) as string[], sessionId, accessToken)
-            });
-            
-        };
-
-
         /**
          * Filters the Excel table according to the values of each inputs, then returns the values of the Word table rows that will be added to the Word table in the invoice template document 
          * @param {any[][]} data - The Excel table rows that will be filtered
@@ -380,8 +370,9 @@ async function invoice(issue: boolean = false) {
             if (!visible) {
                return alert('Could not retrieve the visible cells of the Excel table');
             }
+            visible = visible.filter((el, index) => index > 0 && index < visible.length - 1);//We exclude the first and the last rows of the table. The first row is the header, and the last row is the total row.
 
-            const adress = getUniqueValues(15, visible.filter((row, index)=>index>0));//!We must retrieve the adresses at this stage before filtering by "Matter" or any other column
+            const adress = getUniqueValues(15, visible);//!We must retrieve the adresses at this stage before filtering by "Matter" or any other column
 
             const [matters, natures] = [1, 2].map(index => {
                 //!Matter and Nature inputs (from columns 2 & 3 of the Excel table) may include multiple entries separated by ', ' not only one entry.
