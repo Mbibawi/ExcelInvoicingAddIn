@@ -583,7 +583,7 @@ async function createFileCession(filePath, accessToken) {
  */
 async function closeFileSession(sessionId, filePath, accessToken) {
     const response = await fetch(`${GRAPH_API_BASE_URL}${filePath}:/workbook/closeSession`, {
-        method: "DELETE",
+        method: "POST",
         headers: {
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
