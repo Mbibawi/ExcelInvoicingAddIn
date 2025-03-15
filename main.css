@@ -21,11 +21,11 @@ section.samples {
 
 tr{
     display: grid;
-    grid-template-columns: 23% 23% 5% 5% 5% 5% 34%;
+    grid-template-columns: 22% 22% 5% 5% 5% 5% 5% 31%;
     gap: 2vw;
     justify-items: center;
     justify-self: center;
-    width: 99%;
+    width: 93vw;
     margin-top: 10px;
 }
 
