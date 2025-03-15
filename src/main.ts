@@ -649,7 +649,7 @@ async function createFileCession(filePath: string, accessToken: string) {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ persistChanges: false }),
+      body: JSON.stringify({ persistChanges: true }),
     });
 
   if (!response.ok)

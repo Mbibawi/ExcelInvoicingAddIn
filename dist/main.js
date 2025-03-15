@@ -569,7 +569,7 @@ async function createFileCession(filePath, accessToken) {
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
         },
-        body: JSON.stringify({ persistChanges: false }),
+        body: JSON.stringify({ persistChanges: true }),
     });
     if (!response.ok)
         throw new Error("Failed to create workbook session");
