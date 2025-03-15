@@ -274,9 +274,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                 if (!visiblCells) return;
                 
                 (function displayTable() {
-                    const tableDiv = document.createElement('div');
-                    tableDiv.classList.add('table-div');
-                    
+                    const tableDiv = createDivContainer();                    
                     const table = document.createElement('table');
                     table.classList.add('table');
                     
@@ -312,6 +310,16 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                     if (form) {
                         form?.insertAdjacentElement('afterend', tableDiv);
                     }
+                    
+                    function createDivContainer() {
+                        const id = 'retrieved';
+                        let tableDiv = document.getElementById('retrieved') 
+                        if(tableDiv) return tableDiv;
+                        tableDiv = document.createElement('div');
+                        tableDiv.classList.add('table-div');
+                        tableDiv.id = 'retrieved';
+                        return tableDiv;
+                    }
                 })();
 
 
@@ -321,7 +329,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                     const sessionData = await cessionResponse.json();
                     const sessionId = sessionData?.id;
                     const response = await retrieveVisibleCells(sessionId);
-                    const cells = JSON.parse(response) as any[][];
+                    const cells = response.values as any[][];
                     await closeSession();
                     return cells;
 
