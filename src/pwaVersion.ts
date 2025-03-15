@@ -163,7 +163,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
             const amount = getInputByIndex(inputs, 9) as HTMLInputElement;
             const rate = getInputByIndex(inputs, 8)?.valueAsNumber || 0;
 
-            const debit = ['Honoraire', 'Débours/Dépens', 'Débours/Dépens non facturables', 'Rétrocession d\'honoraires'].includes(nature);//We check if we need to change the value sign
+            const debit = ['Honoraire', 'Débours/Dépens', 'Débours/Dépens non facturables', 'Rétrocession d\'honoraires', 'Charges déductibles'].includes(nature);//We check if we need to change the value sign
 
             const row =
                 inputs.map((input, index) => getInputValue(index));//!CAUTION: The html inputs are not arranged according to their dataset.index values. If we follow their order, some values will be assigned to the wrong column of the Excel table. That's why we do not pass the input itself or the dataset.index of the input to getInputValue(), but instead we pass the index of the column for which we want to retrieve the value from the relevant input.
@@ -226,6 +226,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                     const headerRow = document.createElement('tr');
                     visibleCells[0].forEach((cell) => {
                         const th = document.createElement('th');
+                        th.classList.add('header');
                         th.textContent = cell;
                         headerRow.appendChild(th);
                     });
@@ -234,8 +235,9 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                     
                     visibleCells.forEach((row) => {
                         const tr = document.createElement('tr');
+                        tr.classList.add('row');
                         row.forEach((cell, index) => {
-                            if ([0, 1, 2, 3, 8, 9, 10].includes(index)) return;
+                            if (![0, 1, 2, 3, 8, 9, 10].includes(index)) return;
                             const td = document.createElement('td');
                             td.textContent = cell;
                             tr.appendChild(td);

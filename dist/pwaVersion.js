@@ -149,7 +149,7 @@ async function addNewEntry(add = false, row) {
                 return stop('The invoice date is');
             const amount = getInputByIndex(inputs, 9);
             const rate = getInputByIndex(inputs, 8)?.valueAsNumber || 0;
-            const debit = ['Honoraire', 'Débours/Dépens', 'Débours/Dépens non facturables', 'Rétrocession d\'honoraires'].includes(nature); //We check if we need to change the value sign
+            const debit = ['Honoraire', 'Débours/Dépens', 'Débours/Dépens non facturables', 'Rétrocession d\'honoraires', 'Charges déductibles'].includes(nature); //We check if we need to change the value sign
             const row = inputs.map((input, index) => getInputValue(index)); //!CAUTION: The html inputs are not arranged according to their dataset.index values. If we follow their order, some values will be assigned to the wrong column of the Excel table. That's why we do not pass the input itself or the dataset.index of the input to getInputValue(), but instead we pass the index of the column for which we want to retrieve the value from the relevant input.
             if (missing())
                 return stop('Some of the required fields are');
@@ -204,14 +204,16 @@ async function addNewEntry(add = false, row) {
                 const headerRow = document.createElement('tr');
                 visibleCells[0].forEach((cell) => {
                     const th = document.createElement('th');
+                    th.classList.add('header');
                     th.textContent = cell;
                     headerRow.appendChild(th);
                 });
                 thead.appendChild(headerRow);
                 visibleCells.forEach((row) => {
                     const tr = document.createElement('tr');
+                    tr.classList.add('row');
                     row.forEach((cell, index) => {
-                        if ([0, 1, 2, 3, 8, 9, 10].includes(index))
+                        if (![0, 1, 2, 3, 8, 9, 10].includes(index))
                             return;
                         const td = document.createElement('td');
                         td.textContent = cell;
