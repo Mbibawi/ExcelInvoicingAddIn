@@ -559,6 +559,41 @@ function getUniqueValues(index, array) {
 }
 ;
 /**
+ * Creates a new Graph API File session and returns its id
+ * @returns
+ */
+async function createFileCession(filePath, accessToken) {
+    const response = await fetch(`${GRAPH_API_BASE_URL}${filePath}:/workbook/createSession`, {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ persistChanges: false }),
+    });
+    if (!response.ok)
+        throw new Error("Failed to create workbook session");
+    const json = await response.json();
+    if (!json)
+        throw new Error('Failed to create workbook session');
+    return json.id;
+}
+/**
+ * Closes the current Excel file session
+ */
+async function closeFileSession(sessionId, filePath, accessToken) {
+    const response = await fetch(`${GRAPH_API_BASE_URL}${filePath}:/workbook/closeSession`, {
+        method: "DELETE",
+        headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+            WorkbookSessionId: sessionId,
+        },
+    });
+    if (!response.ok)
+        throw new Error("Failed to close workbook session");
+}
+/**
  * Returns all the rows of an Excel table in a workbook stored on OneDrive, using the Graph API
  * @param {string} accessToken - the access token
  * @param {string} filePath - file path (folder + file nam) of the file to be fetched
@@ -567,7 +602,7 @@ function getUniqueValues(index, array) {
  * @param {boolean} columns - If true it will return the columns
  * @returns {any[][] | number | void} - All the rows (including the title) of the Excel table
  */
-async function fetchExcelTableWithGraphAPI(accessToken, filePath, tableName, range = true, columns) {
+async function fetchExcelTableWithGraphAPI(sessionId, accessToken, filePath, tableName, range = true, columns) {
     if (!accessToken)
         accessToken = await getAccessToken() || '';
     let endPoint = `${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/`;
@@ -579,7 +614,10 @@ async function fetchExcelTableWithGraphAPI(accessToken, filePath, tableName, ran
         endPoint += 'columns';
     const response = await fetch(endPoint, {
         method: "GET",
-        headers: { Authorization: `Bearer ${accessToken}` }
+        headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Workbook-Session-Id": sessionId
+        }
     });
     if (!response.ok) {
         alert(`Error fetching row count: ${await response.text()}`);
@@ -592,13 +630,87 @@ async function fetchExcelTableWithGraphAPI(accessToken, filePath, tableName, ran
     else
         return data.value.map((v) => v.values);
 }
-async function clearFilterExcelTableGraphAPI(filePath, tableName, accessToken) {
+/**
+ * Filters an Excel table column based on the values
+ * @param {string} filePath - the full path and file name of the Excel workbook
+ * @param {string} tableName - the name of the table that will be filtered
+ * @param {string} columnName - the name of the column that will be filtered
+ * @param {string[]} values - the values based on which the column will be filtered
+ * @param {string} sessionId - the id of the current Excel file session
+ * @param {string} accessToken - the access token
+ * @returns {string}
+ */
+async function filterExcelTableWithGraphAPI(filePath, tableName, columnName, values, sessionId, accessToken) {
+    if (!accessToken || !sessionId)
+        return;
+    // Step 3: Apply filter using the column name
+    const filterUrl = `${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/columns/${columnName}/filter/apply`;
+    const body = {
+        criteria: {
+            filterOn: "values",
+            values: values,
+        }
+    };
+    const filterResponse = await fetch(filterUrl, {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+            "Workbook-Session-Id": sessionId
+        },
+        body: JSON.stringify(body)
+    });
+    if (filterResponse.ok) {
+        console.log(`Filter applied to column ${columnName} successfully!`);
+    }
+    else {
+        alert(`Error applying filter: ${await filterResponse.text()}`);
+    }
+}
+/**
+ * Returns the visible cells of a filtered Excel table using Graph API
+ * @param {string} filePath - the full path and file name of the Excel workbook
+ * @param {string} tableName - the name of the table that will be filtered
+ * @param {string} sessionId - the id of the current Excel file session
+ * @param {string} accessToken - the access token
+ * @returns {any[][]} - the visible cells of the filtered table
+ */
+async function getVisibleCellsWithGraphAPI(filePath, tableName, sessionId, accessToken) {
+    if (!accessToken || !sessionId)
+        return;
+    // Step 3: Apply filter using the column name
+    const endPoint = `${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/range/visibleView`;
+    const response = await fetch(endPoint, {
+        method: "GET",
+        headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+            "Workbook-Session-Id": sessionId
+        },
+    });
+    if (response.ok) {
+        const data = await response.json();
+        return data.values;
+    }
+    else {
+        alert(`Error applying filter: ${await response.text()}`);
+    }
+}
+/**
+ * Clears the filters on an Excel table using the Graph API
+ * @param {string} filePath - the full path and file name of the Excel workbook
+ * @param {string} tableName - the name of the table that will be filtered
+ * @param {string} sessionId - the id of the current Excel file session
+ * @param {string} accessToken - the access token
+ */
+async function clearFilterExcelTableGraphAPI(filePath, tableName, sessionId, accessToken) {
     // First, clear filters on the table (optional step)
     await fetch(`${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/clearFilters`, {
         method: "POST",
         headers: {
             "Authorization": `Bearer ${accessToken}`,
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Workbook-Session-Id": sessionId,
         }
     });
 }

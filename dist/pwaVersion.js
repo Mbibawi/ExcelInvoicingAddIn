@@ -27,10 +27,14 @@ async function addNewEntry(add = false, row) {
             return;
         if (!workbookPath || !tableName)
             return alert('The Excel Workbook Path or the name of the Excel table are not valid');
-        TableRows = await fetchExcelTableWithGraphAPI(accessToken, workbookPath, tableName);
+        const sessionId = await createFileCession(workbookPath, accessToken) || '';
+        if (!sessionId)
+            return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
+        TableRows = await fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName);
         if (!TableRows)
             return;
         insertAddForm(TableRows[0]);
+        await closeFileSession(sessionId, workbookPath, accessToken);
         function insertAddForm(title) {
             const form = document.getElementById('form');
             if (!form)
@@ -186,158 +190,56 @@ async function addNewEntry(add = false, row) {
         async function addRow(row, filter = false) {
             if (!row)
                 return;
-            const response = await addRowToExcelTableWithGraphAPI([row], TableRows.length - 2, workbookPath, tableName, accessToken);
-            if (response)
-                alert('Row aded and table will be filtered');
-            (function filterTable() {
-                if (!filter)
-                    return;
-                [0, 1].map(async (index) => {
-                    //!We use map because forEach doesn't await
-                    await filterExcelTable(workbookPath, tableName, TableRows[0]?.[index], [row[index]?.toString()] || [], accessToken);
+            const visibleCells = await addRowToExcelTableWithGraphAPI([row], TableRows.length - 2, workbookPath, tableName, accessToken, filter);
+            if (!visibleCells)
+                return alert('There was an issue with the adding or the filtering, check the console.log for more details');
+            alert('Row aded and the table was filtered');
+            displayVisibleCells(visibleCells);
+            function displayVisibleCells(visibleCells) {
+                const tableDiv = createDivContainer();
+                const table = document.createElement('table');
+                table.classList.add('table');
+                const thead = document.createElement('thead');
+                const tbody = document.createElement('tbody');
+                const headerRow = document.createElement('tr');
+                visibleCells[0].forEach((cell) => {
+                    const th = document.createElement('th');
+                    th.textContent = cell;
+                    headerRow.appendChild(th);
                 });
-            })();
-            (async function fetchAfterUpdate() {
-                return;
-                const updatedTableRows = await fetchExcelTableWithGraphAPI(accessToken, workbookPath, tableName);
-                console.log(updatedTableRows);
-                const filteredRows = updatedTableRows.filter(cells => cells[0] === row?.[0] && cells[1] === row[1]);
-                console.log(filteredRows);
-                (function displayTable() {
-                    const tableDiv = document.createElement('div');
-                    tableDiv.classList.add('table-div');
-                    const table = document.createElement('table');
-                    table.classList.add('table');
-                    const thead = document.createElement('thead');
-                    const tbody = document.createElement('tbody');
-                    const headerRow = document.createElement('tr');
-                    updatedTableRows[0].forEach((cell) => {
-                        const th = document.createElement('th');
-                        th.textContent = cell;
-                        headerRow.appendChild(th);
+                thead.appendChild(headerRow);
+                visibleCells.forEach((row) => {
+                    const tr = document.createElement('tr');
+                    row.forEach((cell, index) => {
+                        if ([0, 1, 2, 3, 8, 9, 10].includes(index))
+                            return;
+                        const td = document.createElement('td');
+                        td.textContent = cell;
+                        tr.appendChild(td);
                     });
-                    thead.appendChild(headerRow);
-                    filteredRows.forEach((row) => {
-                        const tr = document.createElement('tr');
-                        row.forEach((cell) => {
-                            const td = document.createElement('td');
-                            td.textContent = cell;
-                            tr.appendChild(td);
-                        });
-                        tbody.appendChild(tr);
-                    });
-                    table.appendChild(thead);
-                    table.appendChild(tbody);
-                    tableDiv.appendChild(table);
-                    const form = document.getElementById('form');
-                    if (!form)
-                        return;
-                    if (form) {
-                        form?.insertAdjacentElement('afterend', tableDiv);
-                    }
-                })();
-            })();
-            (async function afterUpdate() {
-                const visiblCells = await getVisibleCells();
-                debugger;
-                if (!visiblCells)
+                    tbody.appendChild(tr);
+                });
+                table.appendChild(thead);
+                table.appendChild(tbody);
+                tableDiv.appendChild(table);
+                const form = document.getElementById('form');
+                if (!form)
                     return;
-                (function displayTable() {
-                    const tableDiv = createDivContainer();
-                    const table = document.createElement('table');
-                    table.classList.add('table');
-                    const thead = document.createElement('thead');
-                    const tbody = document.createElement('tbody');
-                    const headerRow = document.createElement('tr');
-                    visiblCells[0].forEach((cell) => {
-                        const th = document.createElement('th');
-                        th.textContent = cell;
-                        headerRow.appendChild(th);
-                    });
-                    thead.appendChild(headerRow);
-                    visiblCells.forEach((row) => {
-                        const tr = document.createElement('tr');
-                        row.forEach((cell, index) => {
-                            if ([0, 1, 2, 3, 8, 9, 10].includes(index))
-                                return;
-                            const td = document.createElement('td');
-                            td.textContent = cell;
-                            tr.appendChild(td);
-                        });
-                        tbody.appendChild(tr);
-                    });
-                    table.appendChild(thead);
-                    table.appendChild(tbody);
-                    tableDiv.appendChild(table);
-                    const form = document.getElementById('form');
-                    if (!form)
-                        return;
-                    if (form) {
-                        form?.insertAdjacentElement('afterend', tableDiv);
-                    }
-                    function createDivContainer() {
-                        const id = 'retrieved';
-                        let tableDiv = document.getElementById('retrieved');
-                        if (tableDiv)
-                            return tableDiv;
-                        tableDiv = document.createElement('div');
-                        tableDiv.classList.add('table-div');
-                        tableDiv.id = 'retrieved';
-                        return tableDiv;
-                    }
-                })();
-                async function getVisibleCells() {
-                    const cessionResponse = await createNewCession();
-                    if (!cessionResponse)
-                        return;
-                    const sessionData = await cessionResponse.json();
-                    const sessionId = sessionData?.id;
-                    const response = await retrieveVisibleCells(sessionId);
-                    const cells = response.values;
-                    await closeSession();
-                    return cells;
-                    async function createNewCession() {
-                        const cessionResponse = await fetch(`${GRAPH_API_BASE_URL}${workbookPath}:/workbook/createSession`, {
-                            method: "POST",
-                            headers: {
-                                Authorization: `Bearer ${accessToken}`,
-                                "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({ persistChanges: false }),
-                        });
-                        if (!cessionResponse.ok)
-                            throw new Error("Failed to create workbook session");
-                        return cessionResponse;
-                    }
-                    async function retrieveVisibleCells(sessionId) {
-                        // Step 2: Get the visible range including headers and totals rows
-                        const response = await fetch(`${GRAPH_API_BASE_URL}${workbookPath}:/workbook/tables/${tableName}/range/visibleView`, {
-                            method: "GET",
-                            headers: {
-                                Authorization: `Bearer ${accessToken}`,
-                                "Content-Type": "application/json",
-                                WorkbookSessionId: sessionId, // Use the session ID
-                            },
-                        });
-                        if (!response.ok)
-                            throw new Error("Failed to retrieve visible cells");
-                        return await response.json();
-                    }
-                    async function closeSession() {
-                        // Step 3: Close the session
-                        const response = await fetch(`${GRAPH_API_BASE_URL}${workbookPath}:/workbook/closeSession`, {
-                            method: "POST",
-                            headers: {
-                                Authorization: `Bearer ${accessToken}`,
-                                "Content-Type": "application/json",
-                                WorkbookSessionId: sessionId,
-                            },
-                        });
-                        if (!response.ok)
-                            throw new Error("Failed to close workbook session");
-                    }
+                if (form) {
+                    form?.insertAdjacentElement('afterend', tableDiv);
                 }
-            })();
+                function createDivContainer() {
+                    const id = 'retrieved';
+                    let tableDiv = document.getElementById(id);
+                    if (tableDiv)
+                        return tableDiv;
+                    tableDiv = document.createElement('div');
+                    tableDiv.classList.add('table-div');
+                    tableDiv.id = id;
+                    return tableDiv;
+                }
+            }
+            ;
         }
         ;
     })();
@@ -351,21 +253,26 @@ async function invoice(issue = false) {
             return;
         if (!workbookPath || !tableName)
             return alert('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
-        TableRows = await fetchExcelTableWithGraphAPI(accessToken, workbookPath, tableName);
+        const sessionId = await createFileCession(workbookPath, accessToken) || '';
+        TableRows = await fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName);
         if (!TableRows)
             return;
         insertInvoiceForm(TableRows);
+        await closeFileSession(sessionId, workbookPath, accessToken);
     })();
     (async function issueInvoice() {
         if (!issue)
             return;
         if (!templatePath || !destinationFolder)
             return alert('The full path of the Word Invoice Template and/or the destination folder where the new invoice will be saved, are either missing or not valid');
+        const sessionId = await createFileCession(workbookPath, accessToken) || '';
+        if (!sessionId)
+            return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
         const inputs = Array.from(document.getElementsByTagName('input'));
         const criteria = inputs.filter(input => Number(input.dataset.index) >= 0);
         const discount = parseInt(inputs.find(input => input.id === 'discount')?.value || '0%');
         const lang = inputs.find(input => input.dataset.language && input.checked === true)?.dataset.language || 'FR';
-        TableRows = await fetchExcelTableWithGraphAPI(accessToken, workbookPath, tableName); //We fetch the table again in case there where changes made since it was fetched the first time when the userform was inserted
+        TableRows = await fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName); //We fetch the table again in case there where changes made since it was fetched the first time when the userform was inserted
         const [wordRows, totalsRows, filtered] = filterExcelData(TableRows, criteria, discount, lang);
         const date = new Date();
         const invoice = {
@@ -381,11 +288,12 @@ async function invoice(issue = false) {
         filePath = prompt(`The file will be saved in ${destinationFolder}, and will be named : ${fileName}./nIf you want to change the path or the name, provide the full file path and name of your choice without any sepcial characters`, filePath) || filePath;
         await createAndUploadXmlDocument(accessToken, templatePath, filePath, lang, 'Invoice', wordRows, contentControls, totalsRows);
         (async function filterTable() {
-            await clearFilterExcelTableGraphAPI(workbookPath, tableName, accessToken); //We start by clearing the filter of the table, otherwise the insertion will fail
+            await clearFilterExcelTableGraphAPI(workbookPath, tableName, sessionId, accessToken); //We start by clearing the filter of the table, otherwise the insertion will fail
             [0, 1].map(async (index) => {
-                await filterExcelTable(workbookPath, tableName, TableRows[0][index], getUniqueValues(index, filtered), accessToken);
+                await filterExcelTableWithGraphAPI(workbookPath, tableName, TableRows[0][index], getUniqueValues(index, filtered), sessionId, accessToken);
             });
         })();
+        await closeFileSession(sessionId, workbookPath, accessToken);
         /**
          * Filters the Excel table according to the values of each inputs, then returns the values of the Word table rows that will be added to the Word table in the invoice template document
          * @param {any[][]} data - The Excel table rows that will be filtered
@@ -863,53 +771,48 @@ function getNewExcelRow(inputs) {
         input.value;
     });
 }
-async function addRowToExcelTableWithGraphAPI(row, index, filePath, tableName, accessToken) {
-    await clearFilterExcelTableGraphAPI(filePath, tableName, accessToken); //We start by clearing the filter of the table, otherwise the insertion will fail
-    const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/rows`;
-    const body = {
-        index: index,
-        values: row,
-    };
-    const response = await fetch(url, {
-        method: "POST",
-        headers: {
-            "Authorization": `Bearer ${accessToken}`,
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify(body)
-    });
-    if (response.ok) {
-        console.log("Row added successfully!");
-        return await response.json();
-    }
-    else {
-        alert(`Error adding row: ${await response.text()}`);
-    }
-}
-async function filterExcelTable(filePath, tableName, columnName, values, accessToken) {
-    if (!accessToken)
-        return;
-    // Step 3: Apply filter using the column name
-    const filterUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${filePath}:/workbook/tables/${tableName}/columns/${columnName}/filter/apply`;
-    const body = {
-        criteria: {
-            filterOn: "values",
-            values: values,
+async function addRowToExcelTableWithGraphAPI(row, index, filePath, tableName, accessToken, filter = false) {
+    const sessionId = await createFileCession(filePath, accessToken);
+    if (!sessionId)
+        return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
+    await clearFilterExcelTableGraphAPI(filePath, tableName, sessionId, accessToken);
+    await addRow();
+    if (filter)
+        await filterTable();
+    const visible = await getVisibleCellsWithGraphAPI(filePath, tableName, sessionId, accessToken);
+    await closeFileSession(sessionId, filePath, accessToken);
+    return visible;
+    async function addRow() {
+        const url = `${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/rows`; //The url to add a row to the table
+        const body = {
+            index: index,
+            values: row,
+        };
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${accessToken}`,
+                "Content-Type": "application/json",
+                "Workbook-Session-Id": sessionId,
+            },
+            body: JSON.stringify(body)
+        });
+        if (response.ok) {
+            console.log("Row added successfully!");
+            return await response.json();
         }
-    };
-    const filterResponse = await fetch(filterUrl, {
-        method: "POST",
-        headers: {
-            "Authorization": `Bearer ${accessToken}`,
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify(body)
-    });
-    if (filterResponse.ok) {
-        console.log(`Filter applied to column ${columnName} successfully!`);
+        else {
+            alert(`Error adding row: ${await response.text()}`);
+        }
     }
-    else {
-        alert(`Error applying filter: ${await filterResponse.text()}`);
+    async function filterTable() {
+        if (!filter)
+            return;
+        [0, 1].map(async (index) => {
+            //!We use map because forEach doesn't await
+            await filterExcelTableWithGraphAPI(workbookPath, tableName, TableRows[0]?.[index], [row[index]?.toString()] || [], sessionId, accessToken);
+        });
     }
+    ;
 }
 //# sourceMappingURL=pwaVersion.js.map
