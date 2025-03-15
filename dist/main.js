@@ -638,27 +638,20 @@ async function fetchExcelTableWithGraphAPI(sessionId, accessToken, filePath, tab
  * @param {string} filePath - the full path and file name of the Excel workbook
  * @param {string} tableName - the name of the table that will be filtered
  * @param {string} columnName - the name of the column that will be filtered
- * @param {string[]} criterias - the values based on which the column will be filtered
+ * @param {string[]} values - the values based on which the column will be filtered
  * @param {string} sessionId - the id of the current Excel file session
  * @param {string} accessToken - the access token
  * @returns {string}
  */
-async function filterExcelTableWithGraphAPI(filePath, tableName, criterias, sessionId, accessToken) {
+async function filterExcelTableWithGraphAPI(filePath, tableName, columnName, values, sessionId, accessToken) {
     if (!accessToken || !sessionId)
         return;
-    const criteria = criterias.map(([column, values]) => {
-        return {
-            column: column,
-            filterOn: "values",
-            values: values
-        };
-    });
-    // Step 3: Apply filter using the columns names and values
-    const filterUrl = `${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/applyFilter`;
+    // Step 3: Apply filter using the column name
+    const filterUrl = `${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/columns/${columnName}/filter/apply`;
     const body = {
         criteria: {
-            filterOn: "and",
-            criteria1: criteria,
+            filterOn: "values",
+            values: values,
         }
     };
     const filterResponse = await fetch(filterUrl, {
@@ -671,7 +664,7 @@ async function filterExcelTableWithGraphAPI(filePath, tableName, criterias, sess
         body: JSON.stringify(body)
     });
     if (filterResponse.ok) {
-        console.log(`Filter successfully applied to columns:  ${criterias.map(c => c[0]).join((' and '))}`);
+        console.log(`Filter applied to column ${columnName} successfully!`);
     }
     else {
         alert(`Error applying filter: ${await filterResponse.text()}`);

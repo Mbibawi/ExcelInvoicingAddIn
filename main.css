@@ -27,6 +27,7 @@ tr{
     justify-self: center;
     width: 93vw;
     margin-top: 10px;
+    background-blend-mode: difference ;
 }
 
 .block{ 

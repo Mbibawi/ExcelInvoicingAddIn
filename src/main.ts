@@ -674,7 +674,7 @@ async function closeFileSession(sessionId: string, filePath: string, accessToken
       },
     });
 
-  if (!response.ok) {
+  if (!response.ok){
     alert(response.text);
     throw new Error("Failed to close workbook session")
   };
@@ -724,28 +724,21 @@ async function fetchExcelTableWithGraphAPI(sessionId: string, accessToken: strin
  * @param {string} filePath - the full path and file name of the Excel workbook
  * @param {string} tableName - the name of the table that will be filtered
  * @param {string} columnName - the name of the column that will be filtered
- * @param {string[]} criterias - the values based on which the column will be filtered
+ * @param {string[]} values - the values based on which the column will be filtered
  * @param {string} sessionId - the id of the current Excel file session
  * @param {string} accessToken - the access token
  * @returns {string} 
  */
-async function filterExcelTableWithGraphAPI(filePath: string, tableName: string, criterias: [string, string[]][], sessionId: string, accessToken: string) {
+async function filterExcelTableWithGraphAPI(filePath: string, tableName: string, columnName: string, values: string[], sessionId: string, accessToken: string) {
   if (!accessToken || !sessionId) return;
-  const criteria = criterias.map(([column, values]) => {
-    return {
-      column: column,
-      filterOn: "values",
-      values: values
-    }
-  });
 
-  // Step 3: Apply filter using the columns names and values
-  const filterUrl = `${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/applyFilter`;
+  // Step 3: Apply filter using the column name
+  const filterUrl = `${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/columns/${columnName}/filter/apply`;
 
   const body = {
     criteria: {
-      filterOn: "and",
-      criteria1: criteria,
+      filterOn: "values",
+      values: values,
     }
   };
 
@@ -760,7 +753,7 @@ async function filterExcelTableWithGraphAPI(filePath: string, tableName: string,
   });
 
   if (filterResponse.ok) {
-    console.log(`Filter successfully applied to columns:  ${criterias.map(c=>c[0]).join((' and '))}`);
+    console.log(`Filter applied to column ${columnName} successfully!`);
   } else {
     alert(`Error applying filter: ${await filterResponse.text()}`);
   }

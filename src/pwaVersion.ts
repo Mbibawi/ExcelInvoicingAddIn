@@ -341,11 +341,9 @@ async function invoice(issue: boolean = false) {
         await closeFileSession(sessionId, workbookPath, accessToken);
         async function filterTable() {
             await clearFilterExcelTableGraphAPI(workbookPath, tableName, sessionId, accessToken); //We start by clearing the filter of the table, otherwise the insertion will fail
-            const criteria:[string, string[]][] = [0, 1].map(index =>[
-                TableRows[0][index],
-                getUniqueValues(index, filtered)] as [string, string[]]);
-
-            await filterExcelTableWithGraphAPI(workbookPath, tableName, criteria, sessionId, accessToken);
+            [0, 1].map(async index => {
+                await filterExcelTableWithGraphAPI(workbookPath, tableName, TableRows[0][index], getUniqueValues(index, filtered) as string[], sessionId, accessToken)
+            });
         };
 
 
@@ -915,11 +913,10 @@ async function addRowToExcelTableWithGraphAPI(row: any[], index: number, filePat
 
     async function filterTable() {
         if (!filter) return;
-        const criteria:[string, string[]][] = [0, 1].map(index =>[
-            TableRows[0][index],
-            [row[index]?.toString()] || []]);
-
-        await filterExcelTableWithGraphAPI(workbookPath, tableName, criteria, sessionId, accessToken);
+        [0, 1].map(async index => {
+            //!We use map because forEach doesn't await
+            await filterExcelTableWithGraphAPI(workbookPath, tableName, TableRows[0]?.[index], [row[index]?.toString()] || [], sessionId, accessToken);
+        });
     };
 
 }
