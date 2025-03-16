@@ -981,6 +981,7 @@ async function addRowToExcelTableWithGraphAPI(row: any[], index: number, filePat
 
 function searchFiles() {
     (function showForm() {
+        localStorage.oneDriveItems = '';
         const form = document.getElementById('form') as HTMLDivElement;
         if (!form) return;
         form.innerHTML = '';
@@ -1006,32 +1007,11 @@ function searchFiles() {
         if (!accessToken) return alert('The access token is missing. Check the console.log for more details');
 
         //const GRAPH_API_URL = "https://graph.microsoft.com/v1.0/me/drive/search(q='*')";
-        const GRAPH_API_URL = "https://graph.microsoft.com/v1.0/me/drive/root/children";
-        let files: any[] = [];
-        let nextLink: string | null = GRAPH_API_URL;
-
-        // Fetch all OneDrive items (recursive)
-        while (nextLink) {
-            const response = await fetch(nextLink, {
-                method: "GET",
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                    "Content-Type": "application/json",
-                },
-            });
-
-            if (!response.ok) {
-                console.error("Error fetching files:", await response.text());
-                return;
-            }
-
-            const data: { value: { name: string }[]; "@odata.nextLink": string } = await response.json();
-            files = files.concat(data.value); // Add results
-            data["@odata.nextLink"] ? nextLink = data["@odata.nextLink"] : nextLink = null; // Handle pagination
-        }
-
+        
+        let files =JSON.parse(localStorage.onediveItems) || await fetchAllFiles();
+        
         // Filter files matching regex pattern
-        const matchingFiles = files.filter((item: any) => item.file && regexPattern.test(item.name));
+        const matchingFiles = files.filter((item: any) => regexPattern.test(item.name));
 
         // Get reference to the table
         const table = document.createElement('table');
@@ -1052,6 +1032,44 @@ function searchFiles() {
         });
 
         console.log(`Fetched ${files.length} items, displaying ${matchingFiles.length} matching files.`);
+
+                // Fetch all OneDrive items (recursive)
+        async function fetchAllFiles() {
+            const GRAPH_API_URL = `https://graph.microsoft.com/v1.0/me/drive/root/children`;            
+            let files: any[] = [];
+
+            await fetchItemsRecursively(GRAPH_API_URL, files);
+            localStorage.onedriveItems = JSON.stringify(files);
+            return files;
+        
+            async function fetchItemsRecursively(url: string, files: any[]) {
+                let nextLink: string | null = url;
+                while (nextLink) {
+                    const response = await fetch(nextLink, {
+                        method: "GET",
+                        headers: {
+                            Authorization: `Bearer ${accessToken}`,
+                            "Content-Type": "application/json",
+                        },
+                    });
+        
+                    if (!response.ok) {
+                        console.error("Error fetching files:", await response.text());
+                        return;
+                    }
+        
+                    const data: { value: any[]; "@odata.nextLink": string } = await response.json();
+                    files.push(...data.value.filter(item => item.file)); // Add files only
+                    const folders = data.value.filter(item => item.folder); // Get folders
+        
+                    for (const folder of folders) {
+                        await fetchItemsRecursively(`https://graph.microsoft.com/v1.0/me/drive/items/${folder.id}/children`, files);
+                    }
+        
+                    nextLink = data["@odata.nextLink"] || null; // Handle pagination
+                }
+            }
+        };
     }
 }
 
