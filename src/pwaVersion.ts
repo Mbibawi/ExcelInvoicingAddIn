@@ -980,7 +980,7 @@ async function addRowToExcelTableWithGraphAPI(row: any[], index: number, filePat
 }
 
 function searchFiles() {
-    (function showForm() { 
+    (function showForm() {
         const form = document.getElementById('form') as HTMLDivElement;
         if (!form) return;
         form.innerHTML = '';
@@ -997,18 +997,19 @@ function searchFiles() {
         btn.classList.add('button');
         btn.innerText = 'Search';
         btn.onclick = () => fetchAllDriveFiles(new RegExp(regexp.value), form);
-        
+
     })();
-    
+
     async function fetchAllDriveFiles(regexPattern: RegExp, form: HTMLDivElement) {
         if (!accessToken)
-            accessToken = await getAccessToken() ||'';
+            accessToken = await getAccessToken() || '';
         if (!accessToken) return alert('The access token is missing. Check the console.log for more details');
-    
-        const GRAPH_API_URL = "https://graph.microsoft.com/v1.0/me/drive/search(q='*')";
+
+        //const GRAPH_API_URL = "https://graph.microsoft.com/v1.0/me/drive/search(q='*')";
+        const GRAPH_API_URL = "https://graph.microsoft.com/v1.0/me/drive/root/children";
         let files: any[] = [];
         let nextLink: string | null = GRAPH_API_URL;
-    
+
         // Fetch all OneDrive items (recursive)
         while (nextLink) {
             const response = await fetch(nextLink, {
@@ -1018,38 +1019,38 @@ function searchFiles() {
                     "Content-Type": "application/json",
                 },
             });
-    
+
             if (!response.ok) {
                 console.error("Error fetching files:", await response.text());
                 return;
             }
-    
-            const data: { value: { name: string }[]; "@odata.nextLink":string } = await response.json();
+
+            const data: { value: { name: string }[]; "@odata.nextLink": string } = await response.json();
             files = files.concat(data.value); // Add results
             data["@odata.nextLink"] ? nextLink = data["@odata.nextLink"] : nextLink = null; // Handle pagination
         }
-    
+
         // Filter files matching regex pattern
         const matchingFiles = files.filter((item: any) => item.file && regexPattern.test(item.name));
-    
+
         // Get reference to the table
         const table = document.createElement('table');
         form.appendChild(table);
         table.innerHTML = "<tr><th>File Name</th><th>Created Date</th><th>Last Modified</th></tr>"; // Reset table
-    
+
         // Populate table with matching files
         matchingFiles.forEach((file: any) => {
             const row = table.insertRow();
             row.insertCell(0).textContent = file.name;
             row.insertCell(1).textContent = new Date(file.createdDateTime).toLocaleString();
             row.insertCell(2).textContent = new Date(file.lastModifiedDateTime).toLocaleString();
-    
+
             // Add double-click event listener to open file
             row.addEventListener("dblclick", () => {
                 window.open(file["@microsoft.graph.downloadUrl"], "_blank");
             });
         });
-    
+
         console.log(`Fetched ${files.length} items, displaying ${matchingFiles.length} matching files.`);
     }
 }

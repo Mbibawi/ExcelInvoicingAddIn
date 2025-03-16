@@ -914,7 +914,8 @@ function searchFiles() {
             accessToken = await getAccessToken() || '';
         if (!accessToken)
             return alert('The access token is missing. Check the console.log for more details');
-        const GRAPH_API_URL = "https://graph.microsoft.com/v1.0/me/drive/search(q='*')";
+        //const GRAPH_API_URL = "https://graph.microsoft.com/v1.0/me/drive/search(q='*')";
+        const GRAPH_API_URL = "https://graph.microsoft.com/v1.0/me/drive/root/children";
         let files = [];
         let nextLink = GRAPH_API_URL;
         // Fetch all OneDrive items (recursive)
