@@ -16,18 +16,18 @@ function getAccessToken() {
     return getTokenWithMSAL(clientId, redirectUri, msalConfig)
 }
 
-async function setLocalStorageTitles(sessionId?:string) {
+async function setLocalStorageTitles(sessionId?: string) {
     if (!accessToken)
         accessToken = await getAccessToken() || '';
     if (!accessToken) return [];
     if (!sessionId)
         sessionId = await createFileCession(workbookPath, accessToken);
     if (!sessionId) return [];
-    
+
     TableRows = await fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName, true) as string[][];
 
     tableTitles = TableRows?.[0];
-    if(!tableTitles) return [];
+    if (!tableTitles) return [];
     localStorage.setItem('tableTitles', JSON.stringify(tableTitles));
     await closeFileSession(sessionId, workbookPath, accessToken);
     return tableTitles;
@@ -40,7 +40,7 @@ async function setLocalStorageTitles(sessionId?:string) {
 async function addNewEntry(add: boolean = false, row?: any[]) {
     accessToken = await getAccessToken() || '';
     if (!accessToken) return alert('The access token is missing. Check the console.log for more details');
-    
+
 
     (async function showForm() {
         if (add) return;
@@ -50,7 +50,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
 
         if (!tableTitles) tableTitles = await setLocalStorageTitles(sessionId);
 
-        if(!TableRows) TableRows = await fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName, true) as string[][];
+        if (!TableRows) TableRows = await fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName, true) as string[][];
 
         insertAddForm(tableTitles);
 
@@ -58,7 +58,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
 
         function insertAddForm(titles: string[]) {
             if (!titles) return alert('The table titles are missing. Check the console.log for more details');
-            
+
 
             const form = document.getElementById('form');
             if (!form) return;
@@ -293,9 +293,9 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                     return tableDiv;
                 }
 
-                function addTableCell(parent:HTMLElement, text:string, tag:string) {
+                function addTableCell(parent: HTMLElement, text: string, tag: string) {
                     const cell = document.createElement(tag);
-                 //   cell.classList.add(css);
+                    //   cell.classList.add(css);
                     cell.textContent = text;
                     parent.appendChild(cell);
                 }
@@ -310,7 +310,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
 // Update Word Document
 async function invoice(issue: boolean = false) {
     accessToken = await getAccessToken() || '';
-    if(!accessToken) return alert('The access token is missing. Check the console.log for more details');
+    if (!accessToken) return alert('The access token is missing. Check the console.log for more details');
 
     (async function show() {
         if (issue) return;
@@ -357,7 +357,7 @@ async function invoice(issue: boolean = false) {
             adress: adress,
             lang: lang
         }
-        
+
         const contentControls = getContentControlsValues(invoice, date);
 
         const fileName = getInvoiceFileName(invoice.clientName, invoice.matters, invoice.number);
@@ -367,9 +367,9 @@ async function invoice(issue: boolean = false) {
 
         (async function editInvoiceFilterExcelClose() {
             await createAndUploadXmlDocument(accessToken, templatePath, filePath, lang, 'Invoice', wordRows, contentControls, totalsLabels);
-    
+
             await filterExcelTableWithGraphAPI(workbookPath, tableName, matter, matters, sessionId, accessToken);//We filter the table by the matters that were invoiced
-    
+
             await closeFileSession(sessionId, workbookPath, accessToken);
         })();
 
@@ -380,7 +380,7 @@ async function invoice(issue: boolean = false) {
          * @param {string} lang - The language in which the invoice will be issued 
          * @returns {string[][]} - The values of the rows that will be added to the Word table in the invoice template
          */
-        async function filterExcelData(criteria: HTMLInputElement[], discount: number, lang: string):Promise< [string[][], string[], string[], string[]] | void >{
+        async function filterExcelData(criteria: HTMLInputElement[], discount: number, lang: string): Promise<[string[][], string[], string[], string[]] | void> {
 
             await clearFilterExcelTableGraphAPI(workbookPath, tableName, sessionId, accessToken);//We unfilter the table;
 
@@ -390,7 +390,7 @@ async function invoice(issue: boolean = false) {
             let visible = await getVisibleCellsWithGraphAPI(workbookPath, tableName, sessionId, accessToken) as any[][];
 
             if (!visible) {
-               return alert('Could not retrieve the visible cells of the Excel table');
+                return alert('Could not retrieve the visible cells of the Excel table');
             }
             visible = visible.slice(1, - 1);//We exclude the first and the last rows of the table. The first row is the header, and the last row is the total row.
 
@@ -973,11 +973,89 @@ async function addRowToExcelTableWithGraphAPI(row: any[], index: number, filePat
         if (!filter) return;
         [0, 1].map(async index => {
             //!We use map because forEach doesn't await
-            await filterExcelTableWithGraphAPI(workbookPath, tableName, tableTitles?.[index], [row[index]?.toString()] || [], sessionId, accessToken);
+            await filterExcelTableWithGraphAPI(workbookPath, tableName, tableTitles?.[index], [row[index]?.toString()], sessionId, accessToken);
         });
     };
 
 }
+
+
+
+function searchFiles() {
+    (function showForm() { 
+        const form = document.getElementById('form') as HTMLDivElement;
+        if (!form) return;
+        form.innerHTML = '';
+        const regexp = document.createElement('input');
+        regexp.classList.add('field');
+        regexp.placeholder = 'Enter your file name search as a regular expression';
+        form.appendChild(regexp);
+        const mime = document.createElement('input');
+        mime.classList.add('field');
+        mime.placeholder = 'Enter the mime type of the file';
+        form.appendChild(mime);
+        const btn = document.createElement('button');
+        form.appendChild(btn);
+        btn.classList.add('button');
+        btn.innerText = 'Search';
+        btn.onclick = () => fetchAllDriveFiles(new RegExp(regexp.value), form);
+        
+    })();
+    
+    async function fetchAllDriveFiles(regexPattern: RegExp, form: HTMLDivElement) {
+        if (!accessToken)
+            accessToken = await getAccessToken() ||'';
+        if (!accessToken) return alert('The access token is missing. Check the console.log for more details');
+    
+        const GRAPH_API_URL = "https://graph.microsoft.com/v1.0/me/drive/search(q='*')";
+        let files: any[] = [];
+        let nextLink: string | null = GRAPH_API_URL;
+    
+        // Fetch all OneDrive items (recursive)
+        while (nextLink) {
+            const response = await fetch(nextLink, {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    "Content-Type": "application/json",
+                },
+            });
+    
+            if (!response.ok) {
+                console.error("Error fetching files:", await response.text());
+                return;
+            }
+    
+            const data: { value: { name: string }[]; "odata.nextLink":string } = await response.json();
+            files = files.concat(data.value); // Add results
+            data["odata.nextLink"] ? nextLink = data["odata.nextLink"] : nextLink = null; // Handle pagination
+        }
+    
+        // Filter files matching regex pattern
+        const matchingFiles = files.filter((item: any) => item.file && regexPattern.test(item.name));
+    
+        // Get reference to the table
+        const table = document.createElement('table');
+        form.appendChild(table);
+        table.innerHTML = "<tr><th>File Name</th><th>Created Date</th><th>Last Modified</th></tr>"; // Reset table
+    
+        // Populate table with matching files
+        matchingFiles.forEach((file: any) => {
+            const row = table.insertRow();
+            row.insertCell(0).textContent = file.name;
+            row.insertCell(1).textContent = new Date(file.createdDateTime).toLocaleString();
+            row.insertCell(2).textContent = new Date(file.lastModifiedDateTime).toLocaleString();
+    
+            // Add double-click event listener to open file
+            row.addEventListener("dblclick", () => {
+                window.open(file["@microsoft.graph.downloadUrl"], "_blank");
+            });
+        });
+    
+        console.log(`Fetched ${files.length} items, displaying ${matchingFiles.length} matching files.`);
+    }
+}
+
 
 
 
