@@ -574,7 +574,7 @@ async function createFileCession(filePath, accessToken, persist = false) {
         body: JSON.stringify({ persistChanges: persist }),
     });
     if (!response.ok) {
-        alert(response.text);
+        alert(await response.text());
         throw new Error("Failed to create workbook session");
     }
     const session = await response.json();
@@ -597,7 +597,7 @@ async function closeFileSession(sessionId, filePath, accessToken) {
         },
     });
     if (!response.ok) {
-        alert(response.text);
+        alert(await response.text());
         throw new Error("Failed to close workbook session");
     }
     ;

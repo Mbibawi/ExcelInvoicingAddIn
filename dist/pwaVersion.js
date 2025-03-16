@@ -320,7 +320,7 @@ async function invoice(issue = false) {
         const data = await filterExcelData(criteria, discount, lang);
         if (!data)
             return;
-        const [operationsRows, totalsLabels, matters, adress] = data;
+        const [wordRows, totalsLabels, matters, adress] = data;
         const date = new Date();
         const invoice = {
             number: getInvoiceNumber(date),
@@ -334,7 +334,7 @@ async function invoice(issue = false) {
         let filePath = `${destinationFolder}/${fileName}`;
         filePath = prompt(`The file will be saved in ${destinationFolder}, and will be named : ${fileName}./nIf you want to change the path or the name, provide the full file path and name of your choice without any sepcial characters`, filePath) || filePath;
         (async function editInvoiceFilterExcelClose() {
-            await createAndUploadXmlDocument(accessToken, templatePath, filePath, lang, 'Invoice', operationsRows, contentControls, totalsLabels);
+            await createAndUploadXmlDocument(accessToken, templatePath, filePath, lang, 'Invoice', wordRows, contentControls, totalsLabels);
             await filterExcelTableWithGraphAPI(workbookPath, tableName, matter, matters, sessionId, accessToken); //We filter the table by the matters that were invoiced
             await closeFileSession(sessionId, workbookPath, accessToken);
         })();
