@@ -1008,7 +1008,7 @@ function searchFiles() {
 
         //const GRAPH_API_URL = "https://graph.microsoft.com/v1.0/me/drive/search(q='*')";
         
-        let files =JSON.parse(localStorage.onediveItems) || await fetchAllFiles();
+        let files = await fetchAllFiles();
         
         // Filter files matching regex pattern
         const matchingFiles = files.filter((item: any) => regexPattern.test(item.name));
@@ -1035,6 +1035,7 @@ function searchFiles() {
 
                 // Fetch all OneDrive items (recursive)
         async function fetchAllFiles() {
+            if(localStorage.onedriveItems) return JSON.parse(localStorage.onedriveItems);
             const GRAPH_API_URL = `https://graph.microsoft.com/v1.0/me/drive/root/children`;            
             let files: any[] = [];
 

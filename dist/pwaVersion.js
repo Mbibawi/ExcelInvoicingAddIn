@@ -916,7 +916,7 @@ function searchFiles() {
         if (!accessToken)
             return alert('The access token is missing. Check the console.log for more details');
         //const GRAPH_API_URL = "https://graph.microsoft.com/v1.0/me/drive/search(q='*')";
-        let files = JSON.parse(localStorage.onediveItems) || await fetchAllFiles();
+        let files = await fetchAllFiles();
         // Filter files matching regex pattern
         const matchingFiles = files.filter((item) => regexPattern.test(item.name));
         // Get reference to the table
@@ -937,6 +937,8 @@ function searchFiles() {
         console.log(`Fetched ${files.length} items, displaying ${matchingFiles.length} matching files.`);
         // Fetch all OneDrive items (recursive)
         async function fetchAllFiles() {
+            if (localStorage.onedriveItems)
+                return JSON.parse(localStorage.onedriveItems);
             const GRAPH_API_URL = `https://graph.microsoft.com/v1.0/me/drive/root/children`;
             let files = [];
             await fetchItemsRecursively(GRAPH_API_URL, files);
