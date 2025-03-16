@@ -13,8 +13,11 @@ const tableName = localStorage.tableName || alert('The table name is not valid o
 if (!localStorage.destinationFolder) localStorage.destinationFolder = prompt('Please provide the OneDrive path where the issued invoices will be stored', "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/Clients");
 const destinationFolder = localStorage.destinationFolder || alert('the destination folder path is missing or not valid');
 
+if (!localStorage.tableTitles) setLocalStorageTitles();
+
+var TableRows: string[][], accessToken: string, tableTitles:string[] = JSON.parse(localStorage.tableTitles);
+
 const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
-var TableRows: string[][], accessToken: string;
 
 /* Office.onReady((info) => {
   if (info.host === Office.HostType.Excel) {

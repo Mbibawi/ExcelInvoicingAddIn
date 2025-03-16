@@ -15,6 +15,23 @@ function getAccessToken() {
     };
     return getTokenWithMSAL(clientId, redirectUri, msalConfig);
 }
+async function setLocalStorageTitles(sessionId) {
+    if (!accessToken)
+        accessToken = await getAccessToken() || '';
+    if (!accessToken)
+        return [];
+    if (!sessionId)
+        sessionId = await createFileCession(workbookPath, accessToken);
+    if (!sessionId)
+        return [];
+    TableRows = await fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName, true);
+    tableTitles = TableRows?.[0];
+    if (!tableTitles)
+        return [];
+    localStorage.setItem('tableTitles', JSON.stringify(tableTitles));
+    await closeFileSession(sessionId, workbookPath, accessToken);
+    return tableTitles;
+}
 /**
  *
  * @param {boolean} add - If false, the function will only show a form containing input fields for the user to provide the data for the new row to be added to the Excel Table. If true, the function will parse the values from the input fields in the form, and will add them as a new row to the Excel Table. Its default value is false.
@@ -22,25 +39,28 @@ function getAccessToken() {
  */
 async function addNewEntry(add = false, row) {
     accessToken = await getAccessToken() || '';
+    if (!accessToken)
+        return alert('The access token is missing. Check the console.log for more details');
     (async function showForm() {
         if (add)
             return;
-        if (!workbookPath || !tableName)
-            return alert('The Excel Workbook Path or the name of the Excel table are not valid');
-        const sessionId = await createFileCession(workbookPath, accessToken) || '';
+        const sessionId = await createFileCession(workbookPath, accessToken);
         if (!sessionId)
             return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
-        TableRows = await fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName);
-        if (!TableRows)
-            return;
-        insertAddForm(TableRows[0]);
+        if (!workbookPath || !tableName)
+            return alert('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
+        if (!tableTitles)
+            tableTitles = await setLocalStorageTitles(sessionId);
+        insertAddForm(tableTitles);
         await closeFileSession(sessionId, workbookPath, accessToken);
-        function insertAddForm(title) {
+        function insertAddForm(titles) {
+            if (!titles)
+                return alert('The table titles are missing. Check the console.log for more details');
             const form = document.getElementById('form');
             if (!form)
                 return;
             form.innerHTML = '';
-            const divs = title.map((title, index) => {
+            const divs = titles.map((title, index) => {
                 const div = newDiv(index);
                 if (![4, 7].includes(index))
                     div.appendChild(createLable(title, index)); //We exclued the labels for "Total Time" and for "Year"
@@ -267,16 +287,19 @@ async function addNewEntry(add = false, row) {
 // Update Word Document
 async function invoice(issue = false) {
     accessToken = await getAccessToken() || '';
+    if (!accessToken)
+        return alert('The access token is missing. Check the console.log for more details');
     (async function show() {
         if (issue)
             return;
         if (!workbookPath || !tableName)
             return alert('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
         const sessionId = await createFileCession(workbookPath, accessToken) || '';
-        TableRows = await fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName);
-        if (!TableRows)
-            return;
-        insertInvoiceForm(TableRows);
+        if (!sessionId)
+            return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
+        if (!tableTitles)
+            tableTitles = await setLocalStorageTitles(sessionId);
+        insertInvoiceForm(tableTitles);
         await closeFileSession(sessionId, workbookPath, accessToken);
     })();
     (async function issueInvoice() {
@@ -284,7 +307,7 @@ async function invoice(issue = false) {
             return;
         if (!templatePath || !destinationFolder)
             return alert('The full path of the Word Invoice Template and/or the destination folder where the new invoice will be saved, are either missing or not valid');
-        const client = TableRows[0][0], matter = TableRows[0][1]; //Those are the 'Client' and 'Matter' columns of the Excel table
+        const client = tableTitles[0], matter = tableTitles[1]; //Those are the 'Client' and 'Matter' columns of the Excel table
         const sessionId = await createFileCession(workbookPath, accessToken, true) || ''; //!persist must be = true because we might add a new row if there is a discount. If we don't persist the session, the table will be filtered and the new row will not be added.
         if (!sessionId)
             return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
@@ -355,14 +378,15 @@ async function invoice(issue = false) {
             }
         }
     })();
-    function insertInvoiceForm(excelTable) {
+    function insertInvoiceForm(tableTitles) {
+        if (!tableTitles)
+            return alert('The table titles are missing. Check the console.log for more details');
         const form = document.getElementById('form');
         if (!form)
             return;
         form.innerHTML = '';
-        const title = excelTable[0];
         insertInputsAndLables([0, 1, 2, 3, 3], 'input'); //Inserting the fields inputs (Client, Matter, Nature, Date). We insert the date twice
-        insertInputsAndLables(['Discount'], 'discount', false)[0].value = '0%'; //Inserting a discount percentage input and setting its default value to 0%
+        insertInputsAndLables(['Discount'], 'discount')[0].value = '0%'; //Inserting a discount percentage input and setting its default value to 0%
         insertInputsAndLables(['Français', 'English'], 'lang', true); //Inserting languages checkboxes
         (function customizeDateLabels() {
             const [from, to] = Array.from(document.getElementsByTagName('label'))
@@ -409,7 +433,7 @@ async function invoice(issue = false) {
                     input.setAttribute('list', input.id + 's');
                     input.autocomplete = "on";
                     if (index < 2)
-                        input.onchange = () => inputOnChange(Number(input.dataset.index), excelTable.slice(1, -1), true);
+                        input.onchange = () => inputOnChange(Number(input.dataset.index), TableRows.slice(1, -1), true);
                     if (index < 1)
                         createDataList(input.id, getUniqueValues(0, TableRows.slice(1, -1))); //We create a unique values dataList for the 'Client' input
                 })();
@@ -426,7 +450,7 @@ async function invoice(issue = false) {
             }
             function appendLable(index, div) {
                 const label = document.createElement('label');
-                isNaN(Number(index)) || checkBox ? label.innerText = index.toString() : label.innerText = title[Number(index)];
+                isNaN(Number(index)) || checkBox ? label.innerText = index.toString() : label.innerText = tableTitles[Number(index)];
                 !isNaN(Number(index)) ? label.htmlFor = id + index.toString() : label.htmlFor = id;
                 div?.appendChild(label);
             }
@@ -858,7 +882,7 @@ async function addRowToExcelTableWithGraphAPI(row, index, filePath, tableName, a
             return;
         [0, 1].map(async (index) => {
             //!We use map because forEach doesn't await
-            await filterExcelTableWithGraphAPI(workbookPath, tableName, TableRows[0]?.[index], [row[index]?.toString()] || [], sessionId, accessToken);
+            await filterExcelTableWithGraphAPI(workbookPath, tableName, tableTitles?.[index], [row[index]?.toString()] || [], sessionId, accessToken);
         });
     }
     ;
