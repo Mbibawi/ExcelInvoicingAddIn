@@ -979,8 +979,6 @@ async function addRowToExcelTableWithGraphAPI(row: any[], index: number, filePat
 
 }
 
-
-
 function searchFiles() {
     (function showForm() { 
         const form = document.getElementById('form') as HTMLDivElement;
@@ -1026,9 +1024,9 @@ function searchFiles() {
                 return;
             }
     
-            const data: { value: { name: string }[]; "odata.nextLink":string } = await response.json();
+            const data: { value: { name: string }[]; "@odata.nextLink":string } = await response.json();
             files = files.concat(data.value); // Add results
-            data["odata.nextLink"] ? nextLink = data["odata.nextLink"] : nextLink = null; // Handle pagination
+            data["@odata.nextLink"] ? nextLink = data["@odata.nextLink"] : nextLink = null; // Handle pagination
         }
     
         // Filter files matching regex pattern

@@ -932,7 +932,7 @@ function searchFiles() {
             }
             const data = await response.json();
             files = files.concat(data.value); // Add results
-            data["odata.nextLink"] ? nextLink = data["odata.nextLink"] : nextLink = null; // Handle pagination
+            data["@odata.nextLink"] ? nextLink = data["@odata.nextLink"] : nextLink = null; // Handle pagination
         }
         // Filter files matching regex pattern
         const matchingFiles = files.filter((item) => item.file && regexPattern.test(item.name));
