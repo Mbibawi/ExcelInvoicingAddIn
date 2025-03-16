@@ -51,6 +51,8 @@ async function addNewEntry(add = false, row) {
             return alert('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
         if (!tableTitles)
             tableTitles = await setLocalStorageTitles(sessionId);
+        if (!TableRows)
+            TableRows = await fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName, true);
         insertAddForm(tableTitles);
         await closeFileSession(sessionId, workbookPath, accessToken);
         function insertAddForm(titles) {
@@ -222,13 +224,13 @@ async function addNewEntry(add = false, row) {
                 tableDiv.appendChild(table);
                 const columns = [0, 1, 2, 7, 8, 9, 10, 14]; //The columns that will be displayed in the table;
                 (function insertTableHeader() {
-                    if (!visibleCells[0])
+                    if (!tableTitles)
                         return;
                     const headerRow = document.createElement('tr');
                     const thead = document.createElement('thead');
                     table.appendChild(thead);
                     thead.appendChild(headerRow);
-                    visibleCells[0].forEach((cell, index) => {
+                    tableTitles.forEach((cell, index) => {
                         if (!columns.includes(index))
                             return;
                         addTableCell(headerRow, cell, 'th');
@@ -239,7 +241,7 @@ async function addNewEntry(add = false, row) {
                     table.appendChild(tbody);
                     visibleCells.forEach((row, index) => {
                         if (index < 1)
-                            return;
+                            return; //We exclude the header row
                         if (!row)
                             return;
                         const tr = document.createElement('tr');
@@ -351,7 +353,7 @@ async function invoice(issue = false) {
             if (!visible) {
                 return alert('Could not retrieve the visible cells of the Excel table');
             }
-            visible = visible.filter((el, index) => index > 0 && index < visible.length - 1); //We exclude the first and the last rows of the table. The first row is the header, and the last row is the total row.
+            visible = visible.slice(1, -1); //We exclude the first and the last rows of the table. The first row is the header, and the last row is the total row.
             const adress = getUniqueValues(15, visible); //!We must retrieve the adresses at this stage before filtering by "Matter" or any other column
             const [matters, natures] = [1, 2].map(index => {
                 //!Matter and Nature inputs (from columns 2 & 3 of the Excel table) may include multiple entries separated by ', ' not only one entry.

@@ -50,12 +50,15 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
 
         if (!tableTitles) tableTitles = await setLocalStorageTitles(sessionId);
 
+        if(!TableRows) TableRows = await fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName, true) as string[][];
+
         insertAddForm(tableTitles);
 
         await closeFileSession(sessionId, workbookPath, accessToken);
 
         function insertAddForm(titles: string[]) {
             if (!titles) return alert('The table titles are missing. Check the console.log for more details');
+            
 
             const form = document.getElementById('form');
             if (!form) return;
@@ -244,12 +247,12 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                 const columns = [0, 1, 2, 7, 8, 9, 10, 14];//The columns that will be displayed in the table;
 
                 (function insertTableHeader() {
-                    if (!visibleCells[0]) return;
+                    if (!tableTitles) return;
                     const headerRow = document.createElement('tr');
                     const thead = document.createElement('thead');
                     table.appendChild(thead);
                     thead.appendChild(headerRow);
-                    visibleCells[0].forEach((cell, index) => {
+                    tableTitles.forEach((cell, index) => {
                         if (!columns.includes(index)) return;
                         addTableCell(headerRow, cell, 'th');
                     });
@@ -258,7 +261,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                     const tbody = document.createElement('tbody');
                     table.appendChild(tbody);
                     visibleCells.forEach((row, index) => {
-                        if (index < 1) return;
+                        if (index < 1) return;//We exclude the header row
                         if (!row) return;
                         const tr = document.createElement('tr');
                         tr.classList.add('row');
@@ -314,7 +317,7 @@ async function invoice(issue: boolean = false) {
         if (!workbookPath || !tableName) return alert('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
         const sessionId = await createFileCession(workbookPath, accessToken) || '';
         if (!sessionId) return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
-        if(!tableTitles) tableTitles = await setLocalStorageTitles(sessionId);
+        if (!tableTitles) tableTitles = await setLocalStorageTitles(sessionId);
 
         insertInvoiceForm(tableTitles);
 
@@ -389,7 +392,7 @@ async function invoice(issue: boolean = false) {
             if (!visible) {
                return alert('Could not retrieve the visible cells of the Excel table');
             }
-            visible = visible.filter((el, index) => index > 0 && index < visible.length - 1);//We exclude the first and the last rows of the table. The first row is the header, and the last row is the total row.
+            visible = visible.slice(1, - 1);//We exclude the first and the last rows of the table. The first row is the header, and the last row is the total row.
 
             const adress = getUniqueValues(15, visible);//!We must retrieve the adresses at this stage before filtering by "Matter" or any other column
 
