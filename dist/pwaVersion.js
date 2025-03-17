@@ -986,6 +986,7 @@ function searchFiles() {
             return allFiles;
             async function fetchAllFilesByPath(path) {
                 // Step 1: Get root-level files & folders
+                path = path.replace('\\', '/');
                 const topLevelItems = await fetchTopLevelFiles(path);
                 const [files, folders] = getFilesAndFolders(topLevelItems);
                 allFiles.push(...files);
@@ -998,7 +999,7 @@ function searchFiles() {
             }
             async function fetchTopLevelFiles(path) {
                 //const url = `https://graph.microsoft.com/v1.0/me/drive/root/children?${select}`;
-                const id = getFolderIdByPath(path);
+                const id = await getFolderIdByPath(path);
                 const url = `https://graph.microsoft.com/v1.0/me/drive/items/${id}/children?${top}&${select}`;
                 const data = await JSONFromGETRequest(url);
                 return data.value; // Returns an array of files & folders
