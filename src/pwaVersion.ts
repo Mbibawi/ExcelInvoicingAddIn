@@ -1054,7 +1054,7 @@ function searchFiles() {
         async function getDownloadLink(fileId: string) {
             const data = await JSONFromGETRequest(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}`);
 
-            return data["@microsoft.graph.downloadUrl"];
+            return data.webUrl;
         }
                 // Fetch all OneDrive items (recursive)
         async function fetchAllFiles() {
