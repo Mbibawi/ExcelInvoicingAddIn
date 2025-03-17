@@ -930,7 +930,7 @@ function searchFiles() {
             return alert('The access token is missing. Check the console.log for more details');
         //const GRAPH_API_URL = "https://graph.microsoft.com/v1.0/me/drive/search(q='*')";
         //let files = await fetchAllFiles();
-        let files = await fetchAllFiesByBatches();
+        let files = await fetchAllFilesByBatches();
         // Filter files matching regex pattern
         const matchingFiles = files.filter((item) => regexPattern.test(item.name));
         // Get reference to the table
@@ -954,35 +954,9 @@ function searchFiles() {
             const data = await JSONFromGETRequest(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}`);
             return data.webUrl;
         }
-        // Fetch all OneDrive items (recursive)
-        async function fetchAllFiles() {
+        async function fetchAllFilesByBatches() {
             if (localStorage.onedriveItems)
                 return JSON.parse(localStorage.onedriveItems);
-            //const GRAPH_API_URL = `https://graph.microsoft.com/v1.0/me/drive/root/children`;
-            const folder = document.getElementById('folder');
-            if (!folder)
-                return alert('The folder path is missing. Check the console.log for more details');
-            const folderPath = `https://graph.microsoft.com/v1.0/me/drive/root:/${folder.value}:/children`;
-            let files = [];
-            //await fetchItemsRecursively(GRAPH_API_URL, files);
-            await fetchItemsRecursively(folderPath, files);
-            localStorage.onedriveItems = JSON.stringify(files);
-            return files;
-            async function fetchItemsRecursively(url, files) {
-                let nextLink = url;
-                while (nextLink) {
-                    const data = await JSONFromGETRequest(nextLink);
-                    files.push(...getFiles(data.value)); // Add files only
-                    const folders = subFolders(data.value); // Get folders
-                    for (const folder of folders) {
-                        await fetchItemsRecursively(`https://graph.microsoft.com/v1.0/me/drive/items/${folder.id}/children?$top=900`, files);
-                    }
-                    nextLink = data["@odata.nextLink"] || null; // Handle pagination
-                }
-            }
-        }
-        ;
-        async function fetchAllFiesByBatches() {
             const select = '$select=name,id,folder,file,createdDateTime,lastModifiedDateTime';
             const top = '$top=900';
             const allFiles = [];
