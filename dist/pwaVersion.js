@@ -934,7 +934,7 @@ function searchFiles() {
         // Filter files matching regex pattern
         const matchingFiles = files.filter((item) => regexPattern.test(item.name));
         // Get reference to the table
-        const table = document.createElement('table');
+        const table = form.querySelector('table') || document.createElement('table');
         form.appendChild(table);
         table.innerHTML = "<tr><th>File Name</th><th>Created Date</th><th>Last Modified</th></tr>"; // Reset table
         // Populate table with matching files
