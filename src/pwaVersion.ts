@@ -1019,10 +1019,13 @@ function searchFiles() {
         if (!accessToken)
             accessToken = await getAccessToken() || '';
         if (!accessToken) return alert('The access token is missing. Check the console.log for more details');
+        type folderItem = { name: string; id: string; folder: any; createdDateTime: string; lastModifiedDateTime: string };
+        type fileItem = { name: string; id: string; file: any; createdDateTime: string; lastModifiedDateTime: string; "@microsoft.graph.downloadUrl": string };
 
         //const GRAPH_API_URL = "https://graph.microsoft.com/v1.0/me/drive/search(q='*')";
         
-        let files = await fetchAllFiles();
+        //let files = await fetchAllFiles();
+        let files = await fetchAllFiesByBatches();
         
         // Filter files matching regex pattern
         const matchingFiles = files.filter((item: any) => regexPattern.test(item.name));
@@ -1033,7 +1036,7 @@ function searchFiles() {
         table.innerHTML = "<tr><th>File Name</th><th>Created Date</th><th>Last Modified</th></tr>"; // Reset table
 
         // Populate table with matching files
-        matchingFiles.forEach((file: any) => {
+        matchingFiles.forEach((file) => {
             const row = table.insertRow();
             row.insertCell(0).textContent = file.name;
             row.insertCell(1).textContent = new Date(file.createdDateTime).toLocaleString();
@@ -1079,17 +1082,91 @@ function searchFiles() {
                         return;
                     }
         
-                    const data: { value: any[]; "@odata.nextLink": string } = await response.json();
-                    files.push(...data.value.filter(item => item.file)); // Add files only
-                    const folders = data.value.filter(item => item.folder); // Get folders
-        
+                    const data:any  = await response.json();
+                    files.push(...data.value.filter((item: fileItem) => item.file)); // Add files only
+                    const folders = data.value.filter((item:folderItem) => item.folder); // Get folders
+                    
                     for (const folder of folders) {
                         await fetchItemsRecursively(`https://graph.microsoft.com/v1.0/me/drive/items/${folder.id}/children?$top=900`, files);
                     }
-        
+                    
                     nextLink = data["@odata.nextLink"] || null; // Handle pagination
                 }
             }
+        };
+        async function fetchAllFiesByBatches(){
+            const select = '$select=name,id,folder,file,createdDateTime,lastModifiedDateTime';
+            const allFiles: fileItem[] = [];
+            return await fetchAllOneDriveFiles();
+
+            async function fetchAllOneDriveFiles() {
+                // Step 1: Get root-level files & folders
+                const topLevelItems = await fetchTopLevelFiles();
+                const files = getFiles(topLevelItems);
+                allFiles.push(...files);
+            
+                // Step 2: Filter folders & fetch their contents using $batch
+                const folderIds: string[] = subFolders(topLevelItems).map((f) => f.id);
+                
+                await fetchSubfolderContents(folderIds);
+
+                localStorage.onedriveItems = JSON.stringify(allFiles);
+                console.log(`Fetched ${allFiles.length} files.`);
+                return allFiles;
+            }
+            
+            async function fetchTopLevelFiles() {
+                const url = `https://graph.microsoft.com/v1.0/me/drive/root/children?${select}`;
+            
+                const response = await fetch(url, {
+                    method: "GET",
+                    headers: { Authorization: `Bearer ${accessToken}` },
+                });
+            
+                if (!response.ok) throw new Error(`Error fetching top-level files: ${await response.text()}`);
+            
+                const data = await response.json();
+                return data.value as (fileItem|folderItem)[]; // Returns an array of files & folders
+            }
+
+            async function fetchSubfolderContents(folderIds: string[]) {
+                
+                const batchUrl = "https://graph.microsoft.com/v1.0/$batch";
+            
+                // Create batch request for each folder
+                const batchRequests = folderIds.map((folderId, index) => ({
+                    id: `${index + 1}`,
+                    method: "GET",
+                    url: `/me/drive/items/${folderId}/children?${select}`,
+                }));
+            
+                const response = await fetch(batchUrl, {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ requests: batchRequests }),
+                });
+            
+                if (!response.ok) throw new Error(`Error fetching subfolders: ${await response.text()}`);
+            
+                const batchData = await response.json();
+                
+                // Extract file lists from batch responses
+                const items = batchData.responses.map((res: any) => res.body.value).flat() as (fileItem | folderItem)[];
+                allFiles.push(...getFiles(items));
+                const subfolderIds = subFolders(items).map((f) => f.id);
+                await fetchSubfolderContents(subfolderIds);
+            }
+
+            function subFolders(items:(fileItem|folderItem)[]){
+                return items.filter(item => (item as folderItem).folder) as folderItem[];
+            }
+            function getFiles(items:(fileItem|folderItem)[]){
+                return items.filter(item => (item as fileItem).file) as fileItem[];
+            }
+            
         };
     }
 }
