@@ -966,20 +966,9 @@ function searchFiles() {
             async function fetchItemsRecursively(url, files) {
                 let nextLink = url;
                 while (nextLink) {
-                    const response = await fetch(nextLink, {
-                        method: "GET",
-                        headers: {
-                            Authorization: `Bearer ${accessToken}`,
-                            "Content-Type": "application/json",
-                        },
-                    });
-                    if (!response.ok) {
-                        console.error("Error fetching files:", await response.text());
-                        return;
-                    }
-                    const data = await response.json();
-                    files.push(...data.value.filter((item) => item.file)); // Add files only
-                    const folders = data.value.filter((item) => item.folder); // Get folders
+                    const data = await JSONFromGETRequest(nextLink);
+                    files.push(...getFiles(data.value)); // Add files only
+                    const folders = subFolders(data.value); // Get folders
                     for (const folder of folders) {
                         await fetchItemsRecursively(`https://graph.microsoft.com/v1.0/me/drive/items/${folder.id}/children?$top=900`, files);
                     }
@@ -990,30 +979,34 @@ function searchFiles() {
         ;
         async function fetchAllFiesByBatches() {
             const select = '$select=name,id,folder,file,createdDateTime,lastModifiedDateTime';
+            const top = '$top=900';
             const allFiles = [];
-            return await fetchAllOneDriveFiles();
-            async function fetchAllOneDriveFiles() {
+            const folder = document.getElementById('folder');
+            await fetchAllFilesByPath(folder.value);
+            return allFiles;
+            async function fetchAllFilesByPath(path) {
                 // Step 1: Get root-level files & folders
-                const topLevelItems = await fetchTopLevelFiles();
-                const files = getFiles(topLevelItems);
+                const topLevelItems = await fetchTopLevelFiles(path);
+                const [files, folders] = getFilesAndFolders(topLevelItems);
                 allFiles.push(...files);
                 // Step 2: Filter folders & fetch their contents using $batch
-                const folderIds = subFolders(topLevelItems).map((f) => f.id);
+                const folderIds = folders.map((f) => f.id);
                 await fetchSubfolderContents(folderIds);
                 localStorage.onedriveItems = JSON.stringify(allFiles);
                 console.log(`Fetched ${allFiles.length} files.`);
                 return allFiles;
             }
-            async function fetchTopLevelFiles() {
-                const url = `https://graph.microsoft.com/v1.0/me/drive/root/children?${select}`;
-                const response = await fetch(url, {
-                    method: "GET",
-                    headers: { Authorization: `Bearer ${accessToken}` },
-                });
-                if (!response.ok)
-                    throw new Error(`Error fetching top-level files: ${await response.text()}`);
-                const data = await response.json();
+            async function fetchTopLevelFiles(path) {
+                //const url = `https://graph.microsoft.com/v1.0/me/drive/root/children?${select}`;
+                const id = getFolderIdByPath(path);
+                const url = `https://graph.microsoft.com/v1.0/me/drive/items/${id}/children?${top}&${select}`;
+                const data = await JSONFromGETRequest(url);
                 return data.value; // Returns an array of files & folders
+                async function getFolderIdByPath(path) {
+                    const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${path}`;
+                    const data = await JSONFromGETRequest(endpoint);
+                    return data.id; // Folder ID
+                }
             }
             async function fetchSubfolderContents(folderIds) {
                 const batchUrl = "https://graph.microsoft.com/v1.0/$batch";
@@ -1021,7 +1014,7 @@ function searchFiles() {
                 const batchRequests = folderIds.map((folderId, index) => ({
                     id: `${index + 1}`,
                     method: "GET",
-                    url: `/me/drive/items/${folderId}/children?${select}`,
+                    url: `/me/drive/items/${folderId}/children?${top}&${select}`,
                 }));
                 const response = await fetch(batchUrl, {
                     method: "POST",
@@ -1036,18 +1029,31 @@ function searchFiles() {
                 const batchData = await response.json();
                 // Extract file lists from batch responses
                 const items = batchData.responses.map((res) => res.body.value).flat();
-                allFiles.push(...getFiles(items));
-                const subfolderIds = subFolders(items).map((f) => f.id);
+                const [files, folders] = getFilesAndFolders(items);
+                allFiles.push(...files);
+                const subfolderIds = folders.map((f) => f.id);
                 await fetchSubfolderContents(subfolderIds);
-            }
-            function subFolders(items) {
-                return items.filter(item => item.folder);
-            }
-            function getFiles(items) {
-                return items.filter(item => item.file);
             }
         }
         ;
+        function getFilesAndFolders(items) {
+            return [getFiles(items), subFolders(items)];
+        }
+        function subFolders(items) {
+            return items.filter(item => item.folder);
+        }
+        function getFiles(items) {
+            return items.filter(item => item.file);
+        }
+        async function JSONFromGETRequest(url) {
+            const response = await fetch(url, {
+                method: "GET",
+                headers: { Authorization: `Bearer ${accessToken}` },
+            });
+            if (!response.ok)
+                throw new Error(`Error fetching items from endpoint ${url}: \n${await response.text()}`);
+            return await response.json();
+        }
     }
 }
 //# sourceMappingURL=pwaVersion.js.map
