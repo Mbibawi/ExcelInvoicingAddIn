@@ -897,18 +897,31 @@ function searchFiles() {
             return;
         form.innerHTML = '';
         const regexp = document.createElement('input');
-        regexp.classList.add('field');
-        regexp.placeholder = 'Enter your file name search as a regular expression';
-        form.appendChild(regexp);
-        const mime = document.createElement('input');
-        mime.classList.add('field');
-        mime.placeholder = 'Enter the mime type of the file';
-        form.appendChild(mime);
-        const btn = document.createElement('button');
-        form.appendChild(btn);
-        btn.classList.add('button');
-        btn.innerText = 'Search';
-        btn.onclick = () => fetchAllDriveFiles(new RegExp(regexp.value), form);
+        (function RegExpInput() {
+            regexp.classList.add('field');
+            regexp.placeholder = 'Enter your file name search as a regular expression';
+            form.appendChild(regexp);
+        })();
+        (function fileTypeInput() {
+            const mime = document.createElement('input');
+            mime.classList.add('field');
+            mime.placeholder = 'Enter the mime type of the file';
+            form.appendChild(mime);
+        })();
+        (function folderPathInput() {
+            const folder = document.createElement('input');
+            folder.id = 'folder';
+            folder.placeholder = "Proide the path for the folder";
+            folder.classList.add('field');
+            form.appendChild(folder);
+        })();
+        (function searchBtn() {
+            const btn = document.createElement('button');
+            form.appendChild(btn);
+            btn.classList.add('button');
+            btn.innerText = 'Search';
+            btn.onclick = () => fetchAllDriveFiles(new RegExp(regexp.value), form);
+        })();
     })();
     async function fetchAllDriveFiles(regexPattern, form) {
         if (!accessToken)
@@ -939,9 +952,14 @@ function searchFiles() {
         async function fetchAllFiles() {
             if (localStorage.onedriveItems)
                 return JSON.parse(localStorage.onedriveItems);
-            const GRAPH_API_URL = `https://graph.microsoft.com/v1.0/me/drive/root/children`;
+            //const GRAPH_API_URL = `https://graph.microsoft.com/v1.0/me/drive/root/children`;
+            const folder = document.getElementById('folder');
+            if (!folder)
+                return alert('The folder path is missing. Check the console.log for more details');
+            const folderPath = `https://graph.microsoft.com/v1.0/me/drive/root:/${folder.value}:/children`;
             let files = [];
-            await fetchItemsRecursively(GRAPH_API_URL, files);
+            //await fetchItemsRecursively(GRAPH_API_URL, files);
+            await fetchItemsRecursively(folderPath, files);
             localStorage.onedriveItems = JSON.stringify(files);
             return files;
             async function fetchItemsRecursively(url, files) {
