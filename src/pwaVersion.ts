@@ -981,7 +981,7 @@ async function addRowToExcelTableWithGraphAPI(row: any[], index: number, filePat
 
 function searchFiles() {
     (function showForm() {
-        localStorage.oneDriveItems = '';
+        localStorage.onedriveItems = '';
         const form = document.getElementById('form') as HTMLDivElement;
         if (!form) return;
         form.innerHTML = '';
@@ -1026,6 +1026,7 @@ function searchFiles() {
         
         //let files = await fetchAllFiles();
         let files = await fetchAllFilesByBatches();
+
         
         // Filter files matching regex pattern
         const matchingFiles = files.filter((item: any) => regexPattern.test(item.name));
@@ -1058,12 +1059,14 @@ function searchFiles() {
         }
 
         async function fetchAllFilesByBatches() {
-            if(localStorage.onedriveItems) return JSON.parse(localStorage.onedriveItems);
+            if(localStorage.onedriveItems) return JSON.parse(localStorage.onedriveItems) as fileItem[];
             const select = '$select=name,id,folder,file,createdDateTime,lastModifiedDateTime';
             const top = '$top=900';
             const allFiles: fileItem[] = [];
             const folder = document.getElementById('folder') as HTMLInputElement;
             await fetchAllFilesByPath(folder.value);
+
+            localStorage.onedriveItems = JSON.stringify(allFiles);
             return allFiles
 
             async function fetchAllFilesByPath(path:string) {
@@ -1078,7 +1081,6 @@ function searchFiles() {
                 
                 await fetchSubfolderContents(folderIds);
 
-                localStorage.onedriveItems = JSON.stringify(allFiles);
                 console.log(`Fetched ${allFiles.length} files.`);
                 return allFiles;
             }

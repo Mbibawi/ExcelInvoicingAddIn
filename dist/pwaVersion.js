@@ -891,7 +891,7 @@ async function addRowToExcelTableWithGraphAPI(row, index, filePath, tableName, a
 }
 function searchFiles() {
     (function showForm() {
-        localStorage.oneDriveItems = '';
+        localStorage.onedriveItems = '';
         const form = document.getElementById('form');
         if (!form)
             return;
@@ -962,6 +962,7 @@ function searchFiles() {
             const allFiles = [];
             const folder = document.getElementById('folder');
             await fetchAllFilesByPath(folder.value);
+            localStorage.onedriveItems = JSON.stringify(allFiles);
             return allFiles;
             async function fetchAllFilesByPath(path) {
                 // Step 1: Get root-level files & folders
@@ -972,7 +973,6 @@ function searchFiles() {
                 // Step 2: Filter folders & fetch their contents using $batch
                 const folderIds = folders.map((f) => f.id);
                 await fetchSubfolderContents(folderIds);
-                localStorage.onedriveItems = JSON.stringify(allFiles);
                 console.log(`Fetched ${allFiles.length} files.`);
                 return allFiles;
             }
