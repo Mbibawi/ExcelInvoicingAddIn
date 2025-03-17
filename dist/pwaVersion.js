@@ -937,7 +937,7 @@ function searchFiles() {
         const table = form.querySelector('table') || document.createElement('table');
         form.appendChild(table);
         table.innerHTML = "<tr><th>File Name</th><th>Created Date</th><th>Last Modified</th></tr>"; // Reset table
-        for (let file of matchingFiles) {
+        for (const file of matchingFiles) {
             // Populate table with matching files
             const row = table.insertRow();
             row.insertCell(0).textContent = file.name;
@@ -983,7 +983,7 @@ function searchFiles() {
         }
         ;
         async function fetchAllFiesByBatches() {
-            const select = '$select=name,id,folder,file,createdDateTime,lastModifiedDateTime,@microsoft.graph.downloadUrl';
+            const select = '$select=name,id,folder,file,createdDateTime,lastModifiedDateTime';
             const top = '$top=900';
             const allFiles = [];
             const folder = document.getElementById('folder');
