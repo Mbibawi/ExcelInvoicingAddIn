@@ -1035,21 +1035,27 @@ function searchFiles() {
         form.appendChild(table);
         table.innerHTML = "<tr><th>File Name</th><th>Created Date</th><th>Last Modified</th></tr>"; // Reset table
 
-        // Populate table with matching files
-        matchingFiles.forEach((file) => {
+        for (let file of matchingFiles) {
+            // Populate table with matching files
             const row = table.insertRow();
             row.insertCell(0).textContent = file.name;
             row.insertCell(1).textContent = new Date(file.createdDateTime).toLocaleString();
             row.insertCell(2).textContent = new Date(file.lastModifiedDateTime).toLocaleString();
-
+            const link = await getDownloadLink(file.id);
             // Add double-click event listener to open file
             row.addEventListener("dblclick", () => {
-                window.open(file["@microsoft.graph.downloadUrl"], "_blank");
+                window.open(link, "_blank");
             });
-        });
+        }
+
 
         console.log(`Fetched ${files.length} items, displaying ${matchingFiles.length} matching files.`);
 
+        async function getDownloadLink(fileId: string) {
+            const data = await JSONFromGETRequest(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}`);
+
+            return data["@microsoft.graph.downloadUrl"];
+        }
                 // Fetch all OneDrive items (recursive)
         async function fetchAllFiles() {
             if(localStorage.onedriveItems) return JSON.parse(localStorage.onedriveItems);
@@ -1082,7 +1088,7 @@ function searchFiles() {
             }
         };
         async function fetchAllFiesByBatches(){
-            const select = '$select=name,id,folder,file,createdDateTime,lastModifiedDateTime,"@microsoft.graph.downloadUrl"';
+            const select = '$select=name,id,folder,file,createdDateTime,lastModifiedDateTime,@microsoft.graph.downloadUrl';
             const top = '$top=900';
             const allFiles: fileItem[] = [];
             const folder = document.getElementById('folder') as HTMLInputElement;
