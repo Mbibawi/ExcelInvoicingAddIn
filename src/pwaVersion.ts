@@ -1082,7 +1082,7 @@ function searchFiles() {
             }
         };
         async function fetchAllFiesByBatches(){
-            const select = '$select=name,id,folder,file,createdDateTime,lastModifiedDateTime';
+            const select = '$select=name,id,folder,file,createdDateTime,lastModifiedDateTime,@microsoft.graph.downloadUrl';
             const top = '$top=900';
             const allFiles: fileItem[] = [];
             const folder = document.getElementById('folder') as HTMLInputElement;
