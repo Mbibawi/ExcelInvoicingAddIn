@@ -1017,23 +1017,32 @@ function searchFiles() {
                     method: "GET",
                     url: `/me/drive/items/${folderId}/children?${top}&${select}`,
                 }));
-                const response = await fetch(batchUrl, {
-                    method: "POST",
-                    headers: {
-                        Authorization: `Bearer ${accessToken}`,
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({ requests: batchRequests }),
-                });
-                if (!response.ok)
-                    throw new Error(`Error fetching subfolders: ${await response.text()}`);
-                const batchData = await response.json();
-                // Extract file lists from batch responses
-                const items = batchData.responses.map((res) => res.body.value).flat();
-                const [files, folders] = getFilesAndFolders(items);
-                allFiles.push(...files);
-                const subfolderIds = folders.map((f) => f.id);
-                await fetchSubfolderContents(subfolderIds);
+                const limit = 20;
+                for (let i = 0; i < batchRequests.length; i += limit) {
+                    const batchData = await fetchRequests(batchRequests.slice(i, i + limit));
+                    processItems(batchData);
+                }
+                async function fetchRequests(requests) {
+                    const response = await fetch(batchUrl, {
+                        method: "POST",
+                        headers: {
+                            Authorization: `Bearer ${accessToken}`,
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({ requests: requests }),
+                    });
+                    if (!response.ok)
+                        throw new Error(`Error fetching subfolders: ${await response.text()}`);
+                    return await response.json();
+                }
+                async function processItems(data) {
+                    // Extract file lists from batch responses
+                    const items = data.responses.map((res) => res.body.value).flat();
+                    const [files, folders] = getFilesAndFolders(items);
+                    allFiles.push(...files);
+                    const subfolderIds = folders.map((f) => f.id);
+                    await fetchSubfolderContents(subfolderIds);
+                }
             }
         }
         ;
