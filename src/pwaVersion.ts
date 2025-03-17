@@ -1051,7 +1051,7 @@ function searchFiles() {
         async function fetchAllFiles() {
             if(localStorage.onedriveItems) return JSON.parse(localStorage.onedriveItems);
             //const GRAPH_API_URL = `https://graph.microsoft.com/v1.0/me/drive/root/children`;
-            
+
             const folder = document.getElementById('folder') as HTMLInputElement;
 
             if(!folder) return alert('The folder path is missing. Check the console.log for more details');
@@ -1084,7 +1084,7 @@ function searchFiles() {
                     const folders = data.value.filter(item => item.folder); // Get folders
         
                     for (const folder of folders) {
-                        await fetchItemsRecursively(`https://graph.microsoft.com/v1.0/me/drive/items/${folder.id}/children`, files);
+                        await fetchItemsRecursively(`https://graph.microsoft.com/v1.0/me/drive/items/${folder.id}/children?$top=900`, files);
                     }
         
                     nextLink = data["@odata.nextLink"] || null; // Handle pagination

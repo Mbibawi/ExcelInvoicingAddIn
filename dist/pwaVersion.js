@@ -980,7 +980,7 @@ function searchFiles() {
                     files.push(...data.value.filter(item => item.file)); // Add files only
                     const folders = data.value.filter(item => item.folder); // Get folders
                     for (const folder of folders) {
-                        await fetchItemsRecursively(`https://graph.microsoft.com/v1.0/me/drive/items/${folder.id}/children`, files);
+                        await fetchItemsRecursively(`https://graph.microsoft.com/v1.0/me/drive/items/${folder.id}/children?$top=900`, files);
                     }
                     nextLink = data["@odata.nextLink"] || null; // Handle pagination
                 }
