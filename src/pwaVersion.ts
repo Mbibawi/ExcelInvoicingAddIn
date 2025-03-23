@@ -985,10 +985,12 @@ function searchFiles() {
         const form = document.getElementById('form') as HTMLDivElement;
         if (!form) return;
         form.innerHTML = '';
-        const regexp = document.createElement('input');
         (function RegExpInput() {
+            const regexp = document.createElement('input');
+            regexp.id = 'search';
             regexp.classList.add('field');
             regexp.placeholder = 'Enter your file name search as a regular expression';
+            regexp.onkeydown = (e) => e.key === 'Enter' ? fetchAllDriveFiles(form) : e.key;
             form.appendChild(regexp);
         })();
         (function fileTypeInput() { 
@@ -1010,12 +1012,12 @@ function searchFiles() {
             form.appendChild(btn);
             btn.classList.add('button');
             btn.innerText = 'Search';
-            btn.onclick = () => fetchAllDriveFiles(new RegExp(regexp.value), form);
+            btn.onclick = () => fetchAllDriveFiles(form);
         })();
 
     })();
 
-    async function fetchAllDriveFiles(regexPattern: RegExp, form: HTMLDivElement) {
+    async function fetchAllDriveFiles(form: HTMLDivElement) {
         if (!accessToken)
             accessToken = await getAccessToken() || '';
         if (!accessToken) return alert('The access token is missing. Check the console.log for more details');
@@ -1027,13 +1029,14 @@ function searchFiles() {
         //let files = await fetchAllFiles();
         let files = await fetchAllFilesByBatches();
 
-        
+        const search = form.querySelector('#search') as HTMLInputElement;
+        if (!search) return;
         // Filter files matching regex pattern
-        const matchingFiles = files.filter((item: any) => regexPattern.test(item.name));
+        const matchingFiles = files.filter((item: any) => RegExp(search.value).test(item.name));
 
         // Get reference to the table
         const table = form.querySelector('table') || document.createElement('table');
-        form.appendChild(table);
+        form.insertAdjacentElement('afterend', table);
         table.innerHTML = "<tr><th>File Name</th><th>Created Date</th><th>Last Modified</th></tr>"; // Reset table
 
         for (const file of matchingFiles) {
