@@ -1041,14 +1041,14 @@ function searchFiles() {
             after.type = 'date';
             after.id = 'after';
             after.classList.add('field');
-            after.placeholder = 'Date after which the file was created';
+            after.title = 'You can proivde the date after which the file was created';
             form.appendChild(after);
         })();
         (function dateAfterInput() { 
             const before = document.createElement('input');
             before.type = 'date';
             before.id = 'before';
-            before.placeholder = 'Date before which the file was created';
+            before.title = 'You can provide the date before which the file was created';
             before.classList.add('field');
             form.appendChild(before);
         })();
