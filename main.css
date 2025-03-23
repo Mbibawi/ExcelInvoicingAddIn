@@ -172,3 +172,31 @@ td{
 table tr:hover {
     background-color: #d0e7ff; /* Light blue on hover */
 }   
+
+       /* Spinner wrapper */
+       .spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid #f3f3f3; /* Light gray background */
+        border-top: 5px solid #3498db; /* Blue foreground */
+        border-radius: 50%;
+        animation: spin 1s linear infinite; /* Infinite spinning effect */
+    }
+
+    /* Spin animation */
+    @keyframes spin {
+        from {
+            transform: rotate(0deg);
+        }
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    /* Center spinner */
+    .center {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh; /* Full screen height */
+    }

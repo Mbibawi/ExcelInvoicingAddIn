@@ -44,6 +44,7 @@ async function addNewEntry(add = false, row) {
     (async function showForm() {
         if (add)
             return;
+        spinner(); //We show the spinner;
         document.querySelector('table')?.remove();
         const sessionId = await createFileCession(workbookPath, accessToken);
         if (!sessionId)
@@ -56,6 +57,7 @@ async function addNewEntry(add = false, row) {
             TableRows = await fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName, true);
         insertAddForm(tableTitles);
         await closeFileSession(sessionId, workbookPath, accessToken);
+        spinner(); //We hide the spinner
         function insertAddForm(titles) {
             if (!titles)
                 return alert('The table titles are missing. Check the console.log for more details');
@@ -160,7 +162,9 @@ async function addNewEntry(add = false, row) {
             return;
         if (row)
             return await addRow(row); //If a row is already passed, we will add them directly
+        spinner(); // We show the spinner
         await addRow(parseInputs() || undefined, true);
+        spinner(); //We hide the spinner
         function parseInputs() {
             const stop = (missing) => alert(`${missing} missing. You must at least provide the client, matter, nature, date and the amount. If you provided a time start, you must provide the end time and the hourly rate. Please review your iputs`);
             const inputs = Array.from(document.getElementsByTagName('input')); //all inputs
@@ -297,6 +301,7 @@ async function invoice(issue = false) {
     (async function showForm() {
         if (issue)
             return;
+        spinner(); //We show the spinner
         document.querySelector('table')?.remove();
         if (!workbookPath || !tableName)
             return alert('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
@@ -307,12 +312,14 @@ async function invoice(issue = false) {
             tableTitles = await setLocalStorageTitles(sessionId);
         insertInvoiceForm(tableTitles);
         await closeFileSession(sessionId, workbookPath, accessToken);
+        spinner(); //We hide the spinner
     })();
     (async function issueInvoice() {
         if (!issue)
             return;
         if (!templatePath || !destinationFolder)
             return alert('The full path of the Word Invoice Template and/or the destination folder where the new invoice will be saved, are either missing or not valid');
+        spinner(); //We show the spinner
         const client = tableTitles[0], matter = tableTitles[1]; //Those are the 'Client' and 'Matter' columns of the Excel table
         const sessionId = await createFileCession(workbookPath, accessToken, true) || ''; //!persist must be = true because we might add a new row if there is a discount. If we don't persist the session, the table will be filtered and the new row will not be added.
         if (!sessionId)
@@ -341,6 +348,7 @@ async function invoice(issue = false) {
             await createAndUploadXmlDocument(accessToken, templatePath, filePath, lang, 'Invoice', wordRows, contentControls, totalsLabels);
             await filterExcelTableWithGraphAPI(workbookPath, tableName, matter, matters, sessionId, accessToken); //We filter the table by the matters that were invoiced
             await closeFileSession(sessionId, workbookPath, accessToken);
+            spinner(); //We hide the spinner
         })();
         /**
          * Filters the Excel table according to the values of each inputs, then returns the values of the Word table rows that will be added to the Word table in the invoice template document
@@ -942,6 +950,7 @@ function searchFiles() {
             accessToken = await getAccessToken() || '';
         if (!accessToken)
             return alert('The access token is missing. Check the console.log for more details');
+        spinner(); //We show the spinner
         //const GRAPH_API_URL = "https://graph.microsoft.com/v1.0/me/drive/search(q='*')";
         //let files = await fetchAllFiles();
         const files = await fetchAllFilesByBatches();
@@ -973,6 +982,7 @@ function searchFiles() {
             });
         }
         form.insertAdjacentElement('afterend', table);
+        spinner(); //We remove the spinner
         console.log(`Fetched ${files.length} items, displaying ${matchingFiles.length} matching files.`);
         async function getDownloadLink(fileId) {
             const data = await JSONFromGETRequest(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}`);
@@ -1071,5 +1081,16 @@ function searchFiles() {
             return await response.json();
         }
     }
+}
+function spinner() {
+    let spinner = document.querySelector('.spinner');
+    if (spinner)
+        return spinner.remove();
+    const form = document.getElementById('form');
+    if (!form)
+        return;
+    spinner = document.createElement('div');
+    spinner.classList.add('spinner');
+    form.appendChild(spinner);
 }
 //# sourceMappingURL=pwaVersion.js.map

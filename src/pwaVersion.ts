@@ -44,6 +44,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
 
     (async function showForm() {
         if (add) return;
+        spinner();//We show the spinner;
         document.querySelector('table')?.remove();
         const sessionId = await createFileCession(workbookPath, accessToken);
         if (!sessionId) return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
@@ -56,6 +57,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
         insertAddForm(tableTitles);
 
         await closeFileSession(sessionId, workbookPath, accessToken);
+        spinner();//We hide the spinner
 
         function insertAddForm(titles: string[]) {
             if (!titles) return alert('The table titles are missing. Check the console.log for more details');
@@ -172,8 +174,9 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
     (async function addEntry() {
         if (!add) return;
         if (row) return await addRow(row);//If a row is already passed, we will add them directly
-
+        spinner(); // We show the spinner
         await addRow(parseInputs() || undefined, true);
+        spinner();//We hide the spinner
 
         function parseInputs() {
             const stop = (missing: string) => alert(`${missing} missing. You must at least provide the client, matter, nature, date and the amount. If you provided a time start, you must provide the end time and the hourly rate. Please review your iputs`);
@@ -316,6 +319,7 @@ async function invoice(issue: boolean = false) {
 
     (async function showForm() {
         if (issue) return;
+        spinner(); //We show the spinner
         document.querySelector('table')?.remove();
         if (!workbookPath || !tableName) return alert('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
         const sessionId = await createFileCession(workbookPath, accessToken) || '';
@@ -325,12 +329,14 @@ async function invoice(issue: boolean = false) {
         insertInvoiceForm(tableTitles);
 
         await closeFileSession(sessionId, workbookPath, accessToken);
+        spinner();//We hide the spinner
 
     })();
 
     (async function issueInvoice() {
         if (!issue) return;
         if (!templatePath || !destinationFolder) return alert('The full path of the Word Invoice Template and/or the destination folder where the new invoice will be saved, are either missing or not valid');
+        spinner();//We show the spinner
         const client = tableTitles[0], matter = tableTitles[1];//Those are the 'Client' and 'Matter' columns of the Excel table
 
         const sessionId = await createFileCession(workbookPath, accessToken, true) || '';//!persist must be = true because we might add a new row if there is a discount. If we don't persist the session, the table will be filtered and the new row will not be added.
@@ -374,6 +380,7 @@ async function invoice(issue: boolean = false) {
             await filterExcelTableWithGraphAPI(workbookPath, tableName, matter, matters, sessionId, accessToken);//We filter the table by the matters that were invoiced
 
             await closeFileSession(sessionId, workbookPath, accessToken);
+            spinner();//We hide the spinner
         })();
 
         /**
@@ -1032,6 +1039,7 @@ function searchFiles() {
         if (!accessToken)
             accessToken = await getAccessToken() || '';
         if (!accessToken) return alert('The access token is missing. Check the console.log for more details');
+        spinner();//We show the spinner
         type folderItem = { name: string; id: string; folder: any; createdDateTime: string; lastModifiedDateTime: string };
         type fileItem = { name: string; id: string; file: any; createdDateTime: string; lastModifiedDateTime: string; "@microsoft.graph.downloadUrl": string };
 
@@ -1067,8 +1075,9 @@ function searchFiles() {
                 window.open(link, "_blank");
             });
         }
-        
+
         form.insertAdjacentElement('afterend', table);
+        spinner();//We remove the spinner
 
 
         console.log(`Fetched ${files.length} items, displaying ${matchingFiles.length} matching files.`);
@@ -1190,7 +1199,15 @@ function searchFiles() {
     }
 }
 
-
+function spinner() {
+    let spinner = document.querySelector('.spinner');
+    if (spinner) return spinner.remove();
+    const form = document.getElementById('form');
+    if (!form) return;
+    spinner = document.createElement('div');
+    spinner.classList.add('spinner');
+    form.appendChild(spinner)
+}
 
 
 
