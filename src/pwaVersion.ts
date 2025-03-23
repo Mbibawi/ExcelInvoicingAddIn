@@ -1051,6 +1051,8 @@ function searchFiles() {
         const table = document.querySelector('table');
         if (!table) return;
         table.innerHTML = "<tr class =\"fileTitle\"><th>File Name</th><th>Created Date</th><th>Last Modified</th></tr>"; // Reset table
+        const docFragment = new DocumentFragment();
+        docFragment.appendChild(table);//We move the table to the docFragment in order to avoid the slow down related to the insertion of the rows directly in the DOM 
 
         for (const file of matchingFiles) {
             // Populate table with matching files
@@ -1065,6 +1067,8 @@ function searchFiles() {
                 window.open(link, "_blank");
             });
         }
+        
+        form.insertAdjacentElement('afterend', table);
 
 
         console.log(`Fetched ${files.length} items, displaying ${matchingFiles.length} matching files.`);
