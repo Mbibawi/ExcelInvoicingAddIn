@@ -1105,24 +1105,8 @@ function searchFiles() {
             const search = form.querySelector('#search') as HTMLInputElement;
             if (!search) throw new Error('Did not find the serch input');
             // Filter files matching regex pattern
-            const matchingFiles = filterFiles();
+            const matchingFiles = filterFiles(files, search.value);
 
-            function filterFiles() {
-                const byName = files.filter((item: any) => RegExp(search.value, 'i').test(item.name));
-                const created = (file: fileItem) => new Date(file.createdDateTime);
-                
-                const after = (form.querySelector('after') as HTMLInputElement)?.valueAsDate;
-                const before = (form.querySelector('before') as HTMLInputElement)?.valueAsDate;
-
-                if (after && before)
-                    return byName.filter(file => created(file).getTime() > after.getTime() && created(file).getTime() < before.getTime());
-                else if (before)
-                    return byName.filter(file => created(file).getTime() < before.getTime());
-                else if (after)
-                    return byName.filter(file => created(file).getTime() > after.getTime());
-                else return byName
-                
-            }
             // Get reference to the table
 
             const table = document.querySelector('table');
@@ -1248,6 +1232,7 @@ function searchFiles() {
             }
 
         };
+
         function getFilesAndFolders(items: (fileItem | folderItem)[]): [fileItem[], folderItem[]] {
             return [getFiles(items), subFolders(items)];
         }
@@ -1264,6 +1249,22 @@ function searchFiles() {
             });
             if (!response.ok) throw new Error(`Error fetching items from endpoint ${url}: \n${await response.text()}`);
             return await response.json();
+        }
+        function filterFiles(files:fileItem[], search:string) {
+            const byName = files.filter((item: any) => RegExp(search, 'i').test(item.name));
+            const created = (file: fileItem) => new Date(file.createdDateTime);
+            
+            const after = (form.querySelector('#after') as HTMLInputElement)?.valueAsDate;
+            const before = (form.querySelector('#before') as HTMLInputElement)?.valueAsDate;
+
+            if (after && before)
+                return byName.filter(file => created(file).getTime() > after.getTime() && created(file).getTime() < before.getTime());
+            else if (before)
+                return byName.filter(file => created(file).getTime() < before.getTime());
+            else if (after)
+                return byName.filter(file => created(file).getTime() > after.getTime());
+            else return byName
+            
         }
     }
 }

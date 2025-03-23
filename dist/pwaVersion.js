@@ -1016,21 +1016,7 @@ function searchFiles() {
             if (!search)
                 throw new Error('Did not find the serch input');
             // Filter files matching regex pattern
-            const matchingFiles = filterFiles();
-            function filterFiles() {
-                const byName = files.filter((item) => RegExp(search.value, 'i').test(item.name));
-                const created = (file) => new Date(file.createdDateTime);
-                const after = form.querySelector('after')?.valueAsDate;
-                const before = form.querySelector('before')?.valueAsDate;
-                if (after && before)
-                    return byName.filter(file => created(file).getTime() > after.getTime() && created(file).getTime() < before.getTime());
-                else if (before)
-                    return byName.filter(file => created(file).getTime() < before.getTime());
-                else if (after)
-                    return byName.filter(file => created(file).getTime() > after.getTime());
-                else
-                    return byName;
-            }
+            const matchingFiles = filterFiles(files, search.value);
             // Get reference to the table
             const table = document.querySelector('table');
             if (!table)
@@ -1149,6 +1135,20 @@ function searchFiles() {
             if (!response.ok)
                 throw new Error(`Error fetching items from endpoint ${url}: \n${await response.text()}`);
             return await response.json();
+        }
+        function filterFiles(files, search) {
+            const byName = files.filter((item) => RegExp(search, 'i').test(item.name));
+            const created = (file) => new Date(file.createdDateTime);
+            const after = form.querySelector('#after')?.valueAsDate;
+            const before = form.querySelector('#before')?.valueAsDate;
+            if (after && before)
+                return byName.filter(file => created(file).getTime() > after.getTime() && created(file).getTime() < before.getTime());
+            else if (before)
+                return byName.filter(file => created(file).getTime() < before.getTime());
+            else if (after)
+                return byName.filter(file => created(file).getTime() > after.getTime());
+            else
+                return byName;
         }
     }
 }
