@@ -1044,7 +1044,7 @@ function searchFiles() {
         const search = form.querySelector('#search') as HTMLInputElement;
         if (!search) return;
         // Filter files matching regex pattern
-        const matchingFiles = files.filter((item: any) => RegExp(search.value).test(item.name));
+        const matchingFiles = files.filter((item: any) => RegExp(search.value, 'i').test(item.name));
 
         // Get reference to the table
 
