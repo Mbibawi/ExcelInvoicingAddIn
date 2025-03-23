@@ -45,12 +45,12 @@ async function addNewEntry(add = false, row) {
         if (add)
             return;
         document.querySelector('table')?.remove();
-        spinner(); //We show the spinner
+        spinner(false); //We show the spinner
         try {
             await createForm();
         }
         catch (error) {
-            spinner(); //We hide the sinner
+            spinner(true); //We hide the sinner
             alert(error);
         }
         async function createForm() {
@@ -65,7 +65,7 @@ async function addNewEntry(add = false, row) {
                 TableRows = await fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName, true);
             insertAddForm(tableTitles);
             await closeFileSession(sessionId, workbookPath, accessToken);
-            spinner(); //We hide the spinner
+            spinner(true); //We hide the spinner
             function insertAddForm(titles) {
                 if (!titles)
                     throw new Error('The table titles are missing. Check the console.log for more details');
@@ -169,7 +169,7 @@ async function addNewEntry(add = false, row) {
     (async function addEntry() {
         if (!add)
             return;
-        spinner(); //We show the spinner
+        spinner(false); //We show the spinner
         try {
             if (row)
                 await addRow(row); //If a row is already passed, we will add them directly
@@ -177,7 +177,7 @@ async function addNewEntry(add = false, row) {
                 await addRow(parseInputs() || undefined, true);
         }
         catch (error) {
-            spinner(); //We hide the spinner
+            spinner(true); //We hide the spinner
             alert(error);
         }
         function parseInputs() {
@@ -237,7 +237,7 @@ async function addNewEntry(add = false, row) {
                 return alert('There was an issue with the adding or the filtering, check the console.log for more details');
             alert('Row aded and the table was filtered');
             displayVisibleCells(visibleCells);
-            spinner(); //We hide the spinner
+            spinner(true); //We hide the spinner
             function displayVisibleCells(visibleCells) {
                 const tableDiv = createDivContainer();
                 const table = document.createElement('table');
@@ -320,12 +320,12 @@ async function invoice(issue = false) {
         if (!workbookPath || !tableName)
             return alert('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
         document.querySelector('table')?.remove();
-        spinner(); //We show the spinner
+        spinner(false); //We show the spinner
         try {
             await createForm();
         }
         catch (error) {
-            spinner(); //We hide the spinner
+            spinner(true); //We hide the spinner
             alert(error);
         }
         async function createForm() {
@@ -336,7 +336,7 @@ async function invoice(issue = false) {
                 tableTitles = await setLocalStorageTitles(sessionId);
             insertInvoiceForm(tableTitles);
             await closeFileSession(sessionId, workbookPath, accessToken);
-            spinner(); //We hide the spinner
+            spinner(true); //We hide the spinner
         }
         function insertInvoiceForm(tableTitles) {
             if (!tableTitles)
@@ -430,12 +430,12 @@ async function invoice(issue = false) {
             return;
         if (!templatePath || !destinationFolder)
             return alert('The full path of the Word Invoice Template and/or the destination folder where the new invoice will be saved, are either missing or not valid');
-        spinner(); //We show the spinner
+        spinner(false); //We show the spinner
         try {
             await editInvoice();
         }
         catch (error) {
-            spinner(); //We hide the sinner
+            spinner(true); //We hide the sinner
             alert(error);
         }
     })();
@@ -468,7 +468,7 @@ async function invoice(issue = false) {
             await createAndUploadXmlDocument(accessToken, templatePath, filePath, lang, 'Invoice', wordRows, contentControls, totalsLabels);
             await filterExcelTableWithGraphAPI(workbookPath, tableName, matter, matters, sessionId, accessToken); //We filter the table by the matters that were invoiced
             await closeFileSession(sessionId, workbookPath, accessToken);
-            spinner(); //We hide the spinner
+            spinner(true); //We hide the spinner
         })();
         /**
          * Filters the Excel table according to the values of each inputs, then returns the values of the Word table rows that will be added to the Word table in the invoice template document
@@ -984,12 +984,12 @@ function searchFiles() {
             accessToken = await getAccessToken() || '';
         if (!accessToken)
             return alert('The access token is missing. Check the console.log for more details');
-        spinner(); //We show the spinner
+        spinner(false); //We show the spinner
         try {
             await fetchAndFilter();
         }
         catch (error) {
-            spinner(); //Hide the spinner
+            spinner(true); //Hide the spinner
             alert(error);
         }
         async function fetchAndFilter() {
@@ -1022,7 +1022,7 @@ function searchFiles() {
                 });
             }
             form.insertAdjacentElement('afterend', table);
-            spinner(); //We hide the spinner
+            spinner(true); //We hide the spinner
             console.log(`Fetched ${files.length} items, displaying ${matchingFiles.length} matching files.`);
         }
         async function getDownloadLink(fileId) {

@@ -1242,14 +1242,13 @@ function settings() {
         }
     });
 }
-function spinner() {
-    let spinner = document.querySelector('.spinner');
-    if (spinner)
-        return spinner.remove();
+function spinner(hide) {
+    if (hide)
+        return document.querySelector('.spinner')?.remove();
     const form = document.getElementById('form');
     if (!form)
         return;
-    spinner = document.createElement('div');
+    const spinner = document.createElement('div');
     spinner.classList.add('spinner');
     form.appendChild(spinner);
 }

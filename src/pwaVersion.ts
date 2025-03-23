@@ -45,11 +45,11 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
     (async function showForm() {
         if (add) return;
         document.querySelector('table')?.remove();
-        spinner();//We show the spinner
+        spinner(false);//We show the spinner
         try {
             await createForm(); 
         } catch (error) {
-            spinner();//We hide the sinner
+            spinner(true);//We hide the sinner
             alert(error);
         }
 
@@ -63,7 +63,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
     
             insertAddForm(tableTitles);
             await closeFileSession(sessionId, workbookPath, accessToken);
-            spinner();//We hide the spinner
+            spinner(true);//We hide the spinner
 
 
             function insertAddForm(titles: string[]) {
@@ -183,12 +183,12 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
 
     (async function addEntry() {
         if (!add) return;
-        spinner();//We show the spinner
+        spinner(false);//We show the spinner
         try {
             if (row) await addRow(row);//If a row is already passed, we will add them directly
             else await addRow(parseInputs() || undefined, true);
         } catch (error) {
-            spinner();//We hide the spinner
+            spinner(true);//We hide the spinner
             alert(error)
         }
 
@@ -257,7 +257,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
             alert('Row aded and the table was filtered');
 
             displayVisibleCells(visibleCells);
-            spinner();//We hide the spinner
+            spinner(true);//We hide the spinner
 
             function displayVisibleCells(visibleCells: string[][]) {
                 const tableDiv = createDivContainer();
@@ -338,12 +338,12 @@ async function invoice(issue: boolean = false) {
         if (issue) return;
         if (!workbookPath || !tableName) return alert('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
         document.querySelector('table')?.remove();
-        spinner();//We show the spinner
+        spinner(false);//We show the spinner
         try {
             await createForm();
         }
         catch (error) {
-            spinner();//We hide the spinner
+            spinner(true);//We hide the spinner
             alert(error)
         }
 
@@ -354,7 +354,7 @@ async function invoice(issue: boolean = false) {
             
             insertInvoiceForm(tableTitles);
             await closeFileSession(sessionId, workbookPath, accessToken);
-            spinner();//We hide the spinner
+            spinner(true);//We hide the spinner
         }
 
         function insertInvoiceForm(tableTitles: string[]) {
@@ -454,12 +454,12 @@ async function invoice(issue: boolean = false) {
     (async function issueInvoice() {
         if (!issue) return;
         if (!templatePath || !destinationFolder) return alert('The full path of the Word Invoice Template and/or the destination folder where the new invoice will be saved, are either missing or not valid');
-        spinner();//We show the spinner
+        spinner(false);//We show the spinner
 
         try {
             await editInvoice();
         } catch (error) {
-            spinner();//We hide the sinner
+            spinner(true);//We hide the sinner
             alert(error)
         }
 
@@ -506,7 +506,7 @@ async function invoice(issue: boolean = false) {
             await filterExcelTableWithGraphAPI(workbookPath, tableName, matter, matters, sessionId, accessToken);//We filter the table by the matters that were invoiced
 
             await closeFileSession(sessionId, workbookPath, accessToken);
-            spinner();//We hide the spinner
+            spinner(true);//We hide the spinner
         })();
 
         /**
@@ -1071,14 +1071,14 @@ function searchFiles() {
         if (!accessToken)
             accessToken = await getAccessToken() || '';
         if (!accessToken) return alert('The access token is missing. Check the console.log for more details');
-        spinner();//We show the spinner
+        spinner(false);//We show the spinner
         type folderItem = { name: string; id: string; folder: any; createdDateTime: string; lastModifiedDateTime: string };
         type fileItem = { name: string; id: string; file: any; createdDateTime: string; lastModifiedDateTime: string; "@microsoft.graph.downloadUrl": string };
 
         try {
             await fetchAndFilter();
         } catch (error) {
-            spinner();//Hide the spinner
+            spinner(true);//Hide the spinner
             alert(error)
         }
 
@@ -1113,7 +1113,7 @@ function searchFiles() {
             }
 
             form.insertAdjacentElement('afterend', table);
-            spinner();//We hide the spinner
+            spinner(true);//We hide the spinner
 
 
             console.log(`Fetched ${files.length} items, displaying ${matchingFiles.length} matching files.`);
