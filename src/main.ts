@@ -1390,8 +1390,8 @@ function settings() {
   });
 }
 
-function spinner(hide:boolean) {
-  if (hide) return document.querySelector('.spinner')?.remove();
+function spinner(show:boolean) {
+  if (!show) return document.querySelector('.spinner')?.remove();
   const form = document.getElementById('form');
   if (!form) return;
   const spinner = document.createElement('div');

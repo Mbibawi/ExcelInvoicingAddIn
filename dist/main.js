@@ -1242,8 +1242,8 @@ function settings() {
         }
     });
 }
-function spinner(hide) {
-    if (hide)
+function spinner(show) {
+    if (!show)
         return document.querySelector('.spinner')?.remove();
     const form = document.getElementById('form');
     if (!form)
