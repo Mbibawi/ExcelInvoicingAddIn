@@ -1005,6 +1005,7 @@ function searchFiles() {
             folder.id = 'folder';
             folder.placeholder = "Proide the path for the folder";
             folder.classList.add('field');
+            if (localStorage.folderPath) folder.value = localStorage.folderPath;
             form.appendChild(folder);
          })();
 
@@ -1033,7 +1034,8 @@ function searchFiles() {
         //const GRAPH_API_URL = "https://graph.microsoft.com/v1.0/me/drive/search(q='*')";
         
         //let files = await fetchAllFiles();
-        let files = await fetchAllFilesByBatches();
+        const files = await fetchAllFilesByBatches();
+        if (!files) return;
 
         const search = form.querySelector('#search') as HTMLInputElement;
         if (!search) return;
@@ -1071,12 +1073,16 @@ function searchFiles() {
         }
 
         async function fetchAllFilesByBatches() {
-            if(localStorage.onedriveItems) return JSON.parse(localStorage.onedriveItems) as fileItem[];
+            const path = (document.getElementById('folder') as HTMLInputElement)?.value;
+            if (!path) return;
+
+            if (localStorage.onedriveItems && localStorage.folderPath === path) return JSON.parse(localStorage.onedriveItems) as fileItem[];
+            
+            localStorage.folderPath = path;
             const select = '$select=name,id,folder,file,createdDateTime,lastModifiedDateTime';
             const top = '$top=900';
             const allFiles: fileItem[] = [];
-            const folder = document.getElementById('folder') as HTMLInputElement;
-            await fetchAllFilesByPath(folder.value);
+            await fetchAllFilesByPath(path);
 
             localStorage.onedriveItems = JSON.stringify(allFiles);
             return allFiles
