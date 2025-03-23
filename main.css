@@ -35,7 +35,7 @@ tr{
 } 
 .fileTite{
     justify-items: stretch;
-    background-color: gray;
+    background-color: rgba(255, 0, 0, 0.642);
 }
 .block{ 
     display:grid;
@@ -155,10 +155,15 @@ table, th, td {
 }
 
 th, td {
-    text-align: left;
-    padding: 8px;
+    justify-self: stretch;
+    padding: 3px;
 }
+th{
+    text-align: center;
+}
+
 td{
+    text-align: left;
     word-break: break-word;
 }
 
