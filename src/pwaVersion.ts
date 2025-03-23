@@ -1024,7 +1024,7 @@ async function addRowToExcelTableWithGraphAPI(row: any[], index: number, filePat
 
 function searchFiles() {
     (function showForm() {
-        localStorage.onedriveItems = '';
+        localStorage.oneDriveItems = '';
         const form = document.getElementById('form') as HTMLDivElement;
         if (!form) return;
         form.innerHTML = '';
@@ -1146,7 +1146,7 @@ function searchFiles() {
             const path = (document.getElementById('folder') as HTMLInputElement)?.value;
             if (!path) throw new Error('The file path could not be retrieved');
 
-            if (localStorage.onedriveItems && localStorage.folderPath === path) return JSON.parse(localStorage.onedriveItems) as fileItem[];
+            if (localStorage.oneDriveItems && localStorage.folderPath === path) return JSON.parse(localStorage.oneDriveItems) as fileItem[];
 
             localStorage.folderPath = path;
             const select = '$select=name,id,folder,file,createdDateTime,lastModifiedDateTime';
@@ -1154,8 +1154,8 @@ function searchFiles() {
             const allFiles: fileItem[] = [];
             await fetchAllFilesByPath(path);
 
-            localStorage.onedriveItems = JSON.stringify(allFiles);
-            return allFiles
+            localStorage.oneDriveItems = JSON.stringify(allFiles);
+            return allFiles;
 
             async function fetchAllFilesByPath(path: string) {
                 // Step 1: Get root-level files & folders
