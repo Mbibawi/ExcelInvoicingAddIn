@@ -1092,7 +1092,7 @@ function searchFiles() {
                 const limit = 20;
                 for (let i = 0; i < batchRequests.length; i += limit) {
                     const batchData = await fetchRequests(batchRequests.slice(i, i + limit));
-                    processItems(batchData);
+                    await processItems(batchData);
                 }
                 async function fetchRequests(requests) {
                     const response = await fetch(batchUrl, {
