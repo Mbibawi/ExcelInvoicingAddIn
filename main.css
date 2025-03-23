@@ -33,7 +33,7 @@ tr{
 .fileRow, .fileTitle{
     grid-template-columns: 60% 20% 20%;
 } 
-.fileTite{
+.fileTitle{
     justify-items: stretch;
     background-color: rgba(255, 0, 0, 0.642);
 }
@@ -160,6 +160,8 @@ th, td {
 }
 th{
     text-align: center;
+    background-color: rgba(255, 0, 0, 0.603);
+    color:white
 }
 
 td{

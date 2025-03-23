@@ -44,6 +44,7 @@ async function addNewEntry(add = false, row) {
     (async function showForm() {
         if (add)
             return;
+        document.querySelector('table')?.remove();
         const sessionId = await createFileCession(workbookPath, accessToken);
         if (!sessionId)
             return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
@@ -293,9 +294,10 @@ async function invoice(issue = false) {
     accessToken = await getAccessToken() || '';
     if (!accessToken)
         return alert('The access token is missing. Check the console.log for more details');
-    (async function show() {
+    (async function showForm() {
         if (issue)
             return;
+        document.querySelector('table')?.remove();
         if (!workbookPath || !tableName)
             return alert('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
         const sessionId = await createFileCession(workbookPath, accessToken) || '';
@@ -475,6 +477,7 @@ async function issueLetter(create = false) {
     (function showForm() {
         if (create)
             return;
+        document.querySelector('table')?.remove();
         const form = document.getElementById('form');
         if (!form)
             return;
@@ -929,6 +932,7 @@ function searchFiles() {
             btn.onclick = () => fetchAllDriveFiles(form);
         })();
         (function insertTable() {
+            document.querySelector('table')?.remove();
             const table = document.createElement('table');
             form.insertAdjacentElement('afterend', table);
         })();
