@@ -924,6 +924,10 @@ function searchFiles() {
             btn.innerText = 'Search';
             btn.onclick = () => fetchAllDriveFiles(form);
         })();
+        (function insertTable() {
+            const table = document.createElement('table');
+            form.insertAdjacentElement('afterend', table);
+        })();
     })();
     async function fetchAllDriveFiles(form) {
         if (!accessToken)
@@ -939,9 +943,9 @@ function searchFiles() {
         // Filter files matching regex pattern
         const matchingFiles = files.filter((item) => RegExp(search.value).test(item.name));
         // Get reference to the table
-        const table = form.querySelector('table') || document.createElement('table');
-        table.id = 'table';
-        form.insertAdjacentElement('afterend', table);
+        const table = document.querySelector('table');
+        if (!table)
+            return;
         table.innerHTML = "<tr><th>File Name</th><th>Created Date</th><th>Last Modified</th></tr>"; // Reset table
         for (const file of matchingFiles) {
             // Populate table with matching files
