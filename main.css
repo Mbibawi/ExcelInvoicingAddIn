@@ -30,7 +30,7 @@ tr{
 .excelRow{
     grid-template-columns: 22% 22% 5% 5% 5% 5% 5% 31%;
 }
-.fileRow, .fileTite{
+.fileRow, .fileTitle{
     grid-template-columns: 60% 20% 20%;
 } 
 .fileTite{

@@ -952,12 +952,11 @@ function searchFiles() {
         const table = document.querySelector('table');
         if (!table)
             return;
-        table.innerHTML = "<tr><th>File Name</th><th>Created Date</th><th>Last Modified</th></tr>"; // Reset table
+        table.innerHTML = "<tr class =\"fileTitle\"><th>File Name</th><th>Created Date</th><th>Last Modified</th></tr>"; // Reset table
         for (const file of matchingFiles) {
             // Populate table with matching files
-            const index = matchingFiles.indexOf(file);
             const row = table.insertRow();
-            index > 0 ? row.classList.add('fileRow') : row.classList.add('fileTite');
+            row.classList.add('fileRow');
             row.insertCell(0).textContent = file.name;
             row.insertCell(1).textContent = new Date(file.createdDateTime).toLocaleString();
             row.insertCell(2).textContent = new Date(file.lastModifiedDateTime).toLocaleString();
