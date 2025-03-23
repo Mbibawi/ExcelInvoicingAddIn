@@ -44,127 +44,142 @@ async function addNewEntry(add = false, row) {
     (async function showForm() {
         if (add)
             return;
-        spinner(); //We show the spinner;
         document.querySelector('table')?.remove();
-        const sessionId = await createFileCession(workbookPath, accessToken);
-        if (!sessionId)
-            return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
-        if (!workbookPath || !tableName)
-            return alert('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
-        if (!tableTitles)
-            tableTitles = await setLocalStorageTitles(sessionId);
-        if (!TableRows)
-            TableRows = await fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName, true);
-        insertAddForm(tableTitles);
-        await closeFileSession(sessionId, workbookPath, accessToken);
-        spinner(); //We hide the spinner
-        function insertAddForm(titles) {
-            if (!titles)
-                return alert('The table titles are missing. Check the console.log for more details');
-            const form = document.getElementById('form');
-            if (!form)
-                return;
-            form.innerHTML = '';
-            const divs = titles.map((title, index) => {
-                const div = newDiv(index);
-                if (![4, 7].includes(index))
-                    div.appendChild(createLable(title, index)); //We exclued the labels for "Total Time" and for "Year"
-                div.appendChild(createInput(index));
-                return div;
-            });
-            (function groupDivs() {
-                [
-                    [11, 12, 13], //"Moyen de Paiement", "Compte", "Tiers"
-                    [9, 10], //"Montant", "TVA"
-                    [5, 6, 8], //"Start Time", "End Time", "Taux Horaire"
-                ]
-                    .forEach(group => newDiv(NaN, divs.filter(div => group.includes(Number(div.dataset.block)))));
-            })();
-            (function addBtn() {
-                const btnIssue = document.createElement('button');
-                btnIssue.innerText = 'Add Entry';
-                btnIssue.classList.add('button');
-                btnIssue.onclick = () => addNewEntry(true);
-                form.appendChild(btnIssue);
-            })();
-            function newDiv(i, divs, css = "block") {
-                if (divs)
-                    return groupDivs();
-                else
-                    return create();
-                function create() {
-                    const div = document.createElement('div');
-                    div.dataset.block = i.toString();
-                    form?.appendChild(div);
-                    div.classList.add(css);
+        spinner(); //We show the spinner
+        try {
+            await createForm();
+        }
+        catch (error) {
+            spinner(); //We hide the sinner
+            alert(error);
+        }
+        async function createForm() {
+            const sessionId = await createFileCession(workbookPath, accessToken);
+            if (!sessionId)
+                throw new Error('There was an issue with the creation of the file cession. Check the console.log for more details');
+            if (!workbookPath || !tableName)
+                throw new Error('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
+            if (!tableTitles)
+                tableTitles = await setLocalStorageTitles(sessionId);
+            if (!TableRows)
+                TableRows = await fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName, true);
+            insertAddForm(tableTitles);
+            await closeFileSession(sessionId, workbookPath, accessToken);
+            spinner(); //We hide the spinner
+            function insertAddForm(titles) {
+                if (!titles)
+                    throw new Error('The table titles are missing. Check the console.log for more details');
+                const form = document.getElementById('form');
+                if (!form)
+                    throw new Error('Could not find the form element');
+                form.innerHTML = '';
+                const divs = titles.map((title, index) => {
+                    const div = newDiv(index);
+                    if (![4, 7].includes(index))
+                        div.appendChild(createLable(title, index)); //We exclued the labels for "Total Time" and for "Year"
+                    div.appendChild(createInput(index));
                     return div;
-                }
-                function groupDivs() {
-                    const div = newDiv(i, undefined, "group");
-                    divs?.forEach(el => div.appendChild(el));
-                    form?.children[3]?.insertAdjacentElement('afterend', div);
-                    return div;
-                }
-            }
-            function createLable(title, i) {
-                const label = document.createElement('label');
-                label.htmlFor = 'input' + i.toString();
-                label.innerHTML = title + ':';
-                return label;
-            }
-            function createInput(index) {
-                const css = 'field';
-                const input = document.createElement('input');
-                const id = 'input' + index.toString();
-                (function append() {
-                    input.classList.add(css);
-                    input.id = id;
-                    input.name = id;
-                    input.autocomplete = "on";
-                    input.dataset.index = index.toString();
-                    input.type = 'text';
+                });
+                (function groupDivs() {
+                    [
+                        [11, 12, 13], //"Moyen de Paiement", "Compte", "Tiers"
+                        [9, 10], //"Montant", "TVA"
+                        [5, 6, 8], //"Start Time", "End Time", "Taux Horaire"
+                    ]
+                        .forEach(group => newDiv(NaN, divs.filter(div => group.includes(Number(div.dataset.block)))));
                 })();
-                (function customize() {
-                    if ([8, 9, 10].includes(index))
-                        input.type = 'number';
-                    else if (index === 3)
-                        input.type = 'date';
-                    else if ([5, 6].includes(index))
-                        input.type = 'time';
-                    else if ([4, 7].includes(index))
-                        input.style.display = 'none'; //We hide those 2 columns: 'Total Time' and the 'Year'
-                    (function addDataLists() {
-                        if ([9, 10, 14, 16].includes(index))
-                            return; //We exclude the "Montant" (9), "TVA" (10), "Description" (14), and the "Link to file" (16) columns;
-                        else if (index > 2 && index < 8)
-                            return; //We exclude the "Date" (3), "Année" (4), "Start Time" (5), "End Time" (6), "Total Time" (7) columns
-                        input.setAttribute('list', input.id + 's');
-                        if ([1, 8, 15].includes(index))
-                            return;
-                        createDataList(input.id, getUniqueValues(index, TableRows.slice(1, -1))); //We don't create the data list for columns 'Matter' (1), "Hourly Rate" (8) and 'Adress' (15) because the data list will be created when the 'Client' input (0) is updated
-                        if (index > 1)
-                            return; //We add onChange for "Client" (0) and "Affaire" (1) columns only.
-                        input.onchange = () => inputOnChange(index, TableRows.slice(1, -1), false);
-                    })();
-                    (function addRestOnChange() {
-                        if (index < 5 || index > 10)
-                            return;
-                        //Only for the  "Start Time", "End Time", "Total Time", "Hourly Rate", "Amount", "VAT" columns . The "Total Time" input (7) is hidden, so it can't be changed by the user. We will add the onChange event to it by simplicity
-                        input.onchange = () => inputOnChange(index, undefined, false); //!We are passing the table[][] argument as undefined, and the invoice argument as false which means that the function will only reset the bound inputs without updating any data list
-                    })();
+                (function addBtn() {
+                    const btnIssue = document.createElement('button');
+                    btnIssue.innerText = 'Add Entry';
+                    btnIssue.classList.add('button');
+                    btnIssue.onclick = () => addNewEntry(true);
+                    form.appendChild(btnIssue);
                 })();
-                return input;
+                function newDiv(i, divs, css = "block") {
+                    if (divs)
+                        return groupDivs();
+                    else
+                        return create();
+                    function create() {
+                        const div = document.createElement('div');
+                        div.dataset.block = i.toString();
+                        form?.appendChild(div);
+                        div.classList.add(css);
+                        return div;
+                    }
+                    function groupDivs() {
+                        const div = newDiv(i, undefined, "group");
+                        divs?.forEach(el => div.appendChild(el));
+                        form?.children[3]?.insertAdjacentElement('afterend', div);
+                        return div;
+                    }
+                }
+                function createLable(title, i) {
+                    const label = document.createElement('label');
+                    label.htmlFor = 'input' + i.toString();
+                    label.innerHTML = title + ':';
+                    return label;
+                }
+                function createInput(index) {
+                    const css = 'field';
+                    const input = document.createElement('input');
+                    const id = 'input' + index.toString();
+                    (function append() {
+                        input.classList.add(css);
+                        input.id = id;
+                        input.name = id;
+                        input.autocomplete = "on";
+                        input.dataset.index = index.toString();
+                        input.type = 'text';
+                    })();
+                    (function customize() {
+                        if ([8, 9, 10].includes(index))
+                            input.type = 'number';
+                        else if (index === 3)
+                            input.type = 'date';
+                        else if ([5, 6].includes(index))
+                            input.type = 'time';
+                        else if ([4, 7].includes(index))
+                            input.style.display = 'none'; //We hide those 2 columns: 'Total Time' and the 'Year'
+                        (function addDataLists() {
+                            if ([9, 10, 14, 16].includes(index))
+                                return; //We exclude the "Montant" (9), "TVA" (10), "Description" (14), and the "Link to file" (16) columns;
+                            else if (index > 2 && index < 8)
+                                return; //We exclude the "Date" (3), "Année" (4), "Start Time" (5), "End Time" (6), "Total Time" (7) columns
+                            input.setAttribute('list', input.id + 's');
+                            if ([1, 8, 15].includes(index))
+                                return;
+                            createDataList(input.id, getUniqueValues(index, TableRows.slice(1, -1))); //We don't create the data list for columns 'Matter' (1), "Hourly Rate" (8) and 'Adress' (15) because the data list will be created when the 'Client' input (0) is updated
+                            if (index > 1)
+                                return; //We add onChange for "Client" (0) and "Affaire" (1) columns only.
+                            input.onchange = () => inputOnChange(index, TableRows.slice(1, -1), false);
+                        })();
+                        (function addRestOnChange() {
+                            if (index < 5 || index > 10)
+                                return;
+                            //Only for the  "Start Time", "End Time", "Total Time", "Hourly Rate", "Amount", "VAT" columns . The "Total Time" input (7) is hidden, so it can't be changed by the user. We will add the onChange event to it by simplicity
+                            input.onchange = () => inputOnChange(index, undefined, false); //!We are passing the table[][] argument as undefined, and the invoice argument as false which means that the function will only reset the bound inputs without updating any data list
+                        })();
+                    })();
+                    return input;
+                }
             }
         }
     })();
     (async function addEntry() {
         if (!add)
             return;
-        if (row)
-            return await addRow(row); //If a row is already passed, we will add them directly
-        spinner(); // We show the spinner
-        await addRow(parseInputs() || undefined, true);
-        spinner(); //We hide the spinner
+        spinner(); //We show the spinner
+        try {
+            if (row)
+                await addRow(row); //If a row is already passed, we will add them directly
+            else
+                await addRow(parseInputs() || undefined, true);
+        }
+        catch (error) {
+            spinner(); //We hide the spinner
+            alert(error);
+        }
         function parseInputs() {
             const stop = (missing) => alert(`${missing} missing. You must at least provide the client, matter, nature, date and the amount. If you provided a time start, you must provide the end time and the hourly rate. Please review your iputs`);
             const inputs = Array.from(document.getElementsByTagName('input')); //all inputs
@@ -216,12 +231,13 @@ async function addNewEntry(add = false, row) {
         }
         async function addRow(row, filter = false) {
             if (!row)
-                return;
+                throw new Error('The row is not valid');
             const visibleCells = await addRowToExcelTableWithGraphAPI(row, TableRows.length - 2, workbookPath, tableName, accessToken, filter);
             if (!visibleCells)
                 return alert('There was an issue with the adding or the filtering, check the console.log for more details');
             alert('Row aded and the table was filtered');
             displayVisibleCells(visibleCells);
+            spinner(); //We hide the spinner
             function displayVisibleCells(visibleCells) {
                 const tableDiv = createDivContainer();
                 const table = document.createElement('table');
@@ -231,7 +247,7 @@ async function addNewEntry(add = false, row) {
                 const rowClass = 'excelRow';
                 (function insertTableHeader() {
                     if (!tableTitles)
-                        return;
+                        throw new Error('No Table Titles');
                     const headerRow = document.createElement('tr');
                     headerRow.classList.add(rowClass);
                     const thead = document.createElement('thead');
@@ -263,7 +279,7 @@ async function addNewEntry(add = false, row) {
                 })();
                 const form = document.getElementById('form');
                 if (!form)
-                    return;
+                    throw new Error('The form element was not found');
                 if (form) {
                     form?.insertAdjacentElement('afterend', tableDiv);
                 }
@@ -301,18 +317,113 @@ async function invoice(issue = false) {
     (async function showForm() {
         if (issue)
             return;
-        spinner(); //We show the spinner
-        document.querySelector('table')?.remove();
         if (!workbookPath || !tableName)
             return alert('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
-        const sessionId = await createFileCession(workbookPath, accessToken) || '';
-        if (!sessionId)
-            return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
-        if (!tableTitles)
-            tableTitles = await setLocalStorageTitles(sessionId);
-        insertInvoiceForm(tableTitles);
-        await closeFileSession(sessionId, workbookPath, accessToken);
-        spinner(); //We hide the spinner
+        document.querySelector('table')?.remove();
+        spinner(); //We show the spinner
+        try {
+            await createForm();
+        }
+        catch (error) {
+            spinner(); //We hide the spinner
+            alert(error);
+        }
+        async function createForm() {
+            const sessionId = await createFileCession(workbookPath, accessToken) || '';
+            if (!sessionId)
+                throw new Error('There was an issue with the creation of the file cession. Check the console.log for more details');
+            if (!tableTitles)
+                tableTitles = await setLocalStorageTitles(sessionId);
+            insertInvoiceForm(tableTitles);
+            await closeFileSession(sessionId, workbookPath, accessToken);
+            spinner(); //We hide the spinner
+        }
+        function insertInvoiceForm(tableTitles) {
+            if (!tableTitles)
+                throw new Error('The table titles are missing. Check the console.log for more details');
+            const form = document.getElementById('form');
+            if (!form)
+                throw new Error('The form element was not found');
+            form.innerHTML = '';
+            insertInputsAndLables([0, 1, 2, 3, 3], 'input'); //Inserting the fields inputs (Client, Matter, Nature, Date). We insert the date twice
+            insertInputsAndLables(['Discount'], 'discount')[0].value = '0%'; //Inserting a discount percentage input and setting its default value to 0%
+            insertInputsAndLables(['Français', 'English'], 'lang', true); //Inserting languages checkboxes
+            (function customizeDateLabels() {
+                const [from, to] = Array.from(document.getElementsByTagName('label'))
+                    ?.filter(label => label.htmlFor.endsWith('3'));
+                if (from)
+                    from.innerText += ' From (included)';
+                if (to)
+                    to.innerText += ' To/Before (included)';
+            })();
+            (function addIssueInvoiceBtn() {
+                const btnIssue = document.createElement('button');
+                btnIssue.innerText = 'Generate Invoice';
+                btnIssue.classList.add('button');
+                btnIssue.onclick = () => invoice(true);
+                form.appendChild(btnIssue);
+            })();
+            function insertInputsAndLables(indexes, id, checkBox = false) {
+                let css = 'field';
+                if (checkBox)
+                    css = 'checkBox';
+                return indexes.map((index) => {
+                    const div = newDiv(String(index));
+                    appendLable(index, div);
+                    return appendInput(index, div);
+                });
+                function appendInput(index, div) {
+                    const input = document.createElement('input');
+                    input.classList.add(css);
+                    !isNaN(Number(index)) ? input.id = id + index.toString() : input.id = id;
+                    (function setType() {
+                        if (checkBox)
+                            input.type = 'checkbox';
+                        else if (isNaN(Number(index)) || Number(index) < 3)
+                            input.type = 'text';
+                        else
+                            input.type = 'date';
+                    })();
+                    (function notCheckBox() {
+                        if (isNaN(Number(index)) || checkBox)
+                            return; //If the index is not a number or the input is a checkBox, we return;
+                        index = Number(index);
+                        input.name = input.id;
+                        input.dataset.index = index.toString();
+                        input.setAttribute('list', input.id + 's');
+                        input.autocomplete = "on";
+                        if (index < 2)
+                            input.onchange = () => inputOnChange(Number(input.dataset.index), TableRows.slice(1, -1), true);
+                        if (index < 1)
+                            createDataList(input.id, getUniqueValues(0, TableRows.slice(1, -1))); //We create a unique values dataList for the 'Client' input
+                    })();
+                    (function isCheckBox() {
+                        if (!checkBox)
+                            return;
+                        input.dataset.language = index.toString().slice(0, 2).toUpperCase();
+                        input.onchange = () => Array.from(document.getElementsByTagName('input'))
+                            .filter((checkBox) => checkBox.dataset.language && checkBox !== input)
+                            .forEach(checkBox => checkBox.checked = false);
+                    })();
+                    div.appendChild(input);
+                    return input;
+                }
+                function appendLable(index, div) {
+                    const label = document.createElement('label');
+                    isNaN(Number(index)) || checkBox ? label.innerText = index.toString() : label.innerText = tableTitles[Number(index)];
+                    !isNaN(Number(index)) ? label.htmlFor = id + index.toString() : label.htmlFor = id;
+                    div?.appendChild(label);
+                }
+                function newDiv(i, css = "block") {
+                    const div = document.createElement('div');
+                    div.dataset.block = i;
+                    form?.appendChild(div);
+                    div.classList.add(css);
+                    return div;
+                }
+            }
+            ;
+        }
     })();
     (async function issueInvoice() {
         if (!issue)
@@ -320,17 +431,26 @@ async function invoice(issue = false) {
         if (!templatePath || !destinationFolder)
             return alert('The full path of the Word Invoice Template and/or the destination folder where the new invoice will be saved, are either missing or not valid');
         spinner(); //We show the spinner
+        try {
+            await editInvoice();
+        }
+        catch (error) {
+            spinner(); //We hide the sinner
+            alert(error);
+        }
+    })();
+    async function editInvoice() {
         const client = tableTitles[0], matter = tableTitles[1]; //Those are the 'Client' and 'Matter' columns of the Excel table
         const sessionId = await createFileCession(workbookPath, accessToken, true) || ''; //!persist must be = true because we might add a new row if there is a discount. If we don't persist the session, the table will be filtered and the new row will not be added.
         if (!sessionId)
-            return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
+            throw new Error('There was an issue with the creation of the file cession. Check the console.log for more details');
         const inputs = Array.from(document.getElementsByTagName('input'));
         const criteria = inputs.filter(input => Number(input.dataset.index) >= 0);
         const discount = parseInt(inputs.find(input => input.id === 'discount')?.value || '0%');
         const lang = inputs.find(input => input.dataset.language && input.checked === true)?.dataset.language || 'FR';
         const data = await filterExcelData(criteria, discount, lang);
         if (!data)
-            return;
+            throw new Error('Could not retrieve the filtered Excel table');
         const [wordRows, totalsLabels, matters, adress] = data;
         const date = new Date();
         const invoice = {
@@ -391,92 +511,6 @@ async function invoice(issue = false) {
                     return visible.filter(row => convertDate(row[3]) <= new Date().getTime()); //we filter by the date
             }
         }
-    })();
-    function insertInvoiceForm(tableTitles) {
-        if (!tableTitles)
-            return alert('The table titles are missing. Check the console.log for more details');
-        const form = document.getElementById('form');
-        if (!form)
-            return;
-        form.innerHTML = '';
-        insertInputsAndLables([0, 1, 2, 3, 3], 'input'); //Inserting the fields inputs (Client, Matter, Nature, Date). We insert the date twice
-        insertInputsAndLables(['Discount'], 'discount')[0].value = '0%'; //Inserting a discount percentage input and setting its default value to 0%
-        insertInputsAndLables(['Français', 'English'], 'lang', true); //Inserting languages checkboxes
-        (function customizeDateLabels() {
-            const [from, to] = Array.from(document.getElementsByTagName('label'))
-                ?.filter(label => label.htmlFor.endsWith('3'));
-            if (from)
-                from.innerText += ' From (included)';
-            if (to)
-                to.innerText += ' To/Before (included)';
-        })();
-        (function addIssueInvoiceBtn() {
-            const btnIssue = document.createElement('button');
-            btnIssue.innerText = 'Generate Invoice';
-            btnIssue.classList.add('button');
-            btnIssue.onclick = () => invoice(true);
-            form.appendChild(btnIssue);
-        })();
-        function insertInputsAndLables(indexes, id, checkBox = false) {
-            let css = 'field';
-            if (checkBox)
-                css = 'checkBox';
-            return indexes.map((index) => {
-                const div = newDiv(String(index));
-                appendLable(index, div);
-                return appendInput(index, div);
-            });
-            function appendInput(index, div) {
-                const input = document.createElement('input');
-                input.classList.add(css);
-                !isNaN(Number(index)) ? input.id = id + index.toString() : input.id = id;
-                (function setType() {
-                    if (checkBox)
-                        input.type = 'checkbox';
-                    else if (isNaN(Number(index)) || Number(index) < 3)
-                        input.type = 'text';
-                    else
-                        input.type = 'date';
-                })();
-                (function notCheckBox() {
-                    if (isNaN(Number(index)) || checkBox)
-                        return; //If the index is not a number or the input is a checkBox, we return;
-                    index = Number(index);
-                    input.name = input.id;
-                    input.dataset.index = index.toString();
-                    input.setAttribute('list', input.id + 's');
-                    input.autocomplete = "on";
-                    if (index < 2)
-                        input.onchange = () => inputOnChange(Number(input.dataset.index), TableRows.slice(1, -1), true);
-                    if (index < 1)
-                        createDataList(input.id, getUniqueValues(0, TableRows.slice(1, -1))); //We create a unique values dataList for the 'Client' input
-                })();
-                (function isCheckBox() {
-                    if (!checkBox)
-                        return;
-                    input.dataset.language = index.toString().slice(0, 2).toUpperCase();
-                    input.onchange = () => Array.from(document.getElementsByTagName('input'))
-                        .filter((checkBox) => checkBox.dataset.language && checkBox !== input)
-                        .forEach(checkBox => checkBox.checked = false);
-                })();
-                div.appendChild(input);
-                return input;
-            }
-            function appendLable(index, div) {
-                const label = document.createElement('label');
-                isNaN(Number(index)) || checkBox ? label.innerText = index.toString() : label.innerText = tableTitles[Number(index)];
-                !isNaN(Number(index)) ? label.htmlFor = id + index.toString() : label.htmlFor = id;
-                div?.appendChild(label);
-            }
-            function newDiv(i, css = "block") {
-                const div = document.createElement('div');
-                div.dataset.block = i;
-                form?.appendChild(div);
-                div.classList.add(css);
-                return div;
-            }
-        }
-        ;
     }
 }
 async function issueLetter(create = false) {
@@ -951,39 +985,46 @@ function searchFiles() {
         if (!accessToken)
             return alert('The access token is missing. Check the console.log for more details');
         spinner(); //We show the spinner
-        //const GRAPH_API_URL = "https://graph.microsoft.com/v1.0/me/drive/search(q='*')";
-        //let files = await fetchAllFiles();
-        const files = await fetchAllFilesByBatches();
-        if (!files)
-            return;
-        const search = form.querySelector('#search');
-        if (!search)
-            return;
-        // Filter files matching regex pattern
-        const matchingFiles = files.filter((item) => RegExp(search.value, 'i').test(item.name));
-        // Get reference to the table
-        const table = document.querySelector('table');
-        if (!table)
-            return;
-        table.innerHTML = "<tr class =\"fileTitle\"><th>File Name</th><th>Created Date</th><th>Last Modified</th></tr>"; // Reset table
-        const docFragment = new DocumentFragment();
-        docFragment.appendChild(table); //We move the table to the docFragment in order to avoid the slow down related to the insertion of the rows directly in the DOM 
-        for (const file of matchingFiles) {
-            // Populate table with matching files
-            const row = table.insertRow();
-            row.classList.add('fileRow');
-            row.insertCell(0).textContent = file.name;
-            row.insertCell(1).textContent = new Date(file.createdDateTime).toLocaleString();
-            row.insertCell(2).textContent = new Date(file.lastModifiedDateTime).toLocaleString();
-            const link = await getDownloadLink(file.id);
-            // Add double-click event listener to open file
-            row.addEventListener("dblclick", () => {
-                window.open(link, "_blank");
-            });
+        try {
+            await fetchAndFilter();
         }
-        form.insertAdjacentElement('afterend', table);
-        spinner(); //We remove the spinner
-        console.log(`Fetched ${files.length} items, displaying ${matchingFiles.length} matching files.`);
+        catch (error) {
+            spinner(); //Hide the spinner
+            alert(error);
+        }
+        async function fetchAndFilter() {
+            const files = await fetchAllFilesByBatches();
+            if (!files)
+                throw new Error('Could not fetch the files list from onedrive');
+            const search = form.querySelector('#search');
+            if (!search)
+                throw new Error('Did not find the serch input');
+            // Filter files matching regex pattern
+            const matchingFiles = files.filter((item) => RegExp(search.value, 'i').test(item.name));
+            // Get reference to the table
+            const table = document.querySelector('table');
+            if (!table)
+                throw new Error('The table element was not found');
+            table.innerHTML = "<tr class =\"fileTitle\"><th>File Name</th><th>Created Date</th><th>Last Modified</th></tr>"; // Reset table
+            const docFragment = new DocumentFragment();
+            docFragment.appendChild(table); //We move the table to the docFragment in order to avoid the slow down related to the insertion of the rows directly in the DOM 
+            for (const file of matchingFiles) {
+                // Populate table with matching files
+                const row = table.insertRow();
+                row.classList.add('fileRow');
+                row.insertCell(0).textContent = file.name;
+                row.insertCell(1).textContent = new Date(file.createdDateTime).toLocaleString();
+                row.insertCell(2).textContent = new Date(file.lastModifiedDateTime).toLocaleString();
+                const link = await getDownloadLink(file.id);
+                // Add double-click event listener to open file
+                row.addEventListener("dblclick", () => {
+                    window.open(link, "_blank");
+                });
+            }
+            form.insertAdjacentElement('afterend', table);
+            spinner(); //We hide the spinner
+            console.log(`Fetched ${files.length} items, displaying ${matchingFiles.length} matching files.`);
+        }
         async function getDownloadLink(fileId) {
             const data = await JSONFromGETRequest(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}`);
             return data.webUrl;
@@ -991,7 +1032,7 @@ function searchFiles() {
         async function fetchAllFilesByBatches() {
             const path = document.getElementById('folder')?.value;
             if (!path)
-                return;
+                throw new Error('The file path could not be retrieved');
             if (localStorage.onedriveItems && localStorage.folderPath === path)
                 return JSON.parse(localStorage.onedriveItems);
             localStorage.folderPath = path;
@@ -1014,7 +1055,6 @@ function searchFiles() {
                 return allFiles;
             }
             async function fetchTopLevelFiles(path) {
-                //const url = `https://graph.microsoft.com/v1.0/me/drive/root/children?${select}`;
                 const id = await getFolderIdByPath(path);
                 const url = `https://graph.microsoft.com/v1.0/me/drive/items/${id}/children?${top}&${select}`;
                 const data = await JSONFromGETRequest(url);
@@ -1081,16 +1121,5 @@ function searchFiles() {
             return await response.json();
         }
     }
-}
-function spinner() {
-    let spinner = document.querySelector('.spinner');
-    if (spinner)
-        return spinner.remove();
-    const form = document.getElementById('form');
-    if (!form)
-        return;
-    spinner = document.createElement('div');
-    spinner.classList.add('spinner');
-    form.appendChild(spinner);
 }
 //# sourceMappingURL=pwaVersion.js.map
