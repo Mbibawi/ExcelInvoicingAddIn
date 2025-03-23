@@ -21,18 +21,22 @@ section.samples {
 
 tr{
     display: grid;
-    grid-template-columns: 22% 22% 5% 5% 5% 5% 5% 31%;
-    gap: 2vw;
-    justify-items: center;
-    justify-self: center;
+    padding: 1px;
+    justify-items: left;
     width: 93vw;
     margin-top: 10px;
     background-blend-mode: difference ;
 }
-.fileRow{
+.excelRow{
+    grid-template-columns: 22% 22% 5% 5% 5% 5% 5% 31%;
+}
+.fileRow, .fileTite{
     grid-template-columns: 60% 20% 20%;
 } 
-
+.fileTite{
+    justify-items: stretch;
+    background-color: gray;
+}
 .block{ 
     display:grid;
     justify-self: stretch ;
@@ -160,4 +164,4 @@ td{
 
 table tr:hover {
     background-color: #d0e7ff; /* Light blue on hover */
-}
+}   

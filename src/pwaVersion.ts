@@ -245,10 +245,11 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                 tableDiv.appendChild(table);
 
                 const columns = [0, 1, 2, 7, 8, 9, 10, 14];//The columns that will be displayed in the table;
-
+                const rowClass = 'excelRow';
                 (function insertTableHeader() {
                     if (!tableTitles) return;
                     const headerRow = document.createElement('tr');
+                    headerRow.classList.add(rowClass);
                     const thead = document.createElement('thead');
                     table.appendChild(thead);
                     thead.appendChild(headerRow);
@@ -264,7 +265,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                         if (index < 1) return;//We exclude the header row
                         if (!row) return;
                         const tr = document.createElement('tr');
-                        tr.classList.add('row');
+                        tr.classList.add(rowClass);
                         tbody.appendChild(tr);
                         row.forEach((cell, index) => {
                             if (!columns.includes(index)) return;
@@ -1047,8 +1048,9 @@ function searchFiles() {
 
         for (const file of matchingFiles) {
             // Populate table with matching files
+            const index = matchingFiles.indexOf(file);
             const row = table.insertRow();
-            row.classList.add('fileRow');
+            index>0? row.classList.add('fileRow'): row.classList.add('fileTite');
             row.insertCell(0).textContent = file.name;
             row.insertCell(1).textContent = new Date(file.createdDateTime).toLocaleString();
             row.insertCell(2).textContent = new Date(file.lastModifiedDateTime).toLocaleString();
