@@ -1036,12 +1036,14 @@ function searchFiles() {
 
         // Get reference to the table
         const table = form.querySelector('table') || document.createElement('table');
+        table.id = 'table'; 
         form.insertAdjacentElement('afterend', table);
         table.innerHTML = "<tr><th>File Name</th><th>Created Date</th><th>Last Modified</th></tr>"; // Reset table
 
         for (const file of matchingFiles) {
             // Populate table with matching files
             const row = table.insertRow();
+            row.classList.add('fileRow');
             row.insertCell(0).textContent = file.name;
             row.insertCell(1).textContent = new Date(file.createdDateTime).toLocaleString();
             row.insertCell(2).textContent = new Date(file.lastModifiedDateTime).toLocaleString();

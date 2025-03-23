@@ -29,6 +29,9 @@ tr{
     margin-top: 10px;
     background-blend-mode: difference ;
 }
+.fileRow{
+    grid-template-columns: 60% 20% 20%;
+} 
 
 .block{ 
     display:grid;
@@ -126,3 +129,35 @@ textarea:focus, label:focus, .field:focus {
     background-color: #61616178;
     justify-items: center;
   }
+
+  table tr:nth-child(even) {
+    background-color: #f2f2f2; /* Light gray */
+}
+
+/* Apply a different background color to odd rows (optional) */
+table tr:nth-child(odd) {
+    background-color: #ffffff; /* White */
+}
+
+/* Styling the table borders and text for better visuals */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    padding:30px;
+}
+
+table, th, td {
+    border: 1px solid #ccc;
+}
+
+th, td {
+    text-align: left;
+    padding: 8px;
+}
+td{
+    word-break: break-word;
+}
+
+table tr:hover {
+    background-color: #d0e7ff; /* Light blue on hover */
+}
