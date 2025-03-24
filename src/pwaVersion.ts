@@ -1024,10 +1024,11 @@ async function addRowToExcelTableWithGraphAPI(row: any[], index: number, filePat
 
 function searchFiles() {
     (function showForm() {
-        localStorage.oneDriveItems = '';
         const form = document.getElementById('form') as HTMLDivElement;
         if (!form) return;
         form.innerHTML = '';
+        if (localStorage.folderPath)
+            fetchAllDriveFiles(form, localStorage.folderPath);//We will delete the record for this folder path from the database
         (function RegExpInput() {
             const regexp = document.createElement('input');
             regexp.id = 'search';
@@ -1083,7 +1084,8 @@ function searchFiles() {
 
     })();
 
-    async function fetchAllDriveFiles(form: HTMLDivElement) {
+    async function fetchAllDriveFiles(form: HTMLDivElement, record?: string) {
+        if (record) return manageFilesDatabase([], record, true);//We delete the record for the folder path
         if (!accessToken)
             accessToken = await getAccessToken() || '';
         if (!accessToken) return alert('The access token is missing. Check the console.log for more details');
@@ -1267,16 +1269,17 @@ function searchFiles() {
 
         }
 
-        async function manageFilesDatabase(files: fileItem[], path: string):Promise<fileItem[]> {
+        
+        async function manageFilesDatabase(files: fileItem[], path: string, deleteRecord:boolean =false):Promise<fileItem[]> {
             const dbName = "FileDatabase";
             const storeName = "Files";
             const dbVersion = 1;
-
+    
             
             // Open (or create) the database
             const db = await new Promise((resolve, reject) => {
                 const request = indexedDB.open(dbName, dbVersion);
-
+    
                 request.onupgradeneeded = function (event) {
                     const db = (event.target as IDBOpenDBRequest)?.result;
                     if (db.objectStoreNames.contains(storeName)) return;
@@ -1284,27 +1287,36 @@ function searchFiles() {
                     console.log("Object store created successfully.");
                     
                 };
-
+    
                 request.onsuccess = function (event) {
                     resolve((event.target as IDBOpenDBRequest)?.result);
                 };
-
+    
                 request.onerror = function (event) {
                     reject("Failed to open database: " + (event.target as IDBOpenDBRequest)?.error);
                 };
             });
-
+    
             // Retrieve or add the entry
             return new Promise((resolve, reject) => {
                 const transaction = (db as IDBDatabase).transaction(storeName, "readwrite");
                 const store = transaction.objectStore(storeName);
-
+    
                 // Check if an entry with the given path exists
                 const getRequest = store.get(path);
-
+    
                 getRequest.onsuccess = function (event) {
                     const existingEntry = (event.target as IDBRequest)?.result;
-                    if (existingEntry) {
+                    if (existingEntry && deleteRecord) {
+                        const deleteRequest = store.delete(path);
+                        deleteRequest.onsuccess = function () {
+                            console.log('successfuly deleted the record');
+                            resolve(files);
+                        }
+                        deleteRequest.onerror = function () {
+                            reject("Failed to delete the specified record: " + (event.target as IDBRequest)?.error);
+                        }
+                    } else if (existingEntry) {
                         console.log("Entry found for path:", path);
                         resolve(existingEntry.files as fileItem[]); // Return the existing files array
                     } else if (!files.length) {
@@ -1313,25 +1325,24 @@ function searchFiles() {
                         // Add a new entry if it doesn't exist
                         const data = { path, files };
                         const addRequest = store.put(data);
-
+    
                         addRequest.onsuccess = function () {
                             console.log("New entry added for path:", path);
                             resolve(files); // Return the newly added files array
                         };
-
+    
                         addRequest.onerror = function (event) {
                             reject("Failed to add new entry: " + (event.target as IDBRequest)?.error);
                         };
                     }
                 };
-
+    
                 getRequest.onerror = function (event) {
                     reject("Failed to retrieve entry: " + (event.target as IDBRequest)?.error);
                 };
             });
         }
-
-
+        
     }
 }
 

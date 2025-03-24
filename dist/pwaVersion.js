@@ -938,11 +938,12 @@ async function addRowToExcelTableWithGraphAPI(row, index, filePath, tableName, a
 }
 function searchFiles() {
     (function showForm() {
-        localStorage.oneDriveItems = '';
         const form = document.getElementById('form');
         if (!form)
             return;
         form.innerHTML = '';
+        if (localStorage.folderPath)
+            fetchAllDriveFiles(form, localStorage.folderPath); //We will delete the record for this folder path from the database
         (function RegExpInput() {
             const regexp = document.createElement('input');
             regexp.id = 'search';
@@ -995,7 +996,9 @@ function searchFiles() {
             form.insertAdjacentElement('afterend', table);
         })();
     })();
-    async function fetchAllDriveFiles(form) {
+    async function fetchAllDriveFiles(form, record) {
+        if (record)
+            return manageFilesDatabase([], record, true); //We delete the record for the folder path
         if (!accessToken)
             accessToken = await getAccessToken() || '';
         if (!accessToken)
@@ -1150,7 +1153,7 @@ function searchFiles() {
             else
                 return byName;
         }
-        async function manageFilesDatabase(files, path) {
+        async function manageFilesDatabase(files, path, deleteRecord = false) {
             const dbName = "FileDatabase";
             const storeName = "Files";
             const dbVersion = 1;
@@ -1179,7 +1182,17 @@ function searchFiles() {
                 const getRequest = store.get(path);
                 getRequest.onsuccess = function (event) {
                     const existingEntry = event.target?.result;
-                    if (existingEntry) {
+                    if (existingEntry && deleteRecord) {
+                        const deleteRequest = store.delete(path);
+                        deleteRequest.onsuccess = function () {
+                            console.log('successfuly deleted the record');
+                            resolve(files);
+                        };
+                        deleteRequest.onerror = function () {
+                            reject("Failed to delete the specified record: " + event.target?.error);
+                        };
+                    }
+                    else if (existingEntry) {
                         console.log("Entry found for path:", path);
                         resolve(existingEntry.files); // Return the existing files array
                     }
