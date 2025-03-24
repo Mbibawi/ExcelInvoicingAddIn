@@ -1201,7 +1201,7 @@ function searchFiles() {
                     }
                     else {
                         // Add a new entry if it doesn't exist
-                        const data = { path, files };
+                        const data = { path: path, files: files };
                         const addRequest = store.put(data);
                         addRequest.onsuccess = function () {
                             console.log("New entry added for path:", path);

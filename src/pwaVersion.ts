@@ -1323,7 +1323,7 @@ function searchFiles() {
                         resolve(files);//We return the empty array
                     } else {
                         // Add a new entry if it doesn't exist
-                        const data = { path, files };
+                        const data = {path:path, files:files };
                         const addRequest = store.put(data);
     
                         addRequest.onsuccess = function () {
