@@ -2,10 +2,6 @@ section.samples {
     margin-top: 20px;
 }
 
-.btns{
-    display: flex;
-    justify-self: center;
-}
 #form{
     background-color: #0b5f76;
     justify-self: center;
@@ -64,15 +60,18 @@ tr{
     display: grid;
     grid-template-columns: 33% 33% 33%;
     justify-items: center;
+    padding: 10px;
     margin-top: 10px;
     justify-self: center;
     width: 80vw;
-    background-color: #2b2c52;
-    border-radius: 5px;
+    background-color: #591712;
+    border-radius: 8px;
 }
-#btns>.button{
+#btns>.button, #btns>.ms-Button{
     background-color: #255571 !important;
-    
+    justify-self: stretch !important;
+    min-height: 7vh;
+
 }
 
 .button, .ms-Button{
@@ -83,6 +82,7 @@ tr{
     min-height: 15px;
     justify-self: center;
     margin-top: 20px;
+    margin-bottom: 20px;
     margin-left: 5px;
     margin-right: 5px;
     border-radius: 5px;
