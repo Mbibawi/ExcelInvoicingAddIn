@@ -1049,15 +1049,15 @@ function searchFiles() {
             const path = document.getElementById('folder')?.value;
             if (!path)
                 throw new Error('The file path could not be retrieved');
-            if (localStorage.oneDriveItems && localStorage.folderPath === path)
-                return JSON.parse(localStorage.oneDriveItems);
+            const allFiles = [];
+            const existing = await manageFilesDatabase(allFiles, path);
+            if (existing.length)
+                return existing;
             localStorage.folderPath = path;
             const select = '$select=name,id,folder,file,createdDateTime,lastModifiedDateTime';
             const top = '$top=900';
-            const allFiles = [];
             await fetchAllFilesByPath(path);
-            localStorage.oneDriveItems = JSON.stringify(allFiles);
-            return allFiles;
+            return await manageFilesDatabase(allFiles, path);
             async function fetchAllFilesByPath(path) {
                 // Step 1: Get root-level files & folders
                 path = path.replace('\\', '/');
@@ -1149,6 +1149,60 @@ function searchFiles() {
                 return byName.filter(file => created(file).getTime() > after.getTime());
             else
                 return byName;
+        }
+        async function manageFilesDatabase(files, path) {
+            const dbName = "FileDatabase";
+            const storeName = "Files";
+            const dbVersion = 1;
+            // Open (or create) the database
+            const db = await new Promise((resolve, reject) => {
+                const request = indexedDB.open(dbName, dbVersion);
+                request.onupgradeneeded = function (event) {
+                    const db = event.target?.result;
+                    if (db.objectStoreNames.contains(storeName))
+                        return;
+                    db.createObjectStore(storeName, { keyPath: "path" });
+                    console.log("Object store created successfully.");
+                };
+                request.onsuccess = function (event) {
+                    resolve(event.target?.result);
+                };
+                request.onerror = function (event) {
+                    reject("Failed to open database: " + event.target?.error);
+                };
+            });
+            // Retrieve or add the entry
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(storeName, "readwrite");
+                const store = transaction.objectStore(storeName);
+                // Check if an entry with the given path exists
+                const getRequest = store.get(path);
+                getRequest.onsuccess = function (event) {
+                    const existingEntry = event.target?.result;
+                    if (existingEntry) {
+                        console.log("Entry found for path:", path);
+                        resolve(existingEntry.files); // Return the existing files array
+                    }
+                    else if (!files.length) {
+                        resolve(files); //We return the empty array
+                    }
+                    else {
+                        // Add a new entry if it doesn't exist
+                        const data = { path, files };
+                        const addRequest = store.put(data);
+                        addRequest.onsuccess = function () {
+                            console.log("New entry added for path:", path);
+                            resolve(files); // Return the newly added files array
+                        };
+                        addRequest.onerror = function (event) {
+                            reject("Failed to add new entry: " + event.target?.error);
+                        };
+                    }
+                };
+                getRequest.onerror = function (event) {
+                    reject("Failed to retrieve entry: " + event.target?.error);
+                };
+            });
         }
     }
 }

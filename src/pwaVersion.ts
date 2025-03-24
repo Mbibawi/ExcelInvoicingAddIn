@@ -47,7 +47,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
         document.querySelector('table')?.remove();
         spinner(true);//We show the spinner
         try {
-            await createForm(); 
+            await createForm();
         } catch (error) {
             spinner(false);//We hide the sinner
             alert(error);
@@ -58,9 +58,9 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
             if (!sessionId) throw new Error('There was an issue with the creation of the file cession. Check the console.log for more details');
             if (!workbookPath || !tableName) throw new Error('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
             if (!tableTitles) tableTitles = await setLocalStorageTitles(sessionId);
-    
+
             if (!TableRows) TableRows = await fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName, true) as string[][];
-    
+
             insertAddForm(tableTitles);
             await closeFileSession(sessionId, workbookPath, accessToken);
             spinner(false);//We hide the spinner
@@ -68,12 +68,12 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
 
             function insertAddForm(titles: string[]) {
                 if (!titles) throw new Error('The table titles are missing. Check the console.log for more details');
-    
-    
+
+
                 const form = document.getElementById('form');
                 if (!form) throw new Error('Could not find the form element');
                 form.innerHTML = '';
-    
+
                 const divs = titles.map((title, index) => {
                     const div = newDiv(index);
                     if (![4, 7].includes(index))
@@ -81,7 +81,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                     div.appendChild(createInput(index));
                     return div;
                 });
-    
+
                 (function groupDivs() {
                     [
                         [11, 12, 13],//"Moyen de Paiement", "Compte", "Tiers"
@@ -90,8 +90,8 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                     ]
                         .forEach(group => newDiv(NaN, divs.filter(div => group.includes(Number(div.dataset.block)))));
                 })();
-    
-    
+
+
                 (function addBtn() {
                     const btnIssue = document.createElement('button');
                     btnIssue.innerText = 'Add Entry';
@@ -99,11 +99,11 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                     btnIssue.onclick = () => addNewEntry(true);
                     form.appendChild(btnIssue);
                 })();
-    
+
                 function newDiv(i: number, divs?: HTMLDivElement[], css: string = "block") {
                     if (divs) return groupDivs();
                     else return create();
-    
+
                     function create() {
                         const div = document.createElement('div');
                         div.dataset.block = i.toString();
@@ -111,7 +111,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                         div.classList.add(css);
                         return div;
                     }
-    
+
                     function groupDivs() {
                         const div = newDiv(i, undefined, "group") as HTMLDivElement;
                         divs?.forEach(el => div.appendChild(el));
@@ -119,20 +119,20 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                         return div
                     }
                 }
-    
+
                 function createLable(title: string, i: number) {
                     const label = document.createElement('label');
                     label.htmlFor = 'input' + i.toString();
                     label.innerHTML = title + ':';
                     return label
                 }
-    
-    
+
+
                 function createInput(index: number) {
                     const css = 'field';
                     const input = document.createElement('input');
                     const id = 'input' + index.toString();
-    
+
                     (function append() {
                         input.classList.add(css);
                         input.id = id;
@@ -141,7 +141,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                         input.dataset.index = index.toString();
                         input.type = 'text';
                     })();
-    
+
                     (function customize() {
                         if ([8, 9, 10].includes(index))
                             input.type = 'number';
@@ -150,29 +150,29 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                         else if ([5, 6].includes(index))
                             input.type = 'time';
                         else if ([4, 7].includes(index)) input.style.display = 'none';//We hide those 2 columns: 'Total Time' and the 'Year'
-    
+
                         (function addDataLists() {
                             if ([9, 10, 14, 16].includes(index)) return;//We exclude the "Montant" (9), "TVA" (10), "Description" (14), and the "Link to file" (16) columns;
                             else if (index > 2 && index < 8) return; //We exclude the "Date" (3), "Année" (4), "Start Time" (5), "End Time" (6), "Total Time" (7) columns
-    
+
                             input.setAttribute('list', input.id + 's');
-    
+
                             if ([1, 8, 15].includes(index)) return;
                             createDataList(input.id, getUniqueValues(index, TableRows.slice(1, -1)));//We don't create the data list for columns 'Matter' (1), "Hourly Rate" (8) and 'Adress' (15) because the data list will be created when the 'Client' input (0) is updated
-    
+
                             if (index > 1) return;//We add onChange for "Client" (0) and "Affaire" (1) columns only.
-    
+
                             input.onchange = () => inputOnChange(index, TableRows.slice(1, -1), false);
                         })();
-    
+
                         (function addRestOnChange() {
                             if (index < 5 || index > 10) return;
                             //Only for the  "Start Time", "End Time", "Total Time", "Hourly Rate", "Amount", "VAT" columns . The "Total Time" input (7) is hidden, so it can't be changed by the user. We will add the onChange event to it by simplicity
-    
+
                             input.onchange = () => inputOnChange(index, undefined, false);//!We are passing the table[][] argument as undefined, and the invoice argument as false which means that the function will only reset the bound inputs without updating any data list
                         })();
                     })();
-    
+
                     return input
                 }
             }
@@ -351,7 +351,7 @@ async function invoice(issue: boolean = false) {
             const sessionId = await createFileCession(workbookPath, accessToken) || '';
             if (!sessionId) throw new Error('There was an issue with the creation of the file cession. Check the console.log for more details');
             if (!tableTitles) tableTitles = await setLocalStorageTitles(sessionId);
-            
+
             insertInvoiceForm(tableTitles);
             await closeFileSession(sessionId, workbookPath, accessToken);
             spinner(false);//We hide the spinner
@@ -362,20 +362,20 @@ async function invoice(issue: boolean = false) {
             const form = document.getElementById('form');
             if (!form) throw new Error('The form element was not found');
             form.innerHTML = '';
-    
+
             insertInputsAndLables([0, 1, 2, 3, 3], 'input');//Inserting the fields inputs (Client, Matter, Nature, Date). We insert the date twice
-    
+
             insertInputsAndLables(['Discount'], 'discount')[0].value = '0%'; //Inserting a discount percentage input and setting its default value to 0%
-    
+
             insertInputsAndLables(['Français', 'English'], 'lang', true); //Inserting languages checkboxes
-    
+
             (function customizeDateLabels() {
                 const [from, to] = Array.from(document.getElementsByTagName('label'))
                     ?.filter(label => label.htmlFor.endsWith('3'));
                 if (from) from.innerText += ' From (included)';
                 if (to) to.innerText += ' To/Before (included)';
             })();
-    
+
             (function addIssueInvoiceBtn() {
                 const btnIssue = document.createElement('button');
                 btnIssue.innerText = 'Generate Invoice';
@@ -383,8 +383,8 @@ async function invoice(issue: boolean = false) {
                 btnIssue.onclick = () => invoice(true);
                 form.appendChild(btnIssue);
             })();
-    
-        function insertInputsAndLables(indexes: (number | string)[], id: string, checkBox: boolean = false): HTMLInputElement[] {
+
+            function insertInputsAndLables(indexes: (number | string)[], id: string, checkBox: boolean = false): HTMLInputElement[] {
                 let css = 'field';
                 if (checkBox) css = 'checkBox';
                 return indexes.map((index) => {
@@ -392,18 +392,18 @@ async function invoice(issue: boolean = false) {
                     appendLable(index, div);
                     return appendInput(index, div);
                 });
-    
+
                 function appendInput(index: number | string, div: HTMLDivElement) {
                     const input = document.createElement('input');
                     input.classList.add(css);
                     !isNaN(Number(index)) ? input.id = id + index.toString() : input.id = id;
-    
+
                     (function setType() {
                         if (checkBox) input.type = 'checkbox';
                         else if (isNaN(Number(index)) || Number(index) < 3) input.type = 'text';
                         else input.type = 'date';
                     })();
-    
+
                     (function notCheckBox() {
                         if (isNaN(Number(index)) || checkBox) return;//If the index is not a number or the input is a checkBox, we return;
                         index = Number(index);
@@ -411,14 +411,14 @@ async function invoice(issue: boolean = false) {
                         input.dataset.index = index.toString();
                         input.setAttribute('list', input.id + 's');
                         input.autocomplete = "on";
-    
+
                         if (index < 2)
                             input.onchange = () => inputOnChange(Number(input.dataset.index), TableRows.slice(1, -1), true);
-    
+
                         if (index < 1)
                             createDataList(input.id, getUniqueValues(0, TableRows.slice(1, -1)));//We create a unique values dataList for the 'Client' input
                     })();
-    
+
                     (function isCheckBox() {
                         if (!checkBox) return;
                         input.dataset.language = index.toString().slice(0, 2).toUpperCase();
@@ -430,14 +430,14 @@ async function invoice(issue: boolean = false) {
                     div.appendChild(input);
                     return input;
                 }
-    
+
                 function appendLable(index: number | string, div: HTMLDivElement) {
                     const label = document.createElement('label');
                     isNaN(Number(index)) || checkBox ? label.innerText = index.toString() : label.innerText = tableTitles[Number(index)];
                     !isNaN(Number(index)) ? label.htmlFor = id + index.toString() : label.htmlFor = id;
                     div?.appendChild(label);
                 }
-    
+
                 function newDiv(i: string, css: string = "block") {
                     const div = document.createElement('div');
                     div.dataset.block = i;
@@ -446,7 +446,7 @@ async function invoice(issue: boolean = false) {
                     return div;
                 }
             };
-    
+
         }
 
     })();
@@ -1036,7 +1036,7 @@ function searchFiles() {
             regexp.onkeydown = (e) => e.key === 'Enter' ? fetchAllDriveFiles(form) : e.key;
             form.appendChild(regexp);
         })();
-        (function dateAfterInput() { 
+        (function dateAfterInput() {
             const after = document.createElement('input');
             after.type = 'date';
             after.id = 'after';
@@ -1044,7 +1044,7 @@ function searchFiles() {
             after.title = 'You can proivde the date after which the file was created';
             form.appendChild(after);
         })();
-        (function dateAfterInput() { 
+        (function dateAfterInput() {
             const before = document.createElement('input');
             before.type = 'date';
             before.id = 'before';
@@ -1146,17 +1146,17 @@ function searchFiles() {
             const path = (document.getElementById('folder') as HTMLInputElement)?.value;
             if (!path) throw new Error('The file path could not be retrieved');
 
-            if (localStorage.oneDriveItems && localStorage.folderPath === path) return JSON.parse(localStorage.oneDriveItems) as fileItem[];
+            const allFiles: fileItem[] = [];
+            const existing = await manageFilesDatabase(allFiles, path);
+            if (existing.length) return existing as fileItem[];
 
             localStorage.folderPath = path;
             const select = '$select=name,id,folder,file,createdDateTime,lastModifiedDateTime';
             const top = '$top=900';
-            const allFiles: fileItem[] = [];
             await fetchAllFilesByPath(path);
 
-            localStorage.oneDriveItems = JSON.stringify(allFiles);
-            return allFiles;
-
+            return await manageFilesDatabase(allFiles, path);
+     
             async function fetchAllFilesByPath(path: string) {
                 // Step 1: Get root-level files & folders
                 path = path.replace('\\', '/');
@@ -1250,10 +1250,10 @@ function searchFiles() {
             if (!response.ok) throw new Error(`Error fetching items from endpoint ${url}: \n${await response.text()}`);
             return await response.json();
         }
-        function filterFiles(files:fileItem[], search:string) {
+        function filterFiles(files: fileItem[], search: string) {
             const byName = files.filter((item: any) => RegExp(search, 'i').test(item.name));
             const created = (file: fileItem) => new Date(file.createdDateTime);
-            
+
             const after = (form.querySelector('#after') as HTMLInputElement)?.valueAsDate;
             const before = (form.querySelector('#before') as HTMLInputElement)?.valueAsDate;
 
@@ -1264,8 +1264,74 @@ function searchFiles() {
             else if (after)
                 return byName.filter(file => created(file).getTime() > after.getTime());
             else return byName
-            
+
         }
+
+        async function manageFilesDatabase(files: fileItem[], path: string):Promise<fileItem[]> {
+            const dbName = "FileDatabase";
+            const storeName = "Files";
+            const dbVersion = 1;
+
+            
+            // Open (or create) the database
+            const db = await new Promise((resolve, reject) => {
+                const request = indexedDB.open(dbName, dbVersion);
+
+                request.onupgradeneeded = function (event) {
+                    const db = (event.target as IDBOpenDBRequest)?.result;
+                    if (db.objectStoreNames.contains(storeName)) return;
+                    db.createObjectStore(storeName, { keyPath: "path" });
+                    console.log("Object store created successfully.");
+                    
+                };
+
+                request.onsuccess = function (event) {
+                    resolve((event.target as IDBOpenDBRequest)?.result);
+                };
+
+                request.onerror = function (event) {
+                    reject("Failed to open database: " + (event.target as IDBOpenDBRequest)?.error);
+                };
+            });
+
+            // Retrieve or add the entry
+            return new Promise((resolve, reject) => {
+                const transaction = (db as IDBDatabase).transaction(storeName, "readwrite");
+                const store = transaction.objectStore(storeName);
+
+                // Check if an entry with the given path exists
+                const getRequest = store.get(path);
+
+                getRequest.onsuccess = function (event) {
+                    const existingEntry = (event.target as IDBRequest)?.result;
+                    if (existingEntry) {
+                        console.log("Entry found for path:", path);
+                        resolve(existingEntry.files as fileItem[]); // Return the existing files array
+                    } else if (!files.length) {
+                        resolve(files);//We return the empty array
+                    } else {
+                        // Add a new entry if it doesn't exist
+                        const data = { path, files };
+                        const addRequest = store.put(data);
+
+                        addRequest.onsuccess = function () {
+                            console.log("New entry added for path:", path);
+                            resolve(files); // Return the newly added files array
+                        };
+
+                        addRequest.onerror = function (event) {
+                            reject("Failed to add new entry: " + (event.target as IDBRequest)?.error);
+                        };
+                    }
+                };
+
+                getRequest.onerror = function (event) {
+                    reject("Failed to retrieve entry: " + (event.target as IDBRequest)?.error);
+                };
+            });
+        }
+
+
     }
 }
 
