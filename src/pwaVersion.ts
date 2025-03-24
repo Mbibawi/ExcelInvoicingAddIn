@@ -1239,10 +1239,10 @@ function searchFiles() {
             return [getFiles(items), subFolders(items)];
         }
         function subFolders(items: (fileItem | folderItem)[]) {
-            return items.filter(item => (item as folderItem).folder) as folderItem[];
+            return items.filter(item => (item as folderItem)?.folder) as folderItem[];
         }
         function getFiles(items: (fileItem | folderItem)[]) {
-            return items.filter(item => (item as fileItem).file) as fileItem[];
+            return items.filter(item => (item as fileItem)?.file) as fileItem[];
         }
         async function JSONFromGETRequest(url: string) {
             const response = await fetch(url, {

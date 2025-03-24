@@ -1125,10 +1125,10 @@ function searchFiles() {
             return [getFiles(items), subFolders(items)];
         }
         function subFolders(items) {
-            return items.filter(item => item.folder);
+            return items.filter(item => item?.folder);
         }
         function getFiles(items) {
-            return items.filter(item => item.file);
+            return items.filter(item => item?.file);
         }
         async function JSONFromGETRequest(url) {
             const response = await fetch(url, {
