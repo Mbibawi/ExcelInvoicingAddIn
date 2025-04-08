@@ -896,7 +896,7 @@ async function createAndUploadXmlDocument(accessToken: string, templatePath: str
  * @returns {[XMLDocument, JSZip]} - The xml document, and the zip containing all the xml files
  */
 //@ts-expect-error
-async function convertBlobIntoXML(blob: Blob): [XMLDocument, JSZip] {
+async function convertBlobIntoXML(blob: Blob): Promise<[XMLDocument, JSZip]> {
     //@ts-ignore
     const zip = new JSZip();
 
@@ -993,23 +993,8 @@ async function addRowToExcelTableWithGraphAPI(row: any[], index: number, filePat
             index: index,
             values: [row],
         };
+        await POSTRequestWithGraphAPI(url, accessToken, sessionId, JSON.stringify(body), filePath);
 
-        const response = await fetch(url, {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${accessToken}`,
-                "Content-Type": "application/json",
-                "Workbook-Session-Id": sessionId,
-            },
-            body: JSON.stringify(body)
-        });
-
-        if (response.ok) {
-            console.log("Row added successfully!");
-            return await response.json();
-        } else {
-            alert(`Error adding row: ${await response.text()}`);
-        }
     }
 
     async function filterTable() {

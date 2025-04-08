@@ -909,22 +909,7 @@ async function addRowToExcelTableWithGraphAPI(row, index, filePath, tableName, a
             index: index,
             values: [row],
         };
-        const response = await fetch(url, {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${accessToken}`,
-                "Content-Type": "application/json",
-                "Workbook-Session-Id": sessionId,
-            },
-            body: JSON.stringify(body)
-        });
-        if (response.ok) {
-            console.log("Row added successfully!");
-            return await response.json();
-        }
-        else {
-            alert(`Error adding row: ${await response.text()}`);
-        }
+        await POSTRequestWithGraphAPI(url, accessToken, sessionId, JSON.stringify(body), filePath);
     }
     async function filterTable() {
         if (!filter)

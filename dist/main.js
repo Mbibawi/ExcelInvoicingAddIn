@@ -625,7 +625,7 @@ async function fetchExcelTableWithGraphAPI(sessionId, accessToken, filePath, tab
         method: "GET",
         headers: {
             Authorization: `Bearer ${accessToken}`,
-            "Workbook-Session-Id": sessionId
+            "workbook-session-id": sessionId
         }
     });
     if (!response.ok) {
@@ -649,28 +649,78 @@ async function fetchExcelTableWithGraphAPI(sessionId, accessToken, filePath, tab
  * @param {string} accessToken - the access token
  * @returns {string}
  */
-async function filterExcelTableWithGraphAPI(filePath, tableName, columnName, values, sessionId, accessToken) {
+async function filterExcelTableWithGraphAPI(filePath, tableName, columnName, values, sessionId, accessToken, onValues = true) {
     if (!accessToken || !sessionId)
         return;
     // Step 3: Apply filter using the column name
     const filterUrl = `${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/columns/${columnName}/filter/apply`;
+    let body;
+    if (onValues)
+        body = {
+            criteria: {
+                filterOn: "values",
+                values: values,
+            }
+        };
+    else
+        body = {
+            criteria: {
+                filterOn: "Custom",
+                criterion1: values[0],
+                operator: "And",
+                criterion2: values[1] || null
+            }
+        };
+    const filterResponse = await fetch(filterUrl, {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+            "workbook-session-id": sessionId
+        },
+        body: JSON.stringify(body)
+    });
+    if (filterResponse.ok) {
+        console.log(`Filter applied to column ${columnName} successfully!`);
+    }
+    else {
+        alert(`Error applying filter: ${await filterResponse.text()}`);
+    }
+}
+/**
+ * Filters an Excel table column based on the values
+ * @param {string} filePath - the full path and file name of the Excel workbook
+ * @param {string} tableName - the name of the table that will be filtered
+ * @param {[string, boolean]} columns - each element contains the name of the column and whether it will be sorted ascending or descending
+ * @param {string} sessionId - the id of the current Excel file session
+ * @param {string} accessToken - the access token
+ * @returns {string}
+ */
+async function sortExcelTableWithGraphAPI(filePath, tableName, columns, sessionId, accessToken) {
+    if (!accessToken || !sessionId)
+        return;
+    // Step 3: Apply filter using the column name
+    const filterUrl = `${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/sort/apply`;
+    const fields = columns.map(([name, ascending]) => {
+        return {
+            key: name,
+            ascending: ascending
+        };
+    });
     const body = {
-        criteria: {
-            filterOn: "values",
-            values: values,
-        }
+        fields: fields
     };
     const filterResponse = await fetch(filterUrl, {
         method: "POST",
         headers: {
             "Authorization": `Bearer ${accessToken}`,
             "Content-Type": "application/json",
-            "Workbook-Session-Id": sessionId
+            "workbook-session-id": sessionId
         },
         body: JSON.stringify(body)
     });
     if (filterResponse.ok) {
-        console.log(`Filter applied to column ${columnName} successfully!`);
+        console.log(`Filter applied to columns ${columns.map(([col, asc]) => col).join(' & ')} successfully!`);
     }
     else {
         alert(`Error applying filter: ${await filterResponse.text()}`);
@@ -694,7 +744,7 @@ async function getVisibleCellsWithGraphAPI(filePath, tableName, sessionId, acces
         headers: {
             "Authorization": `Bearer ${accessToken}`,
             "Content-Type": "application/json",
-            "Workbook-Session-Id": sessionId
+            "workbook-session-id": sessionId
         },
     });
     if (response.ok) {
@@ -719,7 +769,7 @@ async function clearFilterExcelTableGraphAPI(filePath, tableName, sessionId, acc
         headers: {
             "Authorization": `Bearer ${accessToken}`,
             "Content-Type": "application/json",
-            "Workbook-Session-Id": sessionId,
+            "workbook-session-id": sessionId,
         }
     });
 }
@@ -758,6 +808,38 @@ async function uploadFileToOneDriveWithGraphAPI(blob, filePath, accessToken) {
     response.ok ? alert('succefully uploaded the new file') : console.log('failed to upload the file to onedrive error = ', await response.json());
 }
 ;
+/**
+ * Sends a POST request to edit a file using graph API
+ * @param {string} url - The url of the file to be edited
+ * @param {string} accessToken - the accessToken
+ * @param {string} sessionId - the session ID
+ * @param {string} body - the body of the request
+ * @param {string} filePath - If provided the session will be closed if the request fails
+ * @returns {string | void} - The response from the server, if successful or an alert message in case of an error
+ */
+async function POSTRequestWithGraphAPI(url, accessToken, sessionId, body, filePath) {
+    if (!url || !accessToken || !sessionId)
+        return;
+    const response = await fetch(url, {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+            "workbook-session-id": sessionId,
+        },
+        body: body
+    });
+    if (response.ok) {
+        console.log("Row added successfully!");
+        return await response.json();
+    }
+    else {
+        alert(`Error adding row: ${await response.text()}`);
+        if (filePath)
+            await closeFileSession(sessionId, filePath, accessToken);
+        throw new Error(`Error adding row: ${await response.text()}`);
+    }
+}
 /**
  * Returns the Word file name by which the newly issued invoice will be saved on OneDrive
  * @param {string} clientName - The name of the client for which the invoice will be issued
