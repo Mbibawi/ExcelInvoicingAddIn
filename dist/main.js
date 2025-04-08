@@ -588,19 +588,9 @@ async function createFileCession(filePath, accessToken, persist = false) {
  * Closes the current Excel file session
  */
 async function closeFileSession(sessionId, filePath, accessToken) {
-    const response = await fetch(`${GRAPH_API_BASE_URL}${filePath}:/workbook/closeSession`, {
-        method: "POST",
-        headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-            "workbook-session-id": sessionId,
-        },
-    });
-    if (!response.ok) {
-        alert(await response.text());
-        throw new Error("Failed to close workbook session");
-    }
-    ;
+    const resp = await POSTRequestWithGraphAPI(`${GRAPH_API_BASE_URL}${filePath}:/workbook/closeSession`, accessToken, sessionId, '', 'Error closing the session');
+    if (resp)
+        console.log(`The session was closed successfully! ${resp}`);
 }
 /**
  * Returns all the rows of an Excel table in a workbook stored on OneDrive, using the Graph API
@@ -644,7 +634,7 @@ async function fetchExcelTableWithGraphAPI(sessionId, accessToken, filePath, tab
  * @param {string} filePath - the full path and file name of the Excel workbook
  * @param {string} tableName - the name of the table that will be filtered
  * @param {string} columnName - the name of the column that will be filtered
- * @param {string[]} values - the values based on which the column will be filtered
+ * @param {string[]|number[]|boolean[]} values - the values based on which the column will be filtered
  * @param {string} sessionId - the id of the current Excel file session
  * @param {string} accessToken - the access token
  * @returns {string}
@@ -657,41 +647,29 @@ async function filterExcelTableWithGraphAPI(filePath, tableName, columnName, val
     let body;
     if (onValues)
         body = {
-            criteria: {
-                filterOn: "values",
-                values: values,
+            "criteria": {
+                "filterOn": "values",
+                "values": values,
             }
         };
     else
         body = {
-            criteria: {
-                filterOn: "Custom",
-                criterion1: values[0],
-                operator: "And",
-                criterion2: values[1] || null
+            "criteria": {
+                "filterOn": "custom",
+                "criterion1": values[0],
+                "criterion2": values[1] || null,
+                "operator": "And",
             }
         };
-    const filterResponse = await fetch(filterUrl, {
-        method: "POST",
-        headers: {
-            "Authorization": `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-            "workbook-session-id": sessionId
-        },
-        body: JSON.stringify(body)
-    });
-    if (filterResponse.ok) {
-        console.log(`Filter applied to column ${columnName} successfully!`);
-    }
-    else {
-        alert(`Error applying filter: ${await filterResponse.text()}`);
-    }
+    const resp = await POSTRequestWithGraphAPI(filterUrl, accessToken, sessionId, JSON.stringify(body), 'Error applying filter');
+    if (resp)
+        console.log(`Filter successfully applied to column ${columnName}!`);
 }
 /**
  * Filters an Excel table column based on the values
  * @param {string} filePath - the full path and file name of the Excel workbook
  * @param {string} tableName - the name of the table that will be filtered
- * @param {[string, boolean]} columns - each element contains the name of the column and whether it will be sorted ascending or descending
+ * @param {[string, boolean][]} columns - each element contains the name of the column and whether it will be sorted ascending or descending
  * @param {string} sessionId - the id of the current Excel file session
  * @param {string} accessToken - the access token
  * @returns {string}
@@ -710,21 +688,9 @@ async function sortExcelTableWithGraphAPI(filePath, tableName, columns, sessionI
     const body = {
         fields: fields
     };
-    const filterResponse = await fetch(filterUrl, {
-        method: "POST",
-        headers: {
-            "Authorization": `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-            "workbook-session-id": sessionId
-        },
-        body: JSON.stringify(body)
-    });
-    if (filterResponse.ok) {
-        console.log(`Filter applied to columns ${columns.map(([col, asc]) => col).join(' & ')} successfully!`);
-    }
-    else {
-        alert(`Error applying filter: ${await filterResponse.text()}`);
-    }
+    const resp = await POSTRequestWithGraphAPI(filterUrl, accessToken, sessionId, JSON.stringify(body), "Error sorting table");
+    if (resp)
+        console.log(`Table successfully sorted according to columns criteria: ${columns.map(([col, asc]) => col).join(' & ')}!`);
 }
 /**
  * Returns the visible cells of a filtered Excel table using Graph API
@@ -814,10 +780,11 @@ async function uploadFileToOneDriveWithGraphAPI(blob, filePath, accessToken) {
  * @param {string} accessToken - the accessToken
  * @param {string} sessionId - the session ID
  * @param {string} body - the body of the request
+ * @param {string} message - The alert that will be displayed if the request fails
  * @param {string} filePath - If provided the session will be closed if the request fails
  * @returns {string | void} - The response from the server, if successful or an alert message in case of an error
  */
-async function POSTRequestWithGraphAPI(url, accessToken, sessionId, body, filePath) {
+async function POSTRequestWithGraphAPI(url, accessToken, sessionId, body, message, filePath) {
     if (!url || !accessToken || !sessionId)
         return;
     const response = await fetch(url, {
@@ -830,14 +797,14 @@ async function POSTRequestWithGraphAPI(url, accessToken, sessionId, body, filePa
         body: body
     });
     if (response.ok) {
-        console.log("Row added successfully!");
         return await response.json();
     }
     else {
-        alert(`Error adding row: ${await response.text()}`);
+        message = `${message}: ${await response.text()}`;
+        alert(message);
         if (filePath)
             await closeFileSession(sessionId, filePath, accessToken);
-        throw new Error(`Error adding row: ${await response.text()}`);
+        throw new Error(message);
     }
 }
 /**

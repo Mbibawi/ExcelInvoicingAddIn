@@ -900,6 +900,7 @@ async function addRowToExcelTableWithGraphAPI(row, index, filePath, tableName, a
     await addRow();
     if (filter)
         await filterTable();
+    await sortExcelTableWithGraphAPI(filePath, tableName, [[tableTitles[3], true]], sessionId, accessToken); //We sort the table by the first column (the date column)
     const visible = await getVisibleCellsWithGraphAPI(filePath, tableName, sessionId, accessToken);
     await closeFileSession(sessionId, filePath, accessToken);
     return visible;
@@ -909,7 +910,9 @@ async function addRowToExcelTableWithGraphAPI(row, index, filePath, tableName, a
             index: index,
             values: [row],
         };
-        await POSTRequestWithGraphAPI(url, accessToken, sessionId, JSON.stringify(body), filePath);
+        const resp = await POSTRequestWithGraphAPI(url, accessToken, sessionId, JSON.stringify(body), "Error adding row", filePath);
+        if (resp)
+            console.log("Row added successfully!");
     }
     async function filterTable() {
         if (!filter)
