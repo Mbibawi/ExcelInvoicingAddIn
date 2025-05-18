@@ -241,7 +241,7 @@ async function startReporting() {
 
         const fields: [string, boolean][] = sorting.map(column => [titles[column], true]);
 
-        if (sorting) await sortExcelTableWithGraphAPI(workbookPath, tableName, fields, sessionId, accessToken);//Sorting the table in ascending order
+        if (sorting) await sortExcelTableWithGraphAPI(workbookPath, tableName, fields, true, sessionId, accessToken);//Sorting the table in ascending order
 
         const visibleCells = await getVisibleCellsWithGraphAPI(workbookPath, tableName, sessionId, accessToken) as string[][];
 

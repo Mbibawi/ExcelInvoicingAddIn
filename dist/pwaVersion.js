@@ -41,7 +41,7 @@ async function addNewEntry(add = false, row) {
     accessToken = await getAccessToken() || '';
     if (!accessToken)
         return alert('The access token is missing. Check the console.log for more details');
-    (async function showForm() {
+    (async function showAddNewForm() {
         if (add)
             return;
         document.querySelector('table')?.remove();
@@ -59,10 +59,8 @@ async function addNewEntry(add = false, row) {
                 throw new Error('There was an issue with the creation of the file cession. Check the console.log for more details');
             if (!workbookPath || !tableName)
                 throw new Error('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
-            if (!tableTitles)
+            if (!tableTitles || !TableRows)
                 tableTitles = await setLocalStorageTitles(sessionId);
-            if (!TableRows)
-                TableRows = await fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName, true);
             insertAddForm(tableTitles);
             await closeFileSession(sessionId, workbookPath, accessToken);
             spinner(false); //We hide the spinner
@@ -314,7 +312,7 @@ async function invoice(issue = false) {
     accessToken = await getAccessToken() || '';
     if (!accessToken)
         return alert('The access token is missing. Check the console.log for more details');
-    (async function showForm() {
+    (async function showInvoiceForm() {
         if (issue)
             return;
         if (!workbookPath || !tableName)
@@ -332,7 +330,7 @@ async function invoice(issue = false) {
             const sessionId = await createFileCession(workbookPath, accessToken) || '';
             if (!sessionId)
                 throw new Error('There was an issue with the creation of the file cession. Check the console.log for more details');
-            if (!tableTitles)
+            if (!tableTitles || !TableRows)
                 tableTitles = await setLocalStorageTitles(sessionId);
             insertInvoiceForm(tableTitles);
             await closeFileSession(sessionId, workbookPath, accessToken);
@@ -900,7 +898,7 @@ async function addRowToExcelTableWithGraphAPI(row, index, filePath, tableName, a
     await addRow();
     if (filter)
         await filterTable();
-    await sortExcelTableWithGraphAPI(filePath, tableName, [[tableTitles[3], true]], sessionId, accessToken); //We sort the table by the first column (the date column)
+    await sortExcelTableWithGraphAPI(filePath, tableName, [[tableTitles[3], true]], false, sessionId, accessToken); //We sort the table by the first column (the date column)
     const visible = await getVisibleCellsWithGraphAPI(filePath, tableName, sessionId, accessToken);
     await closeFileSession(sessionId, filePath, accessToken);
     return visible;

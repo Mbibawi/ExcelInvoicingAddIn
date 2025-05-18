@@ -760,7 +760,7 @@ async function filterExcelTableWithGraphAPI(filePath: string, tableName: string,
  * @param {string} accessToken - the access token
  * @returns {string} 
  */
-async function sortExcelTableWithGraphAPI(filePath: string, tableName: string, columns: [string, boolean][], sessionId: string, accessToken: string) {
+async function sortExcelTableWithGraphAPI(filePath: string, tableName: string, columns: [string, boolean][], matchCase: boolean, sessionId: string, accessToken: string) {
   if (!accessToken || !sessionId) return;
 
   // Step 3: Apply filter using the column name
@@ -774,7 +774,8 @@ async function sortExcelTableWithGraphAPI(filePath: string, tableName: string, c
   });
 
   const body = {
-    fields: fields
+    fields: fields,
+    "matchCase": matchCase
   }
   
   const resp = await POSTRequestWithGraphAPI(filterUrl, accessToken, sessionId, JSON.stringify(body), "Error sorting table")
@@ -896,7 +897,7 @@ async function POSTRequestWithGraphAPI(url: string, accessToken: string, session
   });
 
   if (response.ok) {
-      return await response.json();
+      return await response.json() || response.status;
   } else {
     message = `${message}: ${await response.text()}`;
     alert(message);

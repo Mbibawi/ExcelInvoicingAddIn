@@ -220,7 +220,7 @@ async function startReporting() {
         await filterExcelTableWithGraphAPI(workbookPath, tableName, titles[Columns.ReceptionDate], [`<=${until}`], sessionId, accessToken, false); //Filtering the table by the date of reception before the provided date
         const fields = sorting.map(column => [titles[column], true]);
         if (sorting)
-            await sortExcelTableWithGraphAPI(workbookPath, tableName, fields, sessionId, accessToken); //Sorting the table in ascending order
+            await sortExcelTableWithGraphAPI(workbookPath, tableName, fields, true, sessionId, accessToken); //Sorting the table in ascending order
         const visibleCells = await getVisibleCellsWithGraphAPI(workbookPath, tableName, sessionId, accessToken);
         const checker = (row) => `${row[Columns.ReceiptNumber]}${row[Columns.ReceptionDate]}${row[Columns.RegisterNumber]}`;
         let visibleRows = visibleCells.slice(1);
