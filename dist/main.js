@@ -590,7 +590,7 @@ async function createFileCession(filePath, accessToken, persist = false) {
 async function closeFileSession(sessionId, filePath, accessToken) {
     const resp = await POSTRequestWithGraphAPI(`${GRAPH_API_BASE_URL}${filePath}:/workbook/closeSession`, accessToken, sessionId, '', 'Error closing the session');
     if (resp)
-        console.log(`The session was closed successfully! ${resp}`);
+        console.log(`The session was closed successfully! ${await resp.text()}`);
 }
 /**
  * Returns all the rows of an Excel table in a workbook stored on OneDrive, using the Graph API
@@ -798,7 +798,7 @@ async function POSTRequestWithGraphAPI(url, accessToken, sessionId, body, messag
         body: body
     });
     if (response.ok) {
-        return await response.json() || response.status;
+        return response;
     }
     else {
         message = `${message}: ${await response.text()}`;

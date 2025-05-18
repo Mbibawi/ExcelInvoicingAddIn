@@ -671,7 +671,7 @@ async function createFileCession(filePath: string, accessToken: string, persist:
  */
 async function closeFileSession(sessionId: string, filePath: string, accessToken: string) {
   const resp = await POSTRequestWithGraphAPI(`${GRAPH_API_BASE_URL}${filePath}:/workbook/closeSession`, accessToken, sessionId, '', 'Error closing the session'); 
-  if(resp) console.log(`The session was closed successfully! ${resp}`)
+  if(resp) console.log(`The session was closed successfully! ${await resp.text()}`)
 
 }
 
@@ -897,7 +897,7 @@ async function POSTRequestWithGraphAPI(url: string, accessToken: string, session
   });
 
   if (response.ok) {
-      return await response.json() || response.status;
+   return response
   } else {
     message = `${message}: ${await response.text()}`;
     alert(message);
