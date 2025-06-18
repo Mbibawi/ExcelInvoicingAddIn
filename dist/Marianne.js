@@ -218,7 +218,7 @@ async function startReporting() {
         await clearFilterExcelTableGraphAPI(workbookPath, tableName, sessionId, accessToken);
         await filterExcelTableWithGraphAPI(workbookPath, tableName, titles[Columns.CurrrentStatus], values, sessionId, accessToken); //Filtering all the cases where the report has not been issued
         await filterExcelTableWithGraphAPI(workbookPath, tableName, titles[Columns.ReceptionDate], [`<=${until}`], sessionId, accessToken, false); //Filtering the table by the date of reception before the provided date
-        const fields = sorting.map(column => [titles[column], true]);
+        const fields = sorting.map(column => [column, true]);
         if (sorting)
             await sortExcelTableWithGraphAPI(workbookPath, tableName, fields, true, sessionId, accessToken); //Sorting the table in ascending order
         const visibleCells = await getVisibleCellsWithGraphAPI(workbookPath, tableName, sessionId, accessToken);

@@ -239,7 +239,7 @@ async function startReporting() {
 
         await filterExcelTableWithGraphAPI(workbookPath, tableName, titles[Columns.ReceptionDate], [`<=${until}`], sessionId, accessToken, false);//Filtering the table by the date of reception before the provided date
 
-        const fields: [string, boolean][] = sorting.map(column => [titles[column], true]);
+        const fields: [number, boolean][] = sorting.map(column => [column, true]);
 
         if (sorting) await sortExcelTableWithGraphAPI(workbookPath, tableName, fields, true, sessionId, accessToken);//Sorting the table in ascending order
 

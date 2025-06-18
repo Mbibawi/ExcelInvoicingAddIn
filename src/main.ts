@@ -760,15 +760,15 @@ async function filterExcelTableWithGraphAPI(filePath: string, tableName: string,
  * @param {string} accessToken - the access token
  * @returns {string} 
  */
-async function sortExcelTableWithGraphAPI(filePath: string, tableName: string, columns: [string, boolean][], matchCase: boolean, sessionId: string, accessToken: string) {
+async function sortExcelTableWithGraphAPI(filePath: string, tableName: string, columns: [number, boolean][], matchCase: boolean, sessionId: string, accessToken: string) {
   if (!accessToken || !sessionId) return;
 
   // Step 3: Apply filter using the column name
   const filterUrl = `${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/sort/apply`;
 
-  const fields = columns.map(([name, ascending]) => {
+  const fields = columns.map(([index, ascending]) => {
     return {
-      key: name,
+      key: index,
       ascending: ascending,
       sortOn: "value"
     }

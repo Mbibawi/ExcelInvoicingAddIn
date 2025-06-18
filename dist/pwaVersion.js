@@ -898,7 +898,7 @@ async function addRowToExcelTableWithGraphAPI(row, index, filePath, tableName, a
     await addRow();
     if (filter)
         await filterTable();
-    await sortExcelTableWithGraphAPI(filePath, tableName, [[tableTitles[3], true]], false, sessionId, accessToken); //We sort the table by the first column (the date column)
+    await sortExcelTableWithGraphAPI(filePath, tableName, [[3, true]], false, sessionId, accessToken); //We sort the table by the first column (the date column)
     const visible = await getVisibleCellsWithGraphAPI(filePath, tableName, sessionId, accessToken);
     await closeFileSession(sessionId, filePath, accessToken);
     return visible;

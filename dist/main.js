@@ -679,9 +679,9 @@ async function sortExcelTableWithGraphAPI(filePath, tableName, columns, matchCas
         return;
     // Step 3: Apply filter using the column name
     const filterUrl = `${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/sort/apply`;
-    const fields = columns.map(([name, ascending]) => {
+    const fields = columns.map(([index, ascending]) => {
         return {
-            key: name,
+            key: index,
             ascending: ascending,
             sortOn: "value"
         };
