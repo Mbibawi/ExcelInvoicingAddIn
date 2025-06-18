@@ -794,7 +794,7 @@ async function POSTRequestWithGraphAPI(url, accessToken, sessionId, body, messag
         headers: {
             "Authorization": `Bearer ${accessToken}`,
             "Content-Type": "application/json",
-            "workbook-session-id": sessionId,
+            "Workbook-Session-Id": sessionId,
         },
         body: body
     });
