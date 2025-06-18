@@ -682,7 +682,8 @@ async function sortExcelTableWithGraphAPI(filePath, tableName, columns, matchCas
     const fields = columns.map(([name, ascending]) => {
         return {
             key: name,
-            ascending: ascending
+            ascending: ascending,
+            sortOn: "value"
         };
     });
     const body = {
