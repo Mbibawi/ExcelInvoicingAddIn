@@ -206,7 +206,7 @@ async function addNewEntry(add = false, row) {
                 return stop('The invoice date is');
             const amount = getInputByIndex(inputs, colAmount);
             const rate = getInputByIndex(inputs, colRate)?.valueAsNumber || 0;
-            const debit = ['Honoraire', 'Débours/Dépens', 'Débours/Dépens non facturables', 'Rétrocession d\'honoraires', 'Charges déductibles', 'Remboursement', 'Remise', 'Avoir'].includes(nature); //We check if we need to change the value sign
+            const debit = ['Honoraire', 'Débours/Dépens', 'Débours/Dépens non facturables', 'Rétrocession d\'honoraires', 'Charges déductibles'].includes(nature); //We check if we need to change the value sign
             const row = inputs.map((input, index) => getInputValue(index)); //!CAUTION: The html inputs are not arranged according to their dataset.index values. If we follow their order, some values will be assigned to the wrong column of the Excel table. That's why we do not pass the input itself or the dataset.index of the input to getInputValue(), but instead we pass the index of the column for which we want to retrieve the value from the relevant input.
             if (missing())
                 return stop('Some of the required fields are');
@@ -941,7 +941,9 @@ async function createAndUploadXmlDocument(accessToken, templatePath, filePath, l
             return ctrls.find(control => getXMLElements(control, "alias", 0)?.getAttributeNS(schema, 'val') === title);
         }
         function editXMLContentControl(control, text) {
-            if (!text)
+            if (text === "DELETECONTENTECONTROL")
+                control.remove();
+            else if (!text)
                 text = "NO VALUE WAS PROVIDED";
             const sdtContent = getXMLElements(control, "sdtContent", 0);
             if (!sdtContent)
@@ -950,7 +952,7 @@ async function createAndUploadXmlDocument(accessToken, templatePath, filePath, l
             if (!paragTemplate)
                 return console.log('No template paragraph or run were found !');
             setTextLanguage(paragTemplate); //We amend the language element to the "w:pPr" or "r:pPr" child elements of paragTemplate
-            text.split('\n')
+            text?.split('\n')
                 .forEach((parag, index) => editParagraph(parag, index));
             function editParagraph(parag, index) {
                 let textElement;

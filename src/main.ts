@@ -641,8 +641,8 @@ function getContentControlsValues(invoice: { number: string, clientName: string,
       text: { FR: 'TVA', EN: 'VAT' }[invoice.lang] || '',
     },
     disclaimer: {
-      title: 'LabelDisclamer' + ['French', 'English'].find(el => !el.toUpperCase().startsWith(invoice.lang)) || 'French',
-      text: '',
+      title: 'LabelDisclamer' + ['French', 'English'].find(el => !el.toUpperCase().startsWith(invoice.lang)) || 'English',
+      text: 'DELETECONTENTECONTROL',//!by setting text = "DELETECONTENTECONTROL", the contentControl will be deleted
     },
     clientName: {
       title: 'RTClient',
