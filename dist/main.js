@@ -459,13 +459,15 @@ function getRowsData(tableRows, discount = 0, lang) {
             if (!newRow)
                 return;
             const [amount, vat] = totalFees.map(amount => -amount * ((discount) / 100)); //!We add the disount and VAT amounts in minus 
+            const descr = prompt('Provide a description for the discount', 'Remise sur les honoraires') || '';
             const date = getISODate(new Date());
             const cells = [
                 [colNature, 'Remise'],
                 [colAmount, amount],
                 [colVAT, vat],
                 [colDate, date],
-                [colDate + 1, date]
+                [colDate + 1, date],
+                [colDescr, descr]
             ];
             cells.forEach(([col, value]) => newRow[col] = value);
             addNewEntry(true, newRow);
