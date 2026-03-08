@@ -1,7 +1,8 @@
 const GRAPH_API_BASE_URL = "https://graph.microsoft.com/v1.0/me/drive/root:/";
-if (!localStorage.excelPath)
+if (!localStorage.accountsPath)
   localStorage.excelPath = prompt('Please provide the OneDrive full path (including the file name and extension) for the Excel Workbook', "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm");
-const workbookPath = localStorage.excelPath || alert('The excel Workbook path is not valid');
+const accountsWorkbookPath = localStorage.excelPath || alert('The excel Workbook path is not valid');
+
 
 if (!localStorage.templatePath) localStorage.templatePath = prompt('Please provide the OneDrive full path (including the file name and extension) for the Word template', "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/FactureTEMPLATE [NE PAS MODIFIDER].docx");
 
@@ -269,9 +270,29 @@ async function showForm(id?: string) {
  * 
 */
 
+/**
+ *
+ * @param select 
+ * @param uniqueValues 
+ * @param  {boolean} multiple - determines whether we will add to the list an element containing all the options. Its defalult value is "false"
+ */
+function populateSelectElement(select: HTMLInputElement, uniqueValues: string[], multiple: boolean = false) {
+  const list = createDataList(select.id, uniqueValues, multiple);
+  if (!list) return;
+  select.setAttribute('list', list.id);
+  select.autocomplete = "on";
+  return list
+}
+/**
+ * 
+ * @param id 
+ * @param uniqueValues 
+ * @param multiple 
+ * @returns 
+ */
 function createDataList(id: string, uniqueValues: string[], multiple: boolean = false) {
   //const uniqueValues = Array.from(new Set(visible.map(row => row[i])));
-  if (!id || !uniqueValues || uniqueValues.length < 1) return;
+  if (!id || !uniqueValues?.length) return;
   id += 's';
 
   // Create a new datalist element
@@ -339,7 +360,7 @@ function getArray(value: string): string[] {
   return array.filter((el) => el);
 }
 
-async function generateInvoice() {
+async function _generateInvoice() {
   const inputs = Array.from(document.getElementsByName('input')) as HTMLInputElement[];
   if (!inputs) return;
   const lang = inputs.find(input => input.type === 'checkbox' && input.checked === true)?.id.slice(0, 3).toUpperCase() || 'FR';
@@ -357,193 +378,194 @@ async function generateInvoice() {
   };
 
   const filePath = `${destinationFolder}/${getInvoiceFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`
-  const [rows, totals] = getRowsData(visible, discount, lang);
-  await createAndUploadXmlDocument(await getAccessToken() || '', templatePath, filePath, lang, 'Invoice', rows, getContentControlsValues(invoiceDetails, new Date()));
+  const rows = getRowsData(visible, discount, lang);
+  await createAndUploadXmlDocument(await getAccessToken() || '', templatePath, filePath, lang, 'Invoice', rows[0], getContentControlsValues(invoiceDetails, new Date()));
 
 }
 /**
  * Returns a string[][] representing the rows to be inserted in the Word table containing the invoice details
- * @param {string[][]} tableData - The filtered Excel rows from which the data will be extracted and put in the required format 
+ * @param {string[][]} tableRows - The filtered Excel rows from which the data will be extracted and put in the required format 
  * @param {string} lang - The language in which the invoice will issued
  * @returns {string[][]} - the rows to be added to the table. Each row has 4 elements
  */
-function getRowsData(tableData: any[][], discount: number, lang: string): [string[][], string[]] {
-  type lable = {
-    FR: string;
-    EN: string;
-    nature: string
-  }
+function getRowsData(tableRows: any[][], discount: number = 0, lang: string): [string[][], string[]] {
 
   const labels: { [index: string]: lable } = {
     totalFees: {
-      nature: 'Honoraire',
+      nature: ['Honoraire'],
       FR: 'Total honoraires',
       EN: 'Total Fees'
     },
     totalExpenses: {
-      nature: 'Débours/Dépens, Rétrocession d\'honoraires',
+      nature: ['Débours/Dépens', 'Rétrocession d\'honoraires', 'Débours/Dépens - Ackad Law Office', 'Charges déductibles'],
       FR: 'Total débours et frais',
       EN: 'Total Expenses'
     },
     totalPayments: {
-      nature: 'Provision/Règlement, Réduction',
+      nature: ['Provision/Règlement'],
       FR: 'Total provisions reçues',
-      EN: 'Total Payments'
+      EN: 'Total Downpayments'
     },
     totalTimeSpent: {
-      nature: '',
+      nature: [],
       FR: 'Total des heures facturables (hors prestations facturées au forfait) ',
       EN: 'Total billable hours (other than lump-sum billed services)'
     },
     totalDue: {
-      nature: '',
+      nature: [],
       FR: 'Montant dû',
       EN: 'Total Due'
     },
     totalReinbursement: {
-      nature: '',
+      nature: [],
       FR: 'A rembourser',
-      EN: 'To reimburse'
+      EN: 'Reimbursement'
     },
-    FeesDeduction: {
-      nature: '',
-      FR: 'Remise',
+    totalDeduction: {
+      nature: ['Remise'],
+      FR: 'Remise sur honoraires',
       EN: 'Discount'
     },
     totalFeesAfterDeduction: {
-      nature: '',
-      FR: 'Total honoraires après remise',
+      nature: [],
+      FR: 'Total honoraires après réduction',
       EN: 'Total fee after discount'
     },
     discountDescription: {
-      nature: '',
-      FR: `${discount.toString()}% de remise sur les honoraires`,
-      EN: `${discount.toString()}% discount on accrued fees`
+      nature: [],
+      FR: `XXX% de remise sur les honoraires`,
+      EN: `XXX% discount on accrued fees`
     },
     hourlyBilled: {
-      nature: '',
+      nature: [],
       FR: 'facturation au temps passé\u00A0:',
       EN: 'hourly billed:',
     },
     hourlyRate: {
-      nature: '',
+      nature: [],
       FR: 'au taux horaire de\u00A0:',
       EN: 'at an hourly rate of:',
     },
     decimal: {
-      nature: '',
+      nature: [],
       FR: ',',
       EN: '.'
     },
+    bankHoler: {
+      nature: [],
+      FR: 'Titulaire du compte',
+      EN: 'Account holder'
+    },
+    bankName: {
+      nature: [],
+      FR: 'Banque',
+      EN: 'Bank'
+    },
+    bankAdress: {
+      nature: [],
+      FR: 'Adresse',
+      EN: 'Adress'
+    },
   }
-  const amount = 9, vat = 10, hours = 7, rate = 8, nature = 2, descr = 14;//Indexes of the Excel table columns from which we extract the date 
+  const totalsLabels: string[] = [];
+  const colDate = 3, colAmount = 9, colVAT = 10, colHours = 7, colRate = 8, colNature = 2, colDescr = 14;//Indexes of the Excel table columns from which we extract the date 
 
-  const data: string[][] = tableData.map(row => {
-    const date = dateFromExcel(Number(row[3]));
-    const time = getTimeSpent(Number(row[hours]));
+  const wordRows: string[][] = tableRows.map(row => {
+    const date = dateFromExcel(Number(row[colDate]));
+    const time = getTimeSpent(Number(row[colHours]));
 
-    let description = `${String(row[nature])} : ${String(row[descr])}`;//Column Nature + Column Description;
+    let description = `${String(row[colNature])} : ${String(row[colDescr])}`;//Column Nature + Column Description;
 
     //If the billable hours are > 0, we add to the description: time spent and hourly rate
     if (time)
-      description += ` (${labels.hourlyBilled[lang as keyof lable]} ${time}, ${labels.hourlyRate[lang as keyof lable]} ${Math.abs(row[rate]).toString()}\u00A0€).`;
+      description += ` (${labels.hourlyBilled[lang as keyof lable]} ${time}, ${labels.hourlyRate[lang as keyof lable]} ${Math.abs(row[colRate]).toString()}\u00A0€).`;
 
 
     const rowValues: string[] = [
       [date.getDate(), date.getMonth() + 1, date.getFullYear()].map(el => el.toString().padStart(2, '0')).join('/'),//Column Date
       description,
-      getAmountString(row[amount] * -1), //Column "Amount": we inverse the +/- sign for all the values 
-      getAmountString(Math.abs(row[vat])), //Column VAT: always a positive value
+      getAmountString(row[colAmount] * -1), //Column "Amount": we inverse the +/- sign for all the values 
+      getAmountString(Math.abs(row[colVAT])), //Column VAT: always a positive value
     ];
     return rowValues;
   });
 
   pushTotalsRows();
-
-  return [data, Object.values(labels).map(value => value[lang as keyof lable])];
+  return [wordRows, totalsLabels];
 
   function pushTotalsRows() {
     //Adding rows for the totals of the different categories and amounts
-    const totalFee = getTotals(amount, labels.totalFees.nature);
-    const totalFeeVAT = getTotals(vat, labels.totalFees.nature);
-    const totalPayments = getTotals(amount, labels.totalPayments.nature);
-    const totalPaymentsVAT = getTotals(vat, labels.totalPayments.nature);
-    const totalExpenses = getTotals(amount, labels.totalExpenses.nature);
-    const totalExpensesVAT = getTotals(vat, labels.totalExpenses.nature);
-    const totalTimeSpent = getTotals(hours, null);//by passing the nature = null, we do not filter the "Total Time" column by any crieteria. We will get the sum of all the column.
-    const totalDue = totalFee + totalExpenses + totalPayments;
-    const totalDueVAT = totalFeeVAT + totalExpensesVAT;
-    const insert = (sum: number) => Math.abs(sum) > 0;
+    const total = (nature: string[]) => [colAmount, colVAT].map(col => sumColumn(col, nature)) as values;//!It always returns the absolute values of the total amount and the total VAT
+    const totalFees = total(labels.totalFees.nature);
+    const feesDeductions = total(labels.totalDeduction.nature);
+    const feesDiscount = totalFees.map(amount => -amount * (discount / 100));//This is an addition discount applied when the invoice is issued. The Excel entries may already include other discounts registered as "Remise"
+    feesDeductions.forEach((amount, index) => amount += feesDiscount[index]);//This is the total of the deductions from the fees: the "Remise" deductions, and the additional discount added at the time the invoice is issued
+    const netFees = totalFees.map((amount, index) => amount - feesDeductions[index]) as values;
+    const totalPayments = total(labels.totalPayments.nature);
+    const totalExpenses = total(labels.totalExpenses.nature);
+    const totalTimeSpent: values = [sumColumn(colHours), NaN];//by omitting to pass the "natures" argument to sumColumn, we do not filter the "Total Time" column by any crieteria. We will get the sum of all the column. since the VAT = NaN, the VAT cell will end up empty.
+    const totalDue = netFees.map((amount, index) => amount + totalExpenses[index] - totalPayments[index]) as values;
 
-    (function subTotalsRows() {
-      push(insert(totalFee), labels.totalFees, totalFee, totalFeeVAT);
-      push(insert(totalExpenses), labels.totalExpenses, totalExpenses, totalExpensesVAT);
-      push(insert(totalPayments), labels.totalPayments, Math.abs(totalPayments), totalPaymentsVAT);
-      push(insert(totalTimeSpent), labels.totalTimeSpent, Math.abs(totalTimeSpent), NaN);//!We don't pass the vat argument in order to get the corresponding cell of the Word table empty
+    (function pushTotalsRows() {
+      pushRow(labels.totalFees, totalFees);
+      pushRow(labels.totalDeduction, feesDeductions, !feesDeductions[0]);
+      pushRow(labels.totalFeesAfterDeduction, netFees, !(netFees[0] < totalFees[0]));//We don't push this row if the there is no deduction applied on the fees or if the deduction is = 0
+      pushRow(labels.totalTimeSpent, totalTimeSpent, !totalTimeSpent[0]);
+      pushRow(labels.totalExpenses, totalExpenses, !totalExpenses[0]);
+      pushRow(labels.totalPayments, totalPayments, !totalPayments[0]);
+      totalDue[0] < 0 ? pushRow(labels.totalReinbursement, totalDue) : pushRow(labels.totalDue, totalDue)
     })();
 
-    (function dueRow() {
-      if (!discount) return totalDueRow(totalDue, totalDueVAT);//If there is no discount to be applied on the fees, we return the "Total Due" row;
 
-      const feeDiscount = (fee: number) => fee * (discount / 100);//returns the amount to be deducted from the fees or from the VAT on the fees as a negative number
-      const deduction = feeDiscount(totalFee);
-      const deductionVAT = feeDiscount(totalFeeVAT);
+    (function addDiscountRowToExcel() {
+      if (!discount) return;
+      const newRow = tableRows
+        .find(row => row[colNature] === 'Honoraire');
+      if (!newRow) return;
+      const [amount, vat] = totalFees.map(amount => -amount * ((discount) / 100));//!We add the disount and VAT amounts in minus 
+      const date = getISODate(new Date());
+      const cells: [number, string | number][] = [
+        [colNature, 'Remise'],
+        [colAmount, amount],
+        [colVAT, vat],
+        [colDate, date],
+        [colDate + 1, date]
+      ];
 
-      if (!insert(deduction)) return totalDueRow(totalDue, totalDueVAT);//If the total fee is 0 for whatever reason, it means that deduction will be = 0. In such case we return the "Total Due" row as if there were no deduction applied.
-
-      push(true, labels.FeesDeduction, deduction * -1, deductionVAT * -1, labels.discountDescription);//We add a description for this row. This is the amount that will be deducted from the fee and from the fee pplied on the fee
-
-      push(true, labels.totalFeesAfterDeduction, (totalFee - deduction), (totalFeeVAT - deductionVAT));//This is the amount that will be deducted from the fee and from the fee pplied on the fee. 
-
-      totalDueRow(totalDue - deduction, totalDueVAT - deductionVAT);
-      addDiscountRowToExcel(deduction, deductionVAT)
-    })();
-
-    function addDiscountRowToExcel(amount: number, vat: number) {
-      const newRow = tableData
-        .find(row => row[2] === 'Honoraire')
-        ?.map((cell, index) => {
-          if ([0, 1, 11, 15].includes(index))
-            return cell
-          else if (index === 2) return 'Réduction';
-          else if ([3, 4].includes(index)) return getISODate(new Date());
-          else if (index === 9) return amount;//When the amount represents a fee or expense billed to the client,  it is a negative value. That's why in this case we will add it as a positive value in order to deduct the it from the already billed fees 
-          else if (index === 10) return vat * -1;//VAT is usually added as a positive value, but since we want to deduct this amount from the total VAT, we will add it as a negative value
-          else undefined
-        });
+      cells.forEach(([col, value]) => newRow[col] = value);
 
       addNewEntry(true, newRow);
+    })();
 
-    }
-
-    function totalDueRow(total: number, vat: number) {
-      total >= 0 ? push(true, labels.totalDue, total, vat)
-        : push(true, labels.totalReinbursement, total, vat)
-    }
-
-    function push(insert: boolean, label: lable, amount: number, vat: number, description?: lable) {
-      if (!insert) return;
-      data.push(
+    function pushRow(rowLable: lable, [amount, vat]: values, ignore: boolean = false) {
+      if (ignore || !amount || isNaN(amount)) return;
+      const lable = rowLable?.[lang as keyof lable] as string || '';
+      if (lable) totalsLabels.push(lable);
+      wordRows.push(
         [
-          label?.[lang as keyof lable] || '',
-          description?.[lang as keyof lable] || '',
-          label === labels.totalTimeSpent ? getTimeSpent(amount) : getAmountString(amount),
-          getAmountString(Math.abs(vat)), //Column VAT: always a positive value
+          lable,
+          '',
+          rowLable === labels.totalTimeSpent ? getTimeSpent(amount) : getAmountString(amount),
+          getAmountString(vat)//VAT is always a positive value
         ]);
-
     }
-
-    function getTotals(index: number, nature: string | null) {
-      const total =
-        tableData.filter(row => nature ? nature.split(', ').includes(row[2]) : row === row)
-          .map(row => Number(row[index]));
-      let sum = 0;
-      for (let i = 0; i < total.length; i++) {
-        sum += total[i]
-      }
-      return sum * -1;//We reverse the sign of any other amount
+    /**
+     * 
+     * @param {number} col - the index of the column to be summed 
+     * @param {string[] | null} natures - the natures of the rows to be included in the sum. If null, we include all the rows regardless of their nature
+     * @returns 
+     */
+    function sumColumn(col: number, natures: string[] = []): number {
+      let rows = tableRows;
+      if (natures.length) rows = tableRows.filter(row => natures.includes(row[colNature]));//If natures is specified, we filter the rows to include only the ones whose nature is included in the natures array 
+      return Math.abs(sumArray(rows.map(row => Number(row[col]))));//!We return the absolute value of the total
     }
+  }
 
+  function sumArray(values: number[]) {
+    let sum = 0;
+    values.forEach(value => sum += value);
+    return sum
   }
 
   function getAmountString(value: number): string {
@@ -643,7 +665,7 @@ function getUniqueValues(index: number, array: any[][]): any[] {
  * Creates a new Graph API File session and returns its id
  * @returns 
  */
-async function createFileCession(filePath: string, accessToken: string, persist: Boolean = false) {
+async function createFileSession(filePath: string, accessToken: string, persist: Boolean = false) {
   const response = await fetch(
     `${GRAPH_API_BASE_URL}${filePath}:/workbook/createSession`,
     {
@@ -670,28 +692,44 @@ async function createFileCession(filePath: string, accessToken: string, persist:
  * Closes the current Excel file session
  */
 async function closeFileSession(sessionId: string, filePath: string, accessToken: string) {
-  const resp = await POSTRequestWithGraphAPI(`${GRAPH_API_BASE_URL}${filePath}:/workbook/closeSession`, accessToken, sessionId, '', 'Error closing the session'); 
-  if(resp) console.log(`The session was closed successfully! ${await resp.text()}`)
+  const resp = await POSTRequestWithGraphAPI(`${GRAPH_API_BASE_URL}${filePath}:/workbook/closeSession`, accessToken, sessionId, '', 'Error closing the session');
+  if (resp) console.log(`The session was closed successfully! ${await resp.text()}`)
+
+}
+/**
+ * retries the values of the rows of an Excel table 
+  * @param {string} accessToken - the access token
+ * @param {string} workbookPath - file path (folder + file nam) of the file to be fetched
+ * @param {string} tableName - Name of the table to be fetched
+ * @param {boolean} range - Its default value is true. If true, it calls the "/range" endpoint and returns the whole table including the header row, otherwise, it calls the "/rows" endpoint and returns only the body (the rows) of the table. The structure of the date returned is different for each endpoint  
+ * @returns {Promise<any[][]>}
+ */
+async function retrieveDataFromExcelTableUsingGraphAPI(accessToken: string, workbookPath: string, tableName: string, persist: boolean, range: boolean) {
+  const sessionId = await createFileSession(workbookPath, accessToken, persist) || '';
+  if (!sessionId) throw new Error('There was an issue with the creation of the file cession. Check the console.log for more details');
+  return await fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName, range);
+
+  //return await getVisibleCellsWithGraphAPI(workbookPath, 'Leases', '', accessToken);
 
 }
 
 /**
  * Returns all the rows of an Excel table in a workbook stored on OneDrive, using the Graph API
  * @param {string} accessToken - the access token
- * @param {string} filePath - file path (folder + file nam) of the file to be fetched
+ * @param {string} workbookPath - file path (folder + file nam) of the file to be fetched
  * @param {string} tableName - Name of the table to be fetched
- * @param {boolean} range - Its default value is true. If true, it returns all the rows of the table including the title, otherwise, it returns only the body of the table
+ * @param {boolean} range - Its default value is true. If true, it calls the "/range" endpoint and returns the whole table including the header row, otherwise, it calls the "/rows" endpoint and returns only the body (the rows) of the table. The structure of the date returned is different for each endpoint 
  * @param {boolean} columns - If true it will return the columns
  * @returns {any[][] | number | void} - All the rows (including the title) of the Excel table
  */
-async function fetchExcelTableWithGraphAPI(sessionId: string, accessToken: string, filePath: string, tableName: string, range: boolean = true, columns?: boolean): Promise<string[][] | number | void> {
+async function fetchExcelTableWithGraphAPI(sessionId: string, accessToken: string, workbookPath: string, tableName: string, range: boolean = true, columns?: boolean): Promise<any[][] | void> {
 
   if (!accessToken) accessToken = await getAccessToken() || '';
 
-  let endPoint = `${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/`;
+  let endPoint = `${GRAPH_API_BASE_URL}${workbookPath}:/workbook/tables/${tableName}/`;
 
-  if (range) endPoint = endPoint += 'range';
-  if (!range) endPoint = endPoint += 'rows';
+  if (range) endPoint = endPoint += 'range';//The "range" endpoint returns all the table including the headers row
+  if (!range) endPoint = endPoint += 'rows';//The "rows" endpoint returns only  the body of the table without the headers
   else if (columns) endPoint += 'columns';
 
   const response = await fetch(endPoint, {
@@ -709,8 +747,8 @@ async function fetchExcelTableWithGraphAPI(sessionId: string, accessToken: strin
 
   const data = await response.json();
   if (range)
-    return data.values;
-  else return data.value.map((v: any) => v.values);
+    return data.values as any[][];
+  else return data.value.map((row: any) => row.values) as any[][];
 }
 
 /**
@@ -723,7 +761,7 @@ async function fetchExcelTableWithGraphAPI(sessionId: string, accessToken: strin
  * @param {string} accessToken - the access token
  * @returns {string} 
  */
-async function filterExcelTableWithGraphAPI(filePath: string, tableName: string, columnName: string, values: string[]|number[]|boolean[], sessionId: string, accessToken: string, onValues:boolean = true) {
+async function filterExcelTableWithGraphAPI(filePath: string, tableName: string, columnName: string, values: string[] | number[] | boolean[], sessionId: string, accessToken: string, onValues: boolean = true) {
   if (!accessToken || !sessionId) return;
 
   // Step 3: Apply filter using the column name
@@ -747,7 +785,7 @@ async function filterExcelTableWithGraphAPI(filePath: string, tableName: string,
   }
   const resp = await POSTRequestWithGraphAPI(filterUrl, accessToken, sessionId, JSON.stringify(body), 'Error applying filter');
 
-  if (resp) 
+  if (resp)
     console.log(`Filter successfully applied to column ${columnName}!`);
 
 }
@@ -778,11 +816,11 @@ async function sortExcelTableWithGraphAPI(filePath: string, tableName: string, c
     fields: fields,
     "matchCase": matchCase
   }
-  
+
   const resp = await POSTRequestWithGraphAPI(filterUrl, accessToken, sessionId, JSON.stringify(body), "Error sorting table")
 
   if (resp)
-    console.log(`Table successfully sorted according to columns criteria: ${columns.map(([col, asc])=>col).join(' & ')}!`);
+    console.log(`Table successfully sorted according to columns criteria: ${columns.map(([col, asc]) => col).join(' & ')}!`);
 
 }
 
@@ -874,6 +912,45 @@ async function uploadFileToOneDriveWithGraphAPI(blob: Blob, filePath: string, ac
   });
   response.ok ? alert('succefully uploaded the new file') : console.log('failed to upload the file to onedrive error = ', await response.json())
 };
+/**
+ * Updates a specific row in an Excel table using the file path.
+ * @param {string} accessToken - OAuth2 token.
+ * @param {string} workbookPath - 
+ * @param {string} tableName - The name of the table.
+ * @param {number} rowIndex - 0-based index of the row.
+ * @param {Array} values - 1D array of values for the row.
+ */
+async function updateExcelTableRowWithGraphAPI(accessToken: string, workbookPath: string, tableName: string, rowIndex: number, values: any[]) {
+  const sessionId = await createFileSession(workbookPath, accessToken, true);//!persist must be = true because 
+  if (!sessionId) return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
+  const url = `${GRAPH_API_BASE_URL}${workbookPath}:/workbook/tables/${tableName}/rows/itemAt(index=${rowIndex})`;
+
+  const body = {
+    values: [values] // API requires a 2D array
+  };
+
+  try {
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`Graph API Error: ${error.error.message}`);
+    }
+
+    const data = await response.json();
+    console.log('Update Successful:', data);
+    return data;
+  } catch (err) {
+    console.error('Update Failed:', err);
+  }
+}
 
 /**
  * Sends a POST request to edit a file using graph API
@@ -888,21 +965,21 @@ async function uploadFileToOneDriveWithGraphAPI(blob: Blob, filePath: string, ac
 async function POSTRequestWithGraphAPI(url: string, accessToken: string, sessionId: string, body: string, message: string, filePath?: string) {
   if (!url || !accessToken || !sessionId) return;
   const response = await fetch(url, {
-      method: "POST",
-      headers: {
-          "Authorization": `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-          "Workbook-Session-Id": sessionId,
-      },
-      body: body
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      "Workbook-Session-Id": sessionId,
+    },
+    body: body
   });
 
   if (response.ok) {
-   return response
+    return response
   } else {
     message = `${message}: ${await response.text()}`;
     alert(message);
-    if(filePath) await closeFileSession(sessionId, filePath, accessToken)
+    if (filePath) await closeFileSession(sessionId, filePath, accessToken)
     throw new Error(message)
   }
 
@@ -1396,7 +1473,12 @@ function base64ToBlob(base64: string): Blob {
   const byteArray = new Uint8Array(byteNumbers);
   return new Blob([byteArray], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
 }
-
+/**
+ * Returns the value of the input with the specified dataset.index from an array of inputs
+ * @param {number} index - the dataset.index value of the input whose value we want to retrieve
+ * @param {HTMLInputElement[]} inputs - an array of HTMLInputElements with dataset.index attributes
+ * @returns {string} - the value of the input with the specified dataset.index or an empty string if not found
+ */
 function getInputValue(index: number, inputs: HTMLInputElement[]) {
   return inputs.find(input => Number(input.dataset.index) === index)?.value || ''
 }
@@ -1407,8 +1489,12 @@ function settings() {
   form.innerHTML = '';
   const inputs = [
     {
-      label: 'Workbook Path: ',
+      label: 'Accounts Workbook Path: ',
       name: 'excelPath'
+    },
+    {
+      label: 'Leases Workbook Path: ',
+      name: 'leasesPath'
     },
     {
       label: 'Word Template Path: ',

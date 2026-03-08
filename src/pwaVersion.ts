@@ -1,4 +1,25 @@
 
+(function showMainUI() {
+    const container = document.getElementById('btns');
+    if (!container) return;
+    container.innerHTML = "";
+
+    appendBtn('entry', addNewEntry);
+    appendBtn('invoice', invoice);
+    appendBtn('letter', issueLetter);
+    appendBtn('lease', issueLeaseLetter);
+    appendBtn('search', searchFiles);
+    appendBtn('settings', settings);
+
+    function appendBtn(id: string, onClick: Function) {
+        const btn = document.createElement('button');
+        btn.id = id;
+        btn.classList.add("ms-Button");
+        btn.onclick = () => onClick();
+        container?.appendChild(btn);
+    }
+})();
+
 function getAccessToken() {
     const clientId = "157dd297-447d-4592-b2d3-76b643b97132";
     const redirectUri = "https://mbibawi.github.io/ExcelInvoicingAddIn"; //!must be the same domain as the app
@@ -21,15 +42,15 @@ async function setLocalStorageTitles(sessionId?: string) {
         accessToken = await getAccessToken() || '';
     if (!accessToken) return [];
     if (!sessionId)
-        sessionId = await createFileCession(workbookPath, accessToken);
+        sessionId = await createFileSession(accountsWorkbookPath, accessToken);
     if (!sessionId) return [];
 
-    TableRows = await fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName, true) as string[][];
+    TableRows = await fetchExcelTableWithGraphAPI(sessionId, accessToken, accountsWorkbookPath, tableName, true) as string[][];//!We fetch the entire table inlcuding the headers row (we call the "/range" endpoint not the "/rows" endpoint)
 
     tableTitles = TableRows?.[0];
     if (!tableTitles) return [];
     localStorage.setItem('tableTitles', JSON.stringify(tableTitles));
-    await closeFileSession(sessionId, workbookPath, accessToken);
+    await closeFileSession(sessionId, accountsWorkbookPath, accessToken);
     return tableTitles;
 }
 /**
@@ -54,13 +75,13 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
         }
 
         async function createForm() {
-            const sessionId = await createFileCession(workbookPath, accessToken);
+            const sessionId = await createFileSession(accountsWorkbookPath, accessToken);
             if (!sessionId) throw new Error('There was an issue with the creation of the file cession. Check the console.log for more details');
-            if (!workbookPath || !tableName) throw new Error('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
+            if (!accountsWorkbookPath || !tableName) throw new Error('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
             if (!tableTitles || !TableRows) tableTitles = await setLocalStorageTitles(sessionId);
 
             insertAddForm(tableTitles);
-            await closeFileSession(sessionId, workbookPath, accessToken);
+            await closeFileSession(sessionId, accountsWorkbookPath, accessToken);
             spinner(false);//We hide the spinner
 
 
@@ -150,17 +171,13 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                         else if ([4, 7].includes(index)) input.style.display = 'none';//We hide those 2 columns: 'Total Time' and the 'Year'
 
                         (function addDataLists() {
-                            if ([9, 10, 14, 16].includes(index)) return;//We exclude the "Montant" (9), "TVA" (10), "Description" (14), and the "Link to file" (16) columns;
-                            else if (index > 2 && index < 8) return; //We exclude the "Date" (3), "Année" (4), "Start Time" (5), "End Time" (6), "Total Time" (7) columns
+                            if (index > 1) return;//We add DataList and onChange event only for the "Client" (0) and "Matter" (1) inputs;
 
-                            input.setAttribute('list', input.id + 's');
+                            const tableBody = TableRows.slice(1, -1);
 
-                            if ([1, 8, 15].includes(index)) return;
-                            createDataList(input.id, getUniqueValues(index, TableRows.slice(1, -1)));//We don't create the data list for columns 'Matter' (1), "Hourly Rate" (8) and 'Adress' (15) because the data list will be created when the 'Client' input (0) is updated
-
-                            if (index > 1) return;//We add onChange for "Client" (0) and "Affaire" (1) columns only.
-
-                            input.onchange = () => inputOnChange(index, TableRows.slice(1, -1), false);
+                            input.onchange = () => inputOnChange(index, tableBody, false);
+                            if (index > 0) return;//We will populate the "Client" list only, the other inputs will be populate when the onChange function will be called
+                            populateSelectElement(input, getUniqueValues(index, tableBody));
                         })();
 
                         (function addRestOnChange() {
@@ -193,18 +210,19 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
 
 
         function parseInputs() {
+            const colNature = 2, colDate = 3, colStart = 5, colEnd = 6, colRate = 8, colAmount = 9, colVAT = 10;
             const stop = (missing: string) => alert(`${missing} missing. You must at least provide the client, matter, nature, date and the amount. If you provided a time start, you must provide the end time and the hourly rate. Please review your iputs`);
 
             const inputs = Array.from(document.getElementsByTagName('input')) as HTMLInputElement[];//all inputs
 
-            const nature = getInputByIndex(inputs, 2)?.value;
+            const nature = getInputByIndex(inputs, colNature)?.value;
             if (!nature) return stop('The matter is')
-            const date = getInputByIndex(inputs, 3)?.valueAsDate as Date | undefined;
+            const date = getInputByIndex(inputs, colDate)?.valueAsDate as Date | undefined;
             if (!date) return stop('The invoice date is');
-            const amount = getInputByIndex(inputs, 9) as HTMLInputElement;
-            const rate = getInputByIndex(inputs, 8)?.valueAsNumber || 0;
+            const amount = getInputByIndex(inputs, colAmount) as HTMLInputElement;
+            const rate = getInputByIndex(inputs, colRate)?.valueAsNumber || 0;
 
-            const debit = ['Honoraire', 'Débours/Dépens', 'Débours/Dépens non facturables', 'Rétrocession d\'honoraires', 'Charges déductibles'].includes(nature);//We check if we need to change the value sign
+            const debit = ['Honoraire', 'Débours/Dépens', 'Débours/Dépens non facturables', 'Rétrocession d\'honoraires', 'Charges déductibles', 'Remboursement', 'Remise', 'Avoir'].includes(nature);//We check if we need to change the value sign
 
             const row =
                 inputs.map((input, index) => getInputValue(index));//!CAUTION: The html inputs are not arranged according to their dataset.index values. If we follow their order, some values will be assigned to the wrong column of the Excel table. That's why we do not pass the input itself or the dataset.index of the input to getInputValue(), but instead we pass the index of the column for which we want to retrieve the value from the relevant input.
@@ -215,40 +233,41 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
 
             function getInputValue(index: number) {
                 const input = getInputByIndex(inputs, index) as HTMLInputElement;
-                if ([3, 4].includes(index))
+                if ([colDate, colDate + 1].includes(index))
                     return getISODate(date);//Those are the 2 date columns
-                else if ([5, 6].includes(index))
+                else if ([colStart, colEnd].includes(index))
                     return getTime([input]);//time start and time end columns
                 else if (index === 7) {
                     //!This is a hidden input
-                    const totalTime = getTime([getInputByIndex(inputs, 5), getInputByIndex(inputs, 6)]);//Total time column
+                    const timeInputs = [colStart, colEnd].map(i => getInputByIndex(inputs, i));
+                    const totalTime = getTime(timeInputs);//Total time column
                     if (totalTime && rate && !amount.valueAsNumber)
                         amount.valueAsNumber = totalTime * 24 * rate// making the amount equal the rate * totalTime
                     return totalTime
                 }
-                else if (debit && index === 9)
-                    return input.valueAsNumber * -1 || 0;//This is the amount if negative
-                else if ([8, 9, 10].includes(index))
+                else if (debit && index === colAmount)
+                    return -input.valueAsNumber || 0;//This is the amount if negative
+                else if ([colRate, colAmount, colVAT].includes(index))
                     return input.valueAsNumber || 0;//Hourly Rate, Amount, VAT
                 else return input.value;
 
             }
 
             function missing() {
-                if (row.filter((value, i) => (i < 4 || i === 9) && !value).length > 0) return true;//if client name, matter, nature, date or amount are missing
+                if (row.filter((value, i) => (i < colDate + 1 || i === colAmount) && !value).length > 0) return true;//if client name, matter, nature, date or amount are missing
                 //else if (row[9]) return [5, 6,7,8].map(index => row[index] = 0).length < 1;//This means the amount has been provided and does not  depend on the time spent or the hourly rate. We set the values of the startTime and endTime to 0, and return false (length<1 must return false)
 
-                if (row[5] === row[6]) return false;//If the total time = 0 we do not need to alert if the hourly rate is missing
-                else if (row[5] && (!row[6] || !row[8]))
+                if (row[colStart] === row[colEnd]) return false;//If the total time = 0 we do not need to alert if the hourly rate is missing
+                else if (row[colStart] && (!row[colEnd] || !row[colRate]))
                     return true//if startTime is provided but without endTime or without hourly rate
-                else if (row[6] && (!row[5] || !row[8]))
+                else if (row[colEnd] && (!row[colStart] || !row[colRate]))
                     return true//if endTime is provided but without startTime or without hourly rate
             };
         }
 
         async function addRow(row: any[] | undefined, filter: boolean = false) {
             if (!row) throw new Error('The row is not valid');
-            const visibleCells = await addRowToExcelTableWithGraphAPI(row, TableRows.length - 2, workbookPath, tableName, accessToken, filter);
+            const visibleCells = await addRowToExcelTableWithGraphAPI(row, TableRows.length - 2, accountsWorkbookPath, tableName, accessToken, filter);
             if (!visibleCells)
                 return alert('There was an issue with the adding or the filtering, check the console.log for more details');
 
@@ -263,7 +282,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                 table.classList.add('table');
                 tableDiv.appendChild(table);
 
-                const columns = [0, 1, 2, 7, 8, 9, 10, 14];//The columns that will be displayed in the table;
+                const columns = [0, 1, 2, 3, 7, 8, 9, 10, 14, 15];//The columns that will be displayed in the table;
                 const rowClass = 'excelRow';
                 (function insertTableHeader() {
                     if (!tableTitles) throw new Error('No Table Titles');
@@ -334,7 +353,7 @@ async function invoice(issue: boolean = false) {
 
     (async function showInvoiceForm() {
         if (issue) return;
-        if (!workbookPath || !tableName) return alert('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
+        if (!accountsWorkbookPath || !tableName) return alert('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
         document.querySelector('table')?.remove();
         spinner(true);//We show the spinner
         try {
@@ -346,15 +365,15 @@ async function invoice(issue: boolean = false) {
         }
 
         async function createForm() {
-            const sessionId = await createFileCession(workbookPath, accessToken) || '';
+            const sessionId = await createFileSession(accountsWorkbookPath, accessToken) || '';
             if (!sessionId) throw new Error('There was an issue with the creation of the file cession. Check the console.log for more details');
             if (!tableTitles || !TableRows) tableTitles = await setLocalStorageTitles(sessionId);
-            
+
             insertInvoiceForm(tableTitles);
-            await closeFileSession(sessionId, workbookPath, accessToken);
+            await closeFileSession(sessionId, accountsWorkbookPath, accessToken);
             spinner(false);//We hide the spinner
         }
-        
+
         function insertInvoiceForm(tableTitles: string[]) {
             if (!tableTitles) throw new Error('The table titles are missing. Check the console.log for more details');
             const form = document.getElementById('form');
@@ -383,38 +402,35 @@ async function invoice(issue: boolean = false) {
             })();
 
             function insertInputsAndLables(indexes: (number | string)[], id: string, checkBox: boolean = false): HTMLInputElement[] {
+                const tableBody = TableRows.slice(1, -1);
                 let css = 'field';
                 if (checkBox) css = 'checkBox';
                 return indexes.map((index) => {
                     const div = newDiv(String(index));
                     appendLable(index, div);
-                    return appendInput(index, div);
+                    return appendInput(Number(index), div);
                 });
 
-                function appendInput(index: number | string, div: HTMLDivElement) {
+                function appendInput(index: number, div: HTMLDivElement) {
                     const input = document.createElement('input');
                     input.classList.add(css);
-                    !isNaN(Number(index)) ? input.id = id + index.toString() : input.id = id;
+                    !isNaN(index) ? input.id = id + index.toString() : input.id = id;
 
                     (function setType() {
                         if (checkBox) input.type = 'checkbox';
-                        else if (isNaN(Number(index)) || Number(index) < 3) input.type = 'text';
+                        else if (isNaN(index) || index < 3) input.type = 'text';
                         else input.type = 'date';
                     })();
 
                     (function notCheckBox() {
-                        if (isNaN(Number(index)) || checkBox) return;//If the index is not a number or the input is a checkBox, we return;
-                        index = Number(index);
+                        if (isNaN(index) || checkBox) return;//If the index is not a number or the input is a checkBox, we return;
                         input.name = input.id;
                         input.dataset.index = index.toString();
-                        input.setAttribute('list', input.id + 's');
-                        input.autocomplete = "on";
-
                         if (index < 2)
-                            input.onchange = () => inputOnChange(Number(input.dataset.index), TableRows.slice(1, -1), true);
+                            input.onchange = () => inputOnChange(index, tableBody, true);//We add onChange on "Client" (0) and "Affaire" (1) columns
 
                         if (index < 1)
-                            createDataList(input.id, getUniqueValues(0, TableRows.slice(1, -1)));//We create a unique values dataList for the 'Client' input
+                            populateSelectElement(input, getUniqueValues(0, tableBody));//We create a unique values dataList for the "Client" (0) input
                     })();
 
                     (function isCheckBox() {
@@ -466,7 +482,7 @@ async function invoice(issue: boolean = false) {
     async function editInvoice() {
         const client = tableTitles[0], matter = tableTitles[1];//Those are the 'Client' and 'Matter' columns of the Excel table
 
-        const sessionId = await createFileCession(workbookPath, accessToken, true) || '';//!persist must be = true because we might add a new row if there is a discount. If we don't persist the session, the table will be filtered and the new row will not be added.
+        const sessionId = await createFileSession(accountsWorkbookPath, accessToken, true) || '';//!persist must be = true because we might add a new row if there is a discount. If we don't persist the session, the table will be filtered and the new row will not be added.
         if (!sessionId) throw new Error('There was an issue with the creation of the file cession. Check the console.log for more details');
 
         const inputs = Array.from(document.getElementsByTagName('input'));
@@ -501,63 +517,61 @@ async function invoice(issue: boolean = false) {
         (async function editInvoiceFilterExcelClose() {
             await createAndUploadXmlDocument(accessToken, templatePath, filePath, lang, 'Invoice', wordRows, contentControls, totalsLabels);
 
-            await filterExcelTableWithGraphAPI(workbookPath, tableName, matter, matters, sessionId, accessToken);//We filter the table by the matters that were invoiced
+            await filterExcelTableWithGraphAPI(accountsWorkbookPath, tableName, matter, matters, sessionId, accessToken);//We filter the table by the matters that were invoiced
 
-            await closeFileSession(sessionId, workbookPath, accessToken);
+            await closeFileSession(sessionId, accountsWorkbookPath, accessToken);
             spinner(false);//We hide the spinner
         })();
 
         /**
          * Filters the Excel table according to the values of each inputs, then returns the values of the Word table rows that will be added to the Word table in the invoice template document 
-         * @param {any[][]} data - The Excel table rows that will be filtered
-         * @param {HTMLInputElement[]} criteria - the html inputs containing the values based on which the table will be filtered
+         * @param {HTMLInputElement[]} inputs - the html inputs containing the values based on which the table will be filtered
+         * @param {number} discount  - The discount percentage that will be applied to the amount of each invoiced row if any. It is a number between 0 and 100. If it is equal to 0, it means that no discount will be applied.
          * @param {string} lang - The language in which the invoice will be issued 
-         * @returns {string[][]} - The values of the rows that will be added to the Word table in the invoice template
+         * @returns {Promise<[string[][], string[], string[], string[]]>} - The values of the rows that will be added to the Word table in the invoice template
          */
-        async function filterExcelData(criteria: HTMLInputElement[], discount: number, lang: string): Promise<[string[][], string[], string[], string[]] | void> {
+        async function filterExcelData(inputs: HTMLInputElement[], discount: number, lang: string): Promise<[string[][], string[], string[], string[]] | void> {
+            const matterCol = 1, dateCol = 3, addressCol = 15;//Indexes of the 'Matter' and 'Date' columns in the Excel table
+            const clientName = getInputValue(0, inputs);
+            const matters =
+                getInputValue(matterCol, inputs).split(',').map(el => el.trimStart().trimEnd()); //!The Matter input may include multiple entries separated by ', ' not only one entry.
 
-            await clearFilterExcelTableGraphAPI(workbookPath, tableName, sessionId, accessToken);//We unfilter the table;
+            await clearFilterExcelTableGraphAPI(accountsWorkbookPath, tableName, sessionId, accessToken);//We unfilter the table;
 
             //Filtering by Client (criteria[0])
-            await filterExcelTableWithGraphAPI(workbookPath, tableName, client, [criteria[0].value], sessionId, accessToken);
+            await filterExcelTableWithGraphAPI(accountsWorkbookPath, tableName, client, [clientName], sessionId, accessToken);
 
-            let visible = await getVisibleCellsWithGraphAPI(workbookPath, tableName, sessionId, accessToken) as any[][];
+            let visible = await getVisibleCellsWithGraphAPI(accountsWorkbookPath, tableName, sessionId, accessToken) as any[][];
 
             if (!visible) {
                 return alert('Could not retrieve the visible cells of the Excel table');
             }
             visible = visible.slice(1, - 1);//We exclude the first and the last rows of the table. The first row is the header, and the last row is the total row.
 
-            const adress = getUniqueValues(15, visible);//!We must retrieve the adresses at this stage before filtering by "Matter" or any other column
+            const adresses = getUniqueValues(addressCol, visible) as string[];//!We must retrieve the adresses at this stage before filtering by "Matter" or any other column
 
-            const [matters, natures] = [1, 2].map(index => {
-                //!Matter and Nature inputs (from columns 2 & 3 of the Excel table) may include multiple entries separated by ', ' not only one entry.
-                const list = criteria[index].value.split(',').map(el => el.trimStart().trimEnd());//We generate a string[] from the input.value
-                visible = visible.filter(row => list.includes(row[index]));
-                return list;
-            });
+            visible = visible.filter(row => matters.includes(row[matterCol]));
             //We finaly filter by date
-            visible = filterByDate(visible);
+            visible = filterByDate(visible, dateCol);
 
-            return [...getRowsData(visible, discount, lang), matters, adress];
+            return [...getRowsData(visible, discount, lang), matters, adresses];
 
-            function filterByDate(visible: string[][]) {
+            function filterByDate(visible: string[][], date: number) {
 
                 const convertDate = (date: string | number) => dateFromExcel(Number(date)).getTime();
 
-                const [from, to] = criteria
-                    .filter(input => getIndex(input) === 3)
+                const [from, to] = inputs
+                    .filter(input => getIndex(input) === date)
                     .map(input => input.valueAsDate?.getTime());
 
                 if (from && to)
-                    return visible.filter(row => convertDate(row[3]) >= from && convertDate(row[3]) <= to); //we filter by the date
+                    return visible.filter(row => convertDate(row[date]) >= from && convertDate(row[3]) <= to); //we filter by the date
                 else if (from)
-                    return visible.filter(row => convertDate(row[3]) >= from); //we filter by the date
+                    return visible.filter(row => convertDate(row[date]) >= from); //we filter by the date
                 else if (to)
-                    return visible.filter(row => convertDate(row[3]) <= to); //we filter by the date
+                    return visible.filter(row => convertDate(row[date]) <= to); //we filter by the date
                 else
-                    return visible.filter(row => convertDate(row[3]) <= new Date().getTime()); //we filter by the date
-
+                    return visible.filter(row => convertDate(row[date]) <= new Date().getTime()); //we filter by the date
             }
 
         }
@@ -567,7 +581,6 @@ async function invoice(issue: boolean = false) {
 
 async function issueLetter(create: boolean = false) {
     accessToken = await getAccessToken() || '';
-    const templatePath = '';
     (function showForm() {
         if (create) return;
         document.querySelector('table')?.remove();
@@ -603,6 +616,192 @@ async function issueLetter(create: boolean = false) {
         const contentControls = [['RTCoreText', input.value], ['RTReference', 'Référence'], ['RTClientName', 'Nom du Client'], ['RTEmail', 'Email du client']];
 
         createAndUploadXmlDocument(accessToken, templatePath, filePath, 'FR', undefined, undefined, contentControls);
+    })();
+
+}
+async function issueLeaseLetter(create: boolean = false) {
+    accessToken = await getAccessToken() || '';
+    if (!localStorage.leasesPath)
+        localStorage.leasesPath = prompt('Please provide the OneDrive full path (including the file name and extension) for the Excel Workbook', "Legal/Mon Cabinet d'Avocat/Clients/LeasesDataBase.xlsm");
+    const workbookPath = localStorage.leasesPath || alert('The excel Workbook path is not valid');
+    const tableName: string = 'LEASES';
+    const table = await retrieveDataFromExcelTableUsingGraphAPI(accessToken, workbookPath, tableName, true, false) as any[][]; //!persist must be = true because we might add a new row if there is a discount. If we don't persist the session, the table will be filtered and the new row will not be added.
+    if (!table) return;
+    const RTs: { [index: string]: RT } = {
+        owner: { tag: 'RTBailleur', col: 0, value: '' },
+        adress: { tag: 'RTAdresseDestinataire', col: 1, value: '' },
+        tenant: { tag: 'RTLocataire', col: 2, value: '' },
+        leaseDate: { tag: 'RTDateBail', col: 3, value: '' },
+        leaseType: { tag: 'RTNature', col: 4, value: '' },
+        initialIndex: { tag: 'RTIndiceInitial', col: 5, value: '' },
+        indexQuarter: { tag: 'RTTrimestre', col: 6, value: '' },
+        initialIndexDate: { tag: 'RTIndiceInitialDate', col: 7, value: '' },
+        baseIndex: { tag: 'RTIndiceBase', col: 8, value: '' },
+        baseIndexDate: { tag: 'RTDateIndiceBase', col: 9, value: '' },
+        index: { tag: 'RTIndice', col: 10, value: '' },
+        indexDate: { tag: 'RTDateIndice', col: 11, value: '' },
+        currentLease: { tag: 'RTLoyerActuel', col: 12, value: '' },
+        revisionDate: { tag: 'RTDate', col: 13, value: '' },
+        initialYear: { tag: 'RTIndiceInitialAnnée', col: undefined, value: '' },
+        revisionYear: { tag: 'RTYear', col: undefined, value: '' },
+        baseYear: { tag: 'RTPreviousYear', col: undefined, value: '' },
+        newLease: { tag: 'RTLoyerNouveau', col: undefined, value: '' },
+        nextRevision: { tag: 'RTNextRevision', col: undefined, value: '' },
+    };
+
+    /**
+     * This function casts the "col" property as "number" beacause the col property of some RTs is "undefined". So this function will mainly cast the col property to a number in order to avoid casting each time we retrieve the col property
+     * @param {RT} RT 
+     * @returns {number}
+     */
+    const column = (RT: RT) => RT.col as number;
+
+    const rts = Object.values(RTs);
+
+    const findRT = (id: string) => rts.find(RT => RT.tag === id);
+    const findInput = (id: string) => inputs.find(input => input.id === id);
+
+    const inputs: HTMLInputElement[] = [];
+
+    let row: any[] = [], rowIndex: number | null = null;
+    (function showForm() {
+        if (create) return;
+        document.querySelector('table')?.remove();
+        const form = document.getElementById('form');
+        if (!form) return;
+        form.innerHTML = '';
+
+        (function insertInputs() {
+            const unvalid = (values: (string | undefined)[]) => values.find(value => !value || isNaN(Number(value)));
+            const owner = createInput('select', RTs.owner, 'field', 'Nom du Bailleur');
+            populateSelectElement(owner, getUniqueValues(0, table), false);
+            const adress = createInput('text', RTs.adress, 'field', 'Adresse du bien loué');
+            const tenant = createInput('text', RTs.tenant, 'field', 'Nom du Locataire');
+            createInput('text', RTs.leaseDate, 'field', 'Date du Bail');
+            createInput('text', RTs.leaseType, 'field', 'Nature du Bail');
+            createInput('text', RTs.initialIndex, 'field', 'Indice initial');
+            createInput('date', RTs.initialIndexDate, 'field', 'Date de l\'indice initial');
+            createInput('text', RTs.indexQuarter, 'field', 'Trimestre de l\'indice');
+            createInput('text', RTs.baseIndex, 'field', `Indice de référence`);
+            createInput('date', RTs.baseIndexDate, 'field', `Date de l'indice de référence`);
+            const index = createInput('text', RTs.index, 'field', 'Indice de révision');
+            createInput('date', RTs.indexDate, 'field', 'Date de l\'indice de révision');
+            createInput('date', RTs.revisionDate, 'field', 'Date de la dernière Révision');
+            const currentLease = createInput('text', RTs.currentLease, 'field', 'Loyer Actuel (ou révisé)');
+
+            (function inputsOnChange() {
+                owner.onchange = () => {
+                    row = table.find(row => adress.value === row[column(RTs.adress)] && tenant.value === row[column(RTs.tenant)]) || [];
+                    if (!row.length) return;
+                    rowIndex = table.indexOf([row]) || null;
+                    inputs.forEach(input => {
+                        const RT = findRT(input.id)
+                        if (!RT) return;
+                        const value = row[column(RT)].toString();
+                        input.value = value;
+                        RT.value = value
+                    });
+                };
+
+                index.onchange = () => {
+                    const base = row[column(RTs.baseIndex)] || row[column(RTs.initialIndex)];
+                    const latest = index.value;
+                    const lease = row[column(RTs.currentLease)];
+                    if (unvalid([base, latest, lease])) return alert('Please make sure that the values of the current lease, the base indice and the new indice are all provided and valid numbers');
+                    const newLease = (Number(lease) * (Number(latest) / Number(base))).toFixed(2).toString();
+                    currentLease.value = newLease;
+                    RTs.baseIndex.value = latest;
+                    RTs.newLease.value = newLease;//We update the new lease RT
+                };
+            })();
+
+        })();
+
+        (function generateBtn() {
+            const btn = document.createElement('button');
+            form?.appendChild(btn);
+            btn.classList.add('button');
+            btn.innerText = 'Créer lettre'
+            btn.onclick = () => issueLeaseLetter(true);
+        })();
+
+        function createInput(type: string, RT: RT, className: string, labelText: string) {
+            const id = RT.tag;
+            const div = document.createElement('div');
+            form?.appendChild(div);
+            const append = (el: HTMLElement) => div.appendChild(el);
+
+            (function appendLabel() {
+                const label = document.createElement('label');
+                label.htmlFor = id;
+                label.innerText = labelText;
+                append(label);
+            })();
+            return appendInput();
+            function appendInput() {
+                const input = document.createElement(type) as HTMLInputElement;
+                input.id = id;
+                input.classList.add(className);
+                if (RT.col) {
+                    input.dataset.column = RT.col.toString();
+                    inputs.push(input);
+                };
+                append(input);
+                return input as HTMLInputElement
+            };
+        };
+    })();
+
+    (async function generate() {
+        if (!create) return;
+        if (!inputs.length) return;
+        const templatePath = "Legal/Mon Cabinet d'Avocat/Administratif/Modèles Actes/Template_Révision de loyer [DO NOT MODIFY].docx";
+        const fileName = prompt('Provide the file name without special characthers');
+        if (!fileName) return;
+        const filePath = `${prompt('Provide the destination folder', "Legal/Mon Cabinet d'Avocat/Clients")}/${fileName}.docx`;
+        if (!filePath) return;
+
+        inputs.map(input => {
+            const id = input.id
+            if (id === RTs.currentLease.tag) return;//!We don't update the value of current lease from the input because the value of the input is the new lease not the old one
+            const RT = findRT(id);
+            if (RT) RT.value = input.value
+        });
+        const date = new Date();
+        const year = date.getFullYear();
+        RTs.revisionDate.value = [date.getDate(), date.getMonth() + 1, year].join('/');
+        RTs.revisionYear.value = year.toString();
+        RTs.previousYear.value = (year - 1).toString();
+        RTs.nextRevision.value = (year + 1).toString();
+        const contentControls = rts.map(RT => [RT.tag, RT.value]);
+
+
+        createAndUploadXmlDocument(accessToken, templatePath, filePath, 'FR', undefined, undefined, contentControls);
+
+        (function updateLeasesTable() {
+
+            (async function updateRow() {
+                if (!rowIndex) return;
+                const col = RTs.revisionDate.col as number;
+                const revisionDate = RTs.initialIndexDate.value.replace(RTs.initialYear.value, RTs.revisionYear.value);
+                row[col] = new Date(revisionDate);
+                const input = findInput(RTs.revisionDate.tag)
+                if (input) input.value = revisionDate;
+                await updateExcelTableRowWithGraphAPI(accessToken, workbookPath, tableName, rowIndex, row)
+            })();
+            (async function newRow() {
+                if (rowIndex) return;
+                row = [];
+                inputs.forEach(input => {
+                    const col = findRT(input.id)?.col;
+                    if (!col) return;
+                    row[col] = input.value;
+                });
+                await addRowToExcelTableWithGraphAPI(row, rowIndex, workbookPath, tableName, accessToken)
+            });
+
+
+        })();
     })();
 
 }
@@ -662,8 +861,8 @@ function inputOnChange(index: number, table: any[][] | undefined, invoice: boole
     if (filtered.length < 1) return;
 
     boundInputs.map(input => {
-        const dataList = createDataList(input?.id, getUniqueValues(getIndex(input), filtered), invoice) as HTMLDataListElement;
-        if (dataList.options.length === 1)
+        const dataList = populateSelectElement(input, getUniqueValues(getIndex(input), filtered));
+        if (dataList?.options.length === 1)
             input.value = dataList.options[0].value
     });
 
@@ -701,7 +900,7 @@ async function createAndUploadXmlDocument(accessToken: string, templatePath: str
     const schema = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 
     (function editTable() {
-        if (!rows) return;
+        if (!rows || !tableTitle) return;
         const tables = getXMLElements(doc, "tbl") as Element[];
         const table = getXMLTableByTitle(tables, tableTitle);
 
@@ -805,7 +1004,7 @@ async function createAndUploadXmlDocument(accessToken: string, templatePath: str
         }
 
         function editXMLContentControl(control: Element, text: string) {
-            if (!text) return control.remove();
+            if (!text) text = "NO VALUE WAS PROVIDED";
             const sdtContent = getXMLElements(control, "sdtContent", 0) as Element;
             if (!sdtContent) return;
             const paragTemplate = getParagraphOrRun(sdtContent) as Element;//This will set the language for the paragraph or the run
@@ -968,32 +1167,32 @@ function getNewExcelRow(inputs: HTMLInputElement[]) {
  * Adds a new row to the Excel table using the Grap API
  * @param {string} row - The row that will be added to the Excel table
  * @param {number} index - The index at which the row will be added
- * @param {string} filePath - The full path of the Excel file 
+ * @param {string} workbookPath - The full path of the Excel file 
  * @param {string} tableName - The name of the Excel table
  * @param {string} accessToken - The Graph API access token 
  * @param {boolean} filter - If true, the table will be filtered after the row is added
  * @returns 
  */
-async function addRowToExcelTableWithGraphAPI(row: any[], index: number, filePath: string, tableName: string, accessToken: string, filter: boolean = false) {
-    const sessionId = await createFileCession(filePath, accessToken, true);//!persist must be = true because 
+async function addRowToExcelTableWithGraphAPI(row: any[], index: number | null, workbookPath: string, tableName: string, accessToken: string, filter: boolean = false) {
+    const sessionId = await createFileSession(workbookPath, accessToken, true);//!persist must be = true because 
     if (!sessionId) return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
-    await clearFilterExcelTableGraphAPI(filePath, tableName, sessionId, accessToken);
+    await clearFilterExcelTableGraphAPI(workbookPath, tableName, sessionId, accessToken);
     await addRow();
     if (filter) await filterTable();
-    await sortExcelTableWithGraphAPI(filePath, tableName, [[3, true]], false, sessionId, accessToken);//We sort the table by the first column (the date column)
-    const visible = await getVisibleCellsWithGraphAPI(filePath, tableName, sessionId, accessToken);
-    await closeFileSession(sessionId, filePath, accessToken);
+    await sortExcelTableWithGraphAPI(workbookPath, tableName, [[3, true]], false, sessionId, accessToken);//We sort the table by the first column (the date column)
+    const visible = await getVisibleCellsWithGraphAPI(workbookPath, tableName, sessionId, accessToken);
+    await closeFileSession(sessionId, workbookPath, accessToken);
     return visible;
 
     async function addRow() {
-        const url = `${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/rows`;//The url to add a row to the table
+        const url = `${GRAPH_API_BASE_URL}${workbookPath}:/workbook/tables/${tableName}/rows`;//The url to add a row to the table
 
         const body = {
             index: index,
-            values: [row], 
+            values: [row],
         };
-        const resp = await POSTRequestWithGraphAPI(url, accessToken, sessionId, JSON.stringify(body), "Error adding row", filePath);
-        if(resp) console.log("Row added successfully!");
+        const resp = await POSTRequestWithGraphAPI(url, accessToken, sessionId, JSON.stringify(body), "Error adding row", workbookPath);
+        if (resp) console.log("Row added successfully!");
 
     }
 
@@ -1001,7 +1200,7 @@ async function addRowToExcelTableWithGraphAPI(row: any[], index: number, filePat
         if (!filter) return;
         [0, 1].map(async index => {
             //!We use map because forEach doesn't await
-            await filterExcelTableWithGraphAPI(workbookPath, tableName, tableTitles?.[index], [row[index]?.toString()], sessionId, accessToken);
+            await filterExcelTableWithGraphAPI(accountsWorkbookPath, tableName, tableTitles?.[index], [row[index]?.toString()], sessionId, accessToken);
         });
     };
 
@@ -1075,8 +1274,6 @@ function searchFiles() {
             accessToken = await getAccessToken() || '';
         if (!accessToken) return alert('The access token is missing. Check the console.log for more details');
         spinner(true);//We show the spinner
-        type folderItem = { name: string; id: string; folder: any; createdDateTime: string; lastModifiedDateTime: string };
-        type fileItem = { name: string; id: string; file: any; createdDateTime: string; lastModifiedDateTime: string; "@microsoft.graph.downloadUrl": string };
 
         try {
             await fetchAndFilter();
@@ -1143,7 +1340,7 @@ function searchFiles() {
             await fetchAllFilesByPath(path);
 
             return await manageFilesDatabase(allFiles, path);
-     
+
             async function fetchAllFilesByPath(path: string) {
                 // Step 1: Get root-level files & folders
                 path = path.replace('\\', '/');
@@ -1254,42 +1451,42 @@ function searchFiles() {
 
         }
 
-        
-        async function manageFilesDatabase(files: fileItem[], path: string, deleteRecord:boolean =false):Promise<fileItem[]> {
+
+        async function manageFilesDatabase(files: fileItem[], path: string, deleteRecord: boolean = false): Promise<fileItem[]> {
             const dbName = "FileDatabase";
             const storeName = "Files";
             const dbVersion = 1;
-    
-            
+
+
             // Open (or create) the database
             const db = await new Promise((resolve, reject) => {
                 const request = indexedDB.open(dbName, dbVersion);
-    
+
                 request.onupgradeneeded = function (event) {
                     const db = (event.target as IDBOpenDBRequest)?.result;
                     if (db.objectStoreNames.contains(storeName)) return;
                     db.createObjectStore(storeName, { keyPath: "path" });
                     console.log("Object store created successfully.");
-                    
+
                 };
-    
+
                 request.onsuccess = function (event) {
                     resolve((event.target as IDBOpenDBRequest)?.result);
                 };
-    
+
                 request.onerror = function (event) {
                     reject("Failed to open database: " + (event.target as IDBOpenDBRequest)?.error);
                 };
             });
-    
+
             // Retrieve or add the entry
             return new Promise((resolve, reject) => {
                 const transaction = (db as IDBDatabase).transaction(storeName, "readwrite");
                 const store = transaction.objectStore(storeName);
-    
+
                 // Check if an entry with the given path exists
                 const getRequest = store.get(path);
-    
+
                 getRequest.onsuccess = function (event) {
                     const existingEntry = (event.target as IDBRequest)?.result;
                     if (existingEntry && deleteRecord) {
@@ -1308,26 +1505,26 @@ function searchFiles() {
                         resolve(files);//We return the empty array
                     } else {
                         // Add a new entry if it doesn't exist
-                        const data = {path:path, files:files };
+                        const data = { path: path, files: files };
                         const addRequest = store.put(data);
-    
+
                         addRequest.onsuccess = function () {
                             console.log("New entry added for path:", path);
                             resolve(files); // Return the newly added files array
                         };
-    
+
                         addRequest.onerror = function (event) {
                             reject("Failed to add new entry: " + (event.target as IDBRequest)?.error);
                         };
                     }
                 };
-    
+
                 getRequest.onerror = function (event) {
                     reject("Failed to retrieve entry: " + (event.target as IDBRequest)?.error);
                 };
             });
         }
-        
+
     }
 }
 
