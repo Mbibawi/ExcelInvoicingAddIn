@@ -4,17 +4,18 @@
     if (!container) return;
     container.innerHTML = "";
 
-    appendBtn('entry', addNewEntry);
-    appendBtn('invoice', invoice);
-    appendBtn('letter', issueLetter);
-    appendBtn('lease', issueLeaseLetter);
-    appendBtn('search', searchFiles);
-    appendBtn('settings', settings);
+    appendBtn('entry', 'Add Entry', addNewEntry);
+    appendBtn('invoice', 'Invoice', invoice);
+    appendBtn('letter', 'Letter', issueLetter);
+    appendBtn('lease', 'Leases', issueLeaseLetter);
+    appendBtn('search', 'Search Files', searchFiles);
+    appendBtn('settings', 'Settings', settings);
 
-    function appendBtn(id: string, onClick: Function) {
+    function appendBtn(id: string, text:string, onClick: Function) {
         const btn = document.createElement('button');
         btn.id = id;
         btn.classList.add("ms-Button");
+        btn.innerText = text;
         btn.onclick = () => onClick();
         container?.appendChild(btn);
     }
