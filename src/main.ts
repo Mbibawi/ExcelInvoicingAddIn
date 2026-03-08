@@ -1,9 +1,6 @@
 const GRAPH_API_BASE_URL = "https://graph.microsoft.com/v1.0/me/drive/root:/";
-if (!localStorage.accountsPath)
-  localStorage.excelPath = prompt('Please provide the OneDrive full path (including the file name and extension) for the Excel Workbook', "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm");
-const accountsWorkbookPath = localStorage.excelPath || alert('The excel Workbook path is not valid');
 
-
+ 
 if (!localStorage.templatePath) localStorage.templatePath = prompt('Please provide the OneDrive full path (including the file name and extension) for the Word template', "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/FactureTEMPLATE [NE PAS MODIFIDER].docx");
 
 const templatePath = localStorage.templatePath || alert('The template path is not valid or is missing');
@@ -14,20 +11,18 @@ const tableName = localStorage.tableName || alert('The table name is not valid o
 if (!localStorage.destinationFolder) localStorage.destinationFolder = prompt('Please provide the OneDrive path where the issued invoices will be stored', "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/Clients");
 const destinationFolder = localStorage.destinationFolder || alert('the destination folder path is missing or not valid');
 
-if (!localStorage.tableTitles) setLocalStorageTitles();
+if (!localStorage.tableTitles) setLocalStorageTitles(getAccountsWorkBookPath());
+
 
 var TableRows: string[][], accessToken: string, tableTitles: string[] = JSON.parse(localStorage.tableTitles);
 
 const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
 
-/* Office.onReady((info) => {
-  if (info.host === Office.HostType.Excel) {
-    // Excel-specific initialization code goes here
-    console.log("Excel is ready!");
-
-    loadMsalScript();
-  }
-}); */
+function getAccountsWorkBookPath() {
+  if (!localStorage.excelaccountsPath)
+      localStorage.accountsPath = prompt('Please provide the OneDrive full path (including the file name and extension) for the Excel Workbook', "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm");
+  return localStorage.accountsPath || alert('The excel Workbook path is not valid');
+}
 
 (function RegisterServiceWorker() {
   // Check if the browser supports service workers
@@ -72,7 +67,6 @@ const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
     }
   });
 })();
-
 
 
 function loadMsalScript() {

@@ -35,21 +35,21 @@ function getAccessToken() {
     };
     return getTokenWithMSAL(clientId, redirectUri, msalConfig);
 }
-async function setLocalStorageTitles(sessionId) {
+async function setLocalStorageTitles(workbookPath, sessionId) {
     if (!accessToken)
         accessToken = await getAccessToken() || '';
     if (!accessToken)
         return [];
-    if (!sessionId)
-        sessionId = await createFileSession(accountsWorkbookPath, accessToken);
+    if (!sessionId && workbookPath)
+        sessionId = await createFileSession(workbookPath, accessToken);
     if (!sessionId)
         return [];
-    TableRows = await fetchExcelTableWithGraphAPI(sessionId, accessToken, accountsWorkbookPath, tableName, true); //!We fetch the entire table inlcuding the headers row (we call the "/range" endpoint not the "/rows" endpoint)
+    TableRows = await fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName, true); //!We fetch the entire table inlcuding the headers row (we call the "/range" endpoint not the "/rows" endpoint)
     tableTitles = TableRows?.[0];
     if (!tableTitles)
         return [];
     localStorage.setItem('tableTitles', JSON.stringify(tableTitles));
-    await closeFileSession(sessionId, accountsWorkbookPath, accessToken);
+    await closeFileSession(sessionId, workbookPath, accessToken);
     return tableTitles;
 }
 /**
@@ -58,6 +58,9 @@ async function setLocalStorageTitles(sessionId) {
  * @param {any[]} row - If provided, the function will add the row directly to the Excel Table without needing to retrieve the data from the inputs.
  */
 async function addNewEntry(add = false, row) {
+    const workbookPath = getAccountsWorkBookPath();
+    if (!workbookPath)
+        return alert('Could not get a valid workbook path from the localStorage');
     accessToken = await getAccessToken() || '';
     if (!accessToken)
         return alert('The access token is missing. Check the console.log for more details');
@@ -74,15 +77,15 @@ async function addNewEntry(add = false, row) {
             alert(error);
         }
         async function createForm() {
-            const sessionId = await createFileSession(accountsWorkbookPath, accessToken);
+            const sessionId = await createFileSession(workbookPath, accessToken);
             if (!sessionId)
                 throw new Error('There was an issue with the creation of the file cession. Check the console.log for more details');
-            if (!accountsWorkbookPath || !tableName)
+            if (!workbookPath || !tableName)
                 throw new Error('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
             if (!tableTitles || !TableRows)
-                tableTitles = await setLocalStorageTitles(sessionId);
+                tableTitles = await setLocalStorageTitles(sessionId, workbookPath);
             insertAddForm(tableTitles);
-            await closeFileSession(sessionId, accountsWorkbookPath, accessToken);
+            await closeFileSession(sessionId, workbookPath, accessToken);
             spinner(false); //We hide the spinner
             function insertAddForm(titles) {
                 if (!titles)
@@ -248,7 +251,7 @@ async function addNewEntry(add = false, row) {
         async function addRow(row, filter = false) {
             if (!row)
                 throw new Error('The row is not valid');
-            const visibleCells = await addRowToExcelTableWithGraphAPI(row, TableRows.length - 2, accountsWorkbookPath, tableName, accessToken, filter);
+            const visibleCells = await addRowToExcelTableWithGraphAPI(row, TableRows.length - 2, workbookPath, tableName, accessToken, filter);
             if (!visibleCells)
                 return alert('There was an issue with the adding or the filtering, check the console.log for more details');
             alert('Row aded and the table was filtered');
@@ -327,13 +330,16 @@ async function addNewEntry(add = false, row) {
 ;
 // Update Word Document
 async function invoice(issue = false) {
+    const workbookPath = getAccountsWorkBookPath();
+    if (!workbookPath)
+        return alert('Could not get a valid workbook path from the localStorage');
     accessToken = await getAccessToken() || '';
     if (!accessToken)
         return alert('The access token is missing. Check the console.log for more details');
     (async function showInvoiceForm() {
         if (issue)
             return;
-        if (!accountsWorkbookPath || !tableName)
+        if (!workbookPath || !tableName)
             return alert('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
         document.querySelector('table')?.remove();
         spinner(true); //We show the spinner
@@ -345,13 +351,13 @@ async function invoice(issue = false) {
             alert(error);
         }
         async function createForm() {
-            const sessionId = await createFileSession(accountsWorkbookPath, accessToken) || '';
+            const sessionId = await createFileSession(workbookPath, accessToken) || '';
             if (!sessionId)
                 throw new Error('There was an issue with the creation of the file cession. Check the console.log for more details');
             if (!tableTitles || !TableRows)
-                tableTitles = await setLocalStorageTitles(sessionId);
+                tableTitles = await setLocalStorageTitles(sessionId, workbookPath);
             insertInvoiceForm(tableTitles);
-            await closeFileSession(sessionId, accountsWorkbookPath, accessToken);
+            await closeFileSession(sessionId, workbookPath, accessToken);
             spinner(false); //We hide the spinner
         }
         function insertInvoiceForm(tableTitles) {
@@ -457,7 +463,7 @@ async function invoice(issue = false) {
     })();
     async function editInvoice() {
         const client = tableTitles[0], matter = tableTitles[1]; //Those are the 'Client' and 'Matter' columns of the Excel table
-        const sessionId = await createFileSession(accountsWorkbookPath, accessToken, true) || ''; //!persist must be = true because we might add a new row if there is a discount. If we don't persist the session, the table will be filtered and the new row will not be added.
+        const sessionId = await createFileSession(workbookPath, accessToken, true) || ''; //!persist must be = true because we might add a new row if there is a discount. If we don't persist the session, the table will be filtered and the new row will not be added.
         if (!sessionId)
             throw new Error('There was an issue with the creation of the file cession. Check the console.log for more details');
         const inputs = Array.from(document.getElementsByTagName('input'));
@@ -482,8 +488,8 @@ async function invoice(issue = false) {
         filePath = prompt(`The file will be saved in ${destinationFolder}, and will be named : ${fileName}./nIf you want to change the path or the name, provide the full file path and name of your choice without any sepcial characters`, filePath) || filePath;
         (async function editInvoiceFilterExcelClose() {
             await createAndUploadXmlDocument(accessToken, templatePath, filePath, lang, 'Invoice', wordRows, contentControls, totalsLabels);
-            await filterExcelTableWithGraphAPI(accountsWorkbookPath, tableName, matter, matters, sessionId, accessToken); //We filter the table by the matters that were invoiced
-            await closeFileSession(sessionId, accountsWorkbookPath, accessToken);
+            await filterExcelTableWithGraphAPI(workbookPath, tableName, matter, matters, sessionId, accessToken); //We filter the table by the matters that were invoiced
+            await closeFileSession(sessionId, workbookPath, accessToken);
             spinner(false); //We hide the spinner
         })();
         /**
@@ -497,10 +503,10 @@ async function invoice(issue = false) {
             const matterCol = 1, dateCol = 3, addressCol = 15; //Indexes of the 'Matter' and 'Date' columns in the Excel table
             const clientName = getInputByIndex(inputs, 0)?.value || '';
             const matters = getArray(getInputByIndex(inputs, matterCol)?.value) || []; //!The Matter input may include multiple entries separated by ', ' not only one entry.
-            await clearFilterExcelTableGraphAPI(accountsWorkbookPath, tableName, sessionId, accessToken); //We unfilter the table;
+            await clearFilterExcelTableGraphAPI(workbookPath, tableName, sessionId, accessToken); //We unfilter the table;
             //Filtering by Client (criteria[0])
-            await filterExcelTableWithGraphAPI(accountsWorkbookPath, tableName, client, [clientName], sessionId, accessToken);
-            let visible = await getVisibleCellsWithGraphAPI(accountsWorkbookPath, tableName, sessionId, accessToken);
+            await filterExcelTableWithGraphAPI(workbookPath, tableName, client, [clientName], sessionId, accessToken);
+            let visible = await getVisibleCellsWithGraphAPI(workbookPath, tableName, sessionId, accessToken);
             if (!visible) {
                 return alert('Could not retrieve the visible cells of the Excel table');
             }
@@ -1122,7 +1128,7 @@ async function addRowToExcelTableWithGraphAPI(row, index, workbookPath, tableNam
             return;
         [0, 1].map(async (index) => {
             //!We use map because forEach doesn't await
-            await filterExcelTableWithGraphAPI(accountsWorkbookPath, tableName, tableTitles?.[index], [row[index]?.toString()], sessionId, accessToken);
+            await filterExcelTableWithGraphAPI(workbookPath, tableName, tableTitles?.[index], [row[index]?.toString()], sessionId, accessToken);
         });
     }
     ;
