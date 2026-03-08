@@ -456,7 +456,7 @@ function getRowsData(tableRows, discount = 0, lang) {
                 .find(row => row[colNature] === 'Honoraire');
             if (!newRow)
                 return;
-            const [amount, vat] = totalFees.map(amount => -amount * ((discount) / 100)); //!We add the disount and VAT amounts in minus 
+            const [amount, vat] = totalFees.map(amount => amount * ((discount) / 100)); //!The discount must be added as a positive number. This is like a payment made by the client
             const descr = prompt('Provide a description for the discount', 'Remise sur les honoraires') || '';
             const date = getISODate(new Date());
             const cells = [
