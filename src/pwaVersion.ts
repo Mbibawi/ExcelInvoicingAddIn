@@ -50,7 +50,7 @@ async function setLocalStorageTitles(workbookPath:string, sessionId?: string) {
 
     tableTitles = TableRows?.[0];
     if (!tableTitles) return [];
-    localStorage.setItem('tableTitles', JSON.stringify(tableTitles));
+    localStorage.tableTitles =  JSON.stringify(tableTitles);
     await closeFileSession(sessionId, workbookPath, accessToken);
     return tableTitles;
 }
@@ -81,7 +81,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
             const sessionId = await createFileSession(workbookPath, accessToken);
             if (!sessionId) throw new Error('There was an issue with the creation of the file cession. Check the console.log for more details');
             if (!workbookPath || !tableName) throw new Error('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
-            if (!tableTitles || !TableRows) tableTitles = await setLocalStorageTitles(sessionId, workbookPath);
+            if (!tableTitles || !TableRows) tableTitles = await setLocalStorageTitles(workbookPath, sessionId);
 
             insertAddForm(tableTitles);
             await closeFileSession(sessionId, workbookPath, accessToken);
@@ -374,7 +374,7 @@ async function invoice(issue: boolean = false) {
         async function createForm() {
             const sessionId = await createFileSession(workbookPath, accessToken) || '';
             if (!sessionId) throw new Error('There was an issue with the creation of the file cession. Check the console.log for more details');
-            if (!tableTitles || !TableRows) tableTitles = await setLocalStorageTitles(sessionId, workbookPath);
+            if (!tableTitles || !TableRows) tableTitles = await setLocalStorageTitles(workbookPath, sessionId);
 
             insertInvoiceForm(tableTitles);
             await closeFileSession(sessionId, workbookPath, accessToken);
