@@ -1,3 +1,8 @@
+type header = {
+    "Authorization": string;
+    "Content-Type": string;
+    "workbook-session-id"?: string;
+};
 type lable = {
     nature: string[];
     FR: string;

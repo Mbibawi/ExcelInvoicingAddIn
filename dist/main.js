@@ -308,6 +308,8 @@ async function filterTable(tableName, criteria, clearFilter = false) {
  * @returns {string[]}
  */
 function getArray(value) {
+    if (!value)
+        return [];
     const array = value.replaceAll(', ', ',')
         .replaceAll(' ,', ',')
         .split(',');
@@ -601,10 +603,7 @@ function getUniqueValues(index, array) {
 async function createFileSession(filePath, accessToken, persist = false) {
     const response = await fetch(`${GRAPH_API_BASE_URL}${filePath}:/workbook/createSession`, {
         method: "POST",
-        headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-        },
+        headers: graphHeaders(accessToken),
         body: JSON.stringify({ persistChanges: persist }),
     });
     if (!response.ok) {
@@ -625,6 +624,18 @@ async function closeFileSession(sessionId, filePath, accessToken) {
     const resp = await POSTRequestWithGraphAPI(`${GRAPH_API_BASE_URL}${filePath}:/workbook/closeSession`, accessToken, sessionId, '', 'Error closing the session');
     if (resp)
         console.log(`The session was closed successfully! ${await resp.text()}`);
+}
+/**
+ * Returns the headers of the Microsoft Graph API calls
+ */
+function graphHeaders(accessToken, sessionID, contentType) {
+    const headers = {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': contentType || 'application/json',
+    };
+    if (sessionID)
+        headers["workbook-session-id"] = sessionID;
+    return headers;
 }
 /**
  * retries the values of the rows of an Excel table
@@ -655,17 +666,14 @@ async function fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath,
         accessToken = await getAccessToken() || '';
     let endPoint = `${GRAPH_API_BASE_URL}${workbookPath}:/workbook/tables/${tableName}/`;
     if (range)
-        endPoint = endPoint += 'range'; //The "range" endpoint returns all the table including the headers row
+        endPoint += 'range'; //The "range" endpoint returns all the table including the headers row
     if (!range)
-        endPoint = endPoint += 'rows'; //The "rows" endpoint returns only  the body of the table without the headers
+        endPoint += 'rows'; //The "rows" endpoint returns only  the body of the table without the headers
     else if (columns)
         endPoint += 'columns';
     const response = await fetch(endPoint, {
         method: "GET",
-        headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "workbook-session-id": sessionId
-        }
+        headers: graphHeaders(accessToken, sessionId)
     });
     if (!response.ok) {
         alert(`Error fetching row count: ${await response.text()}`);
@@ -758,11 +766,7 @@ async function getVisibleCellsWithGraphAPI(filePath, tableName, sessionId, acces
     const endPoint = `${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/range/visibleView`;
     const response = await fetch(endPoint, {
         method: "GET",
-        headers: {
-            "Authorization": `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-            "workbook-session-id": sessionId
-        },
+        headers: graphHeaders(accessToken, sessionId),
     });
     if (response.ok) {
         const data = await response.json();
@@ -783,11 +787,7 @@ async function clearFilterExcelTableGraphAPI(filePath, tableName, sessionId, acc
     // First, clear filters on the table (optional step)
     await fetch(`${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/clearFilters`, {
         method: "POST",
-        headers: {
-            "Authorization": `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-            "workbook-session-id": sessionId,
-        }
+        headers: graphHeaders(accessToken, sessionId)
     });
 }
 /**
@@ -833,10 +833,7 @@ async function uploadFileToOneDriveWithGraphAPI(blob, filePath, accessToken) {
  * @param {number} rowIndex - 0-based index of the row.
  * @param {Array} values - 1D array of values for the row.
  */
-async function updateExcelTableRowWithGraphAPI(accessToken, workbookPath, tableName, rowIndex, values) {
-    const sessionId = await createFileSession(workbookPath, accessToken, true); //!persist must be = true because 
-    if (!sessionId)
-        return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
+async function updateExcelTableRowWithGraphAPI(accessToken, sessionID, workbookPath, tableName, rowIndex, values) {
     const url = `${GRAPH_API_BASE_URL}${workbookPath}:/workbook/tables/${tableName}/rows/itemAt(index=${rowIndex})`;
     const body = {
         values: [values] // API requires a 2D array
@@ -844,10 +841,7 @@ async function updateExcelTableRowWithGraphAPI(accessToken, workbookPath, tableN
     try {
         const response = await fetch(url, {
             method: 'PATCH',
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json'
-            },
+            headers: graphHeaders(accessToken, sessionID),
             body: JSON.stringify(body)
         });
         if (!response.ok) {
@@ -877,11 +871,7 @@ async function POSTRequestWithGraphAPI(url, accessToken, sessionId, body, messag
         return;
     const response = await fetch(url, {
         method: "POST",
-        headers: {
-            "Authorization": `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-            "Workbook-Session-Id": sessionId,
-        },
+        headers: graphHeaders(accessToken, sessionId),
         body: body
     });
     if (response.ok) {
@@ -1334,15 +1324,6 @@ function base64ToBlob(base64) {
     const byteNumbers = new Array(byteCharacters.length).fill(0).map((_, i) => byteCharacters.charCodeAt(i));
     const byteArray = new Uint8Array(byteNumbers);
     return new Blob([byteArray], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
-}
-/**
- * Returns the value of the input with the specified dataset.index from an array of inputs
- * @param {number} index - the dataset.index value of the input whose value we want to retrieve
- * @param {HTMLInputElement[]} inputs - an array of HTMLInputElements with dataset.index attributes
- * @returns {string} - the value of the input with the specified dataset.index or an empty string if not found
- */
-function getInputValue(index, inputs) {
-    return inputs.find(input => Number(input.dataset.index) === index)?.value || '';
 }
 function settings() {
     const form = document.getElementById('form');

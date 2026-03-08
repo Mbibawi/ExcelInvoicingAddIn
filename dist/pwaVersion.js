@@ -387,23 +387,25 @@ async function invoice(issue = false) {
                 return indexes.map((index) => {
                     const div = newDiv(String(index));
                     appendLable(index, div);
-                    return appendInput(Number(index), div);
+                    return appendInput(index, div);
                 });
                 function appendInput(index, div) {
+                    const NaN = isNaN(Number(index));
                     const input = document.createElement('input');
                     input.classList.add(css);
-                    !isNaN(index) ? input.id = id + index.toString() : input.id = id;
+                    !NaN ? input.id = id + index.toString() : input.id = id;
                     (function setType() {
                         if (checkBox)
                             input.type = 'checkbox';
-                        else if (isNaN(index) || index < 3)
+                        else if (NaN || index < 3)
                             input.type = 'text';
                         else
                             input.type = 'date';
                     })();
                     (function notCheckBox() {
-                        if (isNaN(index) || checkBox)
+                        if (NaN || checkBox)
                             return; //If the index is not a number or the input is a checkBox, we return;
+                        index = Number(index);
                         input.name = input.id;
                         input.dataset.index = index.toString();
                         if (index < 2)
@@ -469,8 +471,8 @@ async function invoice(issue = false) {
         const date = new Date();
         const invoice = {
             number: getInvoiceNumber(date),
-            clientName: getInputValue(0, criteria),
-            matters: getArray(getInputValue(1, criteria)),
+            clientName: getInputByIndex(criteria, 0)?.value || '',
+            matters: matters,
             adress: adress,
             lang: lang
         };
@@ -493,8 +495,8 @@ async function invoice(issue = false) {
          */
         async function filterExcelData(inputs, discount, lang) {
             const matterCol = 1, dateCol = 3, addressCol = 15; //Indexes of the 'Matter' and 'Date' columns in the Excel table
-            const clientName = getInputValue(0, inputs);
-            const matters = getInputValue(matterCol, inputs).split(',').map(el => el.trimStart().trimEnd()); //!The Matter input may include multiple entries separated by ', ' not only one entry.
+            const clientName = getInputByIndex(inputs, 0)?.value || '';
+            const matters = getArray(getInputByIndex(inputs, matterCol)?.value) || []; //!The Matter input may include multiple entries separated by ', ' not only one entry.
             await clearFilterExcelTableGraphAPI(accountsWorkbookPath, tableName, sessionId, accessToken); //We unfilter the table;
             //Filtering by Client (criteria[0])
             await filterExcelTableWithGraphAPI(accountsWorkbookPath, tableName, client, [clientName], sessionId, accessToken);
@@ -733,7 +735,7 @@ async function issueLeaseLetter(create = false) {
                 const input = findInput(RTs.revisionDate.tag);
                 if (input)
                     input.value = revisionDate;
-                await updateExcelTableRowWithGraphAPI(accessToken, workbookPath, tableName, rowIndex, row);
+                await updateExcelTableRowWithGraphAPI(accessToken, undefined, workbookPath, tableName, rowIndex, row);
             })();
             (async function newRow() {
                 if (rowIndex)
@@ -763,7 +765,7 @@ function inputOnChange(index, table, invoice) {
     (function resetInputs() {
         //In some cases, we only need to rest the values of other inputs bound to the input that has been changed. If the function is called for this purpose, we will just rest those inputs without updating their data list.
         if (table || invoice)
-            return;
+            return; //This function only applies for the adding new entries form
         const boundInputs = [5, 6, 7, 9, 10]; //Those are "Start Time" (5), "End Time" (6), "Total Time" (7, although it is hidden), "Amount" (9), "VAT" (10) columns. We exclude the "Hourly Rate" column (8). We let the user rest it if he wants
         boundInputs
             .forEach(i => i > index ? reset(i) : i = i); //We reset any input which dataset-index is > than the dataset-index of the input that has been changed
@@ -795,7 +797,11 @@ function inputOnChange(index, table, invoice) {
     if (filtered.length < 1)
         return;
     boundInputs.map(input => {
-        const dataList = populateSelectElement(input, getUniqueValues(getIndex(input), filtered));
+        const index = getIndex(input);
+        const list = getUniqueValues(index, filtered);
+        if (invoice && [1, 2].includes(index))
+            list.push(list.join(', ')); //For the "Matter" and "Nature" lists, we add a new element combining all the values separated by ","
+        const dataList = populateSelectElement(input, list);
         if (dataList?.options.length === 1)
             input.value = dataList.options[0].value;
     });
