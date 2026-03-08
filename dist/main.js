@@ -14,7 +14,7 @@ if (!localStorage.tableTitles)
 var TableRows, accessToken, tableTitles = JSON.parse(localStorage.tableTitles);
 const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
 function getAccountsWorkBookPath() {
-    if (!localStorage.excelaccountsPath)
+    if (!localStorage.accountsPath)
         localStorage.accountsPath = prompt('Please provide the OneDrive full path (including the file name and extension) for the Excel Workbook', "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm");
     return localStorage.accountsPath || alert('The excel Workbook path is not valid');
 }
