@@ -369,7 +369,7 @@ function getRowsData(tableRows, discount = 0, lang) {
             FR: 'Remise sur honoraires',
             EN: 'Discount'
         },
-        totalFeesAfterDeduction: {
+        netFees: {
             nature: [],
             FR: 'Total honoraires après réduction',
             EN: 'Total fee after discount'
@@ -693,7 +693,7 @@ async function fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath,
  * @returns {string}
  */
 async function filterExcelTableWithGraphAPI(filePath, tableName, columnName, values, sessionId, accessToken, onValues = true) {
-    if (!accessToken || !sessionId)
+    if (!accessToken || !sessionId || !columnName || !values?.length)
         return;
     // Step 3: Apply filter using the column name
     const filterUrl = `${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/columns/${columnName}/filter/apply`;
@@ -874,7 +874,7 @@ async function POSTRequestWithGraphAPI(url, accessToken, sessionId, body, messag
         return response;
     }
     else {
-        message = `${message}: ${await response.text()}`;
+        message = `${message}:\n ${await response.text()}`;
         alert(message);
         if (filePath)
             await closeFileSession(sessionId, filePath, accessToken);
