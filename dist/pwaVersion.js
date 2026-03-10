@@ -1,9 +1,12 @@
 "use strict";
-(function showMainUI() {
-    const container = document.getElementById('btns');
+showMainUI();
+function showMainUI(homeBtn) {
+    const container = byID('btns');
     if (!container)
         return;
     container.innerHTML = "";
+    if (homeBtn)
+        return appendBtn('home', 'Back to Main', showMainUI);
     appendBtn('entry', 'Add Entry', addNewEntry);
     appendBtn('invoice', 'Invoice', invoice);
     appendBtn('letter', 'Letter', issueLetter);
@@ -17,8 +20,10 @@
         btn.innerText = text;
         btn.onclick = () => onClick();
         container?.appendChild(btn);
+        return btn;
     }
-})();
+}
+;
 function getAccessToken() {
     const clientId = "157dd297-447d-4592-b2d3-76b643b97132";
     const redirectUri = "https://mbibawi.github.io/ExcelInvoicingAddIn"; //!must be the same domain as the app
@@ -90,7 +95,7 @@ async function addNewEntry(add = false, row) {
             function insertAddForm(titles) {
                 if (!titles)
                     throw new Error('The table titles are missing. Check the console.log for more details');
-                const form = document.getElementById('form');
+                const form = byID();
                 if (!form)
                     throw new Error('Could not find the form element');
                 form.innerHTML = '';
@@ -115,6 +120,9 @@ async function addNewEntry(add = false, row) {
                     btnIssue.classList.add('button');
                     btnIssue.onclick = () => addNewEntry(true);
                     form.appendChild(btnIssue);
+                })();
+                (function homeBtn() {
+                    showMainUI(true);
                 })();
                 function newDiv(i, divs, css = "block") {
                     if (divs)
@@ -296,7 +304,7 @@ async function addNewEntry(add = false, row) {
                         });
                     });
                 })();
-                const form = document.getElementById('form');
+                const form = byID();
                 if (!form)
                     throw new Error('The form element was not found');
                 if (form) {
@@ -304,7 +312,7 @@ async function addNewEntry(add = false, row) {
                 }
                 function createDivContainer() {
                     const id = 'retrieved';
-                    let tableDiv = document.getElementById(id);
+                    let tableDiv = byID(id);
                     if (tableDiv) {
                         tableDiv.innerHTML = '';
                         return tableDiv;
@@ -363,7 +371,7 @@ async function invoice(issue = false) {
         function insertInvoiceForm(tableTitles) {
             if (!tableTitles)
                 throw new Error('The table titles are missing. Check the console.log for more details');
-            const form = document.getElementById('form');
+            const form = byID();
             if (!form)
                 throw new Error('The form element was not found');
             form.innerHTML = '';
@@ -384,6 +392,9 @@ async function invoice(issue = false) {
                 btnIssue.classList.add('button');
                 btnIssue.onclick = () => invoice(true);
                 form.appendChild(btnIssue);
+            })();
+            (function homeBtns() {
+                showMainUI(true);
             })();
             function insertInputsAndLables(indexes, id, checkBox = false) {
                 const tableBody = TableRows.slice(1, -1);
@@ -539,7 +550,7 @@ async function issueLetter(create = false) {
         if (create)
             return;
         document.querySelector('table')?.remove();
-        const form = document.getElementById('form');
+        const form = byID();
         if (!form)
             return;
         form.innerHTML = '';
@@ -556,11 +567,14 @@ async function issueLetter(create = false) {
             btn.innerText = 'Créer lettre';
             btn.onclick = () => issueLetter(true);
         })();
+        (function homeBtn() {
+            showMainUI(true);
+        })();
     })();
     (async function generate() {
         if (!create)
             return;
-        const input = document.getElementById('textInput');
+        const input = byID('textInput');
         if (!input)
             return;
         const templatePath = "Legal/Mon Cabinet d'Avocat/Administratif/Modèles Actes/Template_Lettre With Letter Head [DO NOT MODIFY].docx";
@@ -619,7 +633,7 @@ async function issueLeaseLetter(create = false) {
         if (create)
             return;
         document.querySelector('table')?.remove();
-        const form = document.getElementById('form');
+        const form = byID();
         if (!form)
             return;
         form.innerHTML = '';
@@ -674,6 +688,9 @@ async function issueLeaseLetter(create = false) {
             btn.classList.add('button');
             btn.innerText = 'Créer lettre';
             btn.onclick = () => issueLeaseLetter(true);
+        })();
+        (function homeBtn() {
+            showMainUI(true);
         })();
         function createInput(type, RT, className, labelText) {
             const id = RT.tag;
@@ -948,9 +965,9 @@ async function createAndUploadXmlDocument(accessToken, templatePath, filePath, l
         }
         function editXMLContentControl(control, text) {
             if (text === "DELETECONTENTECONTROL")
-                control.remove();
-            else if (!text)
-                text = "NO VALUE WAS PROVIDED";
+                return control.remove();
+            if (!text)
+                text = 'NO VALUE WAS PROVIDED';
             const sdtContent = getXMLElements(control, "sdtContent", 0);
             if (!sdtContent)
                 return;
@@ -1135,7 +1152,7 @@ async function addRowToExcelTableWithGraphAPI(row, index, workbookPath, tableNam
 }
 function searchFiles() {
     (function showForm() {
-        const form = document.getElementById('form');
+        const form = byID('form');
         if (!form)
             return;
         form.innerHTML = '';
@@ -1246,7 +1263,7 @@ function searchFiles() {
             return data.webUrl;
         }
         async function fetchAllFilesByBatches() {
-            const path = document.getElementById('folder')?.value;
+            const path = byID('folder')?.value;
             if (!path)
                 throw new Error('The file path could not be retrieved');
             const allFiles = [];

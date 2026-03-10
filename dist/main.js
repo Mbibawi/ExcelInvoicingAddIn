@@ -11,6 +11,7 @@ if (!localStorage.destinationFolder)
 const destinationFolder = localStorage.destinationFolder || alert('the destination folder path is missing or not valid');
 var TableRows, accessToken, tableTitles = JSON.parse(localStorage.tableTitles);
 const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
+const byID = (id = 'form') => document.getElementById(id);
 function getAccountsWorkBookPath() {
     if (!localStorage.accountsPath)
         localStorage.accountsPath = prompt('Please provide the OneDrive full path (including the file name and extension) for the Excel Workbook', "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm");
@@ -430,24 +431,25 @@ function getRowsData(tableRows, discount = 0, lang) {
     return [wordRows, totalsLabels];
     function pushTotalsRows() {
         //Adding rows for the totals of the different categories and amounts
-        const total = (nature) => [colAmount, colVAT].map(col => sumColumn(col, nature)); //!It always returns the absolute values of the total amount and the total VAT
-        const totalFees = total(labels.totalFees.nature);
-        const feesDeductions = total(labels.totalDeduction.nature);
-        const feesDiscount = totalFees.map(amount => -amount * (discount / 100)); //This is an addition discount applied when the invoice is issued. The Excel entries may already include other discounts registered as "Remise"
+        const total = (lable) => [colAmount, colVAT].map(col => sumColumn(col, lable.nature)); //!It always returns the absolute values of the total amount and the total VAT
+        const totalFees = total(labels.totalFees);
+        const feesDeductions = total(labels.totalDeduction);
+        const feesDiscount = totalFees.map(amount => amount * (discount / 100)); //This is an additional discount applied when the invoice is issued. The Excel table may already include other discounts registered as "Remise"
         feesDeductions.forEach((amount, index) => amount += feesDiscount[index]); //This is the total of the deductions from the fees: the "Remise" deductions, and the additional discount added at the time the invoice is issued
         const netFees = totalFees.map((amount, index) => amount - feesDeductions[index]);
-        const totalPayments = total(labels.totalPayments.nature);
-        const totalExpenses = total(labels.totalExpenses.nature);
+        const totalPayments = total(labels.totalPayments);
+        const totalExpenses = total(labels.totalExpenses);
         const totalTimeSpent = [sumColumn(colHours), NaN]; //by omitting to pass the "natures" argument to sumColumn, we do not filter the "Total Time" column by any crieteria. We will get the sum of all the column. since the VAT = NaN, the VAT cell will end up empty.
         const totalDue = netFees.map((amount, index) => amount + totalExpenses[index] - totalPayments[index]);
         (function pushTotalsRows() {
+            const amount = (v) => v[0];
             pushRow(labels.totalFees, totalFees);
-            pushRow(labels.totalDeduction, feesDeductions, !feesDeductions[0]);
-            pushRow(labels.totalFeesAfterDeduction, netFees, !(netFees[0] < totalFees[0])); //We don't push this row if the there is no deduction applied on the fees or if the deduction is = 0
-            pushRow(labels.totalTimeSpent, totalTimeSpent, !totalTimeSpent[0]);
-            pushRow(labels.totalExpenses, totalExpenses, !totalExpenses[0]);
-            pushRow(labels.totalPayments, totalPayments, !totalPayments[0]);
-            totalDue[0] < 0 ? pushRow(labels.totalReinbursement, totalDue) : pushRow(labels.totalDue, totalDue);
+            pushRow(labels.totalDeduction, feesDeductions, !amount(feesDeductions));
+            pushRow(labels.netFees, netFees, !(amount(netFees) < amount(totalFees))); //We don't push this row if the there is no deduction applied on the fees or if the deduction is = 0
+            pushRow(labels.totalTimeSpent, totalTimeSpent, !amount(totalTimeSpent));
+            pushRow(labels.totalExpenses, totalExpenses, !amount(totalExpenses));
+            pushRow(labels.totalPayments, totalPayments, !amount(totalPayments));
+            amount(totalDue) < 0 ? pushRow(labels.totalReinbursement, totalDue) : pushRow(labels.totalDue, totalDue);
         })();
         (function addDiscountRowToExcel() {
             if (!discount)
@@ -456,7 +458,7 @@ function getRowsData(tableRows, discount = 0, lang) {
                 .find(row => row[colNature] === 'Honoraire');
             if (!newRow)
                 return;
-            const [amount, vat] = totalFees.map(amount => amount * ((discount) / 100)); //!The discount must be added as a positive number. This is like a payment made by the client
+            const [amount, vat] = feesDiscount; //!The discount must be added as a positive number. This is like a payment made by the client
             const descr = prompt('Provide a description for the discount', 'Remise sur les honoraires') || '';
             const date = getISODate(new Date());
             const cells = [
@@ -1320,7 +1322,7 @@ function base64ToBlob(base64) {
     return new Blob([byteArray], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
 }
 function settings() {
-    const form = document.getElementById('form');
+    const form = byID();
     if (!form)
         return;
     form.innerHTML = '';
@@ -1363,6 +1365,9 @@ function settings() {
             alert(`${label} has been updated`);
         }
     });
+    (function homeBtn() {
+        showMainUI(true);
+    })();
 }
 function spinner(show) {
     if (!show)

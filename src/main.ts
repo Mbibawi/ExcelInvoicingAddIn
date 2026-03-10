@@ -1,6 +1,6 @@
 const GRAPH_API_BASE_URL = "https://graph.microsoft.com/v1.0/me/drive/root:/";
 
- 
+
 if (!localStorage.templatePath) localStorage.templatePath = prompt('Please provide the OneDrive full path (including the file name and extension) for the Word template', "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/FactureTEMPLATE [NE PAS MODIFIDER].docx");
 
 const templatePath = localStorage.templatePath || alert('The template path is not valid or is missing');
@@ -16,9 +16,11 @@ var TableRows: string[][], accessToken: string, tableTitles: string[] = JSON.par
 
 const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
 
+const byID = (id: string = 'form') => document.getElementById(id);
+
 function getAccountsWorkBookPath() {
   if (!localStorage.accountsPath)
-      localStorage.accountsPath = prompt('Please provide the OneDrive full path (including the file name and extension) for the Excel Workbook', "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm");
+    localStorage.accountsPath = prompt('Please provide the OneDrive full path (including the file name and extension) for the Excel Workbook', "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm");
   return localStorage.accountsPath || alert('The excel Workbook path is not valid');
 }
 
@@ -344,8 +346,8 @@ async function filterTable(tableName: string, criteria?: { column: number, value
  * @param value 
  * @returns {string[]}
  */
-function getArray(value: string|undefined): string[] {
-  if(!value) return [];
+function getArray(value: string | undefined): string[] {
+  if (!value) return [];
   const array =
     value.replaceAll(', ', ',')
       .replaceAll(' ,', ',')
@@ -488,25 +490,26 @@ function getRowsData(tableRows: any[][], discount: number = 0, lang: string): [s
 
   function pushTotalsRows() {
     //Adding rows for the totals of the different categories and amounts
-    const total = (nature: string[]) => [colAmount, colVAT].map(col => sumColumn(col, nature)) as values;//!It always returns the absolute values of the total amount and the total VAT
-    const totalFees = total(labels.totalFees.nature);
-    const feesDeductions = total(labels.totalDeduction.nature);
-    const feesDiscount = totalFees.map(amount => -amount * (discount / 100));//This is an addition discount applied when the invoice is issued. The Excel entries may already include other discounts registered as "Remise"
+    const total = (lable: lable) => [colAmount, colVAT].map(col => sumColumn(col, lable.nature)) as values;//!It always returns the absolute values of the total amount and the total VAT
+    const totalFees = total(labels.totalFees);
+    const feesDeductions = total(labels.totalDeduction);
+    const feesDiscount = totalFees.map(amount => amount * (discount / 100));//This is an additional discount applied when the invoice is issued. The Excel table may already include other discounts registered as "Remise"
     feesDeductions.forEach((amount, index) => amount += feesDiscount[index]);//This is the total of the deductions from the fees: the "Remise" deductions, and the additional discount added at the time the invoice is issued
     const netFees = totalFees.map((amount, index) => amount - feesDeductions[index]) as values;
-    const totalPayments = total(labels.totalPayments.nature);
-    const totalExpenses = total(labels.totalExpenses.nature);
+    const totalPayments = total(labels.totalPayments);
+    const totalExpenses = total(labels.totalExpenses);
     const totalTimeSpent: values = [sumColumn(colHours), NaN];//by omitting to pass the "natures" argument to sumColumn, we do not filter the "Total Time" column by any crieteria. We will get the sum of all the column. since the VAT = NaN, the VAT cell will end up empty.
     const totalDue = netFees.map((amount, index) => amount + totalExpenses[index] - totalPayments[index]) as values;
 
     (function pushTotalsRows() {
+      const amount = (v:values)=>v[0] ;
       pushRow(labels.totalFees, totalFees);
-      pushRow(labels.totalDeduction, feesDeductions, !feesDeductions[0]);
-      pushRow(labels.totalFeesAfterDeduction, netFees, !(netFees[0] < totalFees[0]));//We don't push this row if the there is no deduction applied on the fees or if the deduction is = 0
-      pushRow(labels.totalTimeSpent, totalTimeSpent, !totalTimeSpent[0]);
-      pushRow(labels.totalExpenses, totalExpenses, !totalExpenses[0]);
-      pushRow(labels.totalPayments, totalPayments, !totalPayments[0]);
-      totalDue[0] < 0 ? pushRow(labels.totalReinbursement, totalDue) : pushRow(labels.totalDue, totalDue)
+      pushRow(labels.totalDeduction, feesDeductions, !amount(feesDeductions));
+      pushRow(labels.netFees, netFees, !(amount(netFees) < amount(totalFees)));//We don't push this row if the there is no deduction applied on the fees or if the deduction is = 0
+      pushRow(labels.totalTimeSpent, totalTimeSpent, !amount(totalTimeSpent));
+      pushRow(labels.totalExpenses, totalExpenses, !amount(totalExpenses));
+      pushRow(labels.totalPayments, totalPayments, !amount(totalPayments));
+      amount(totalDue) < 0 ? pushRow(labels.totalReinbursement, totalDue) : pushRow(labels.totalDue, totalDue)
     })();
 
 
@@ -515,7 +518,7 @@ function getRowsData(tableRows: any[][], discount: number = 0, lang: string): [s
       const newRow = tableRows
         .find(row => row[colNature] === 'Honoraire');
       if (!newRow) return;
-      const [amount, vat] = totalFees.map(amount => amount * ((discount) / 100));//!The discount must be added as a positive number. This is like a payment made by the client
+      const [amount, vat] = feesDiscount;//!The discount must be added as a positive number. This is like a payment made by the client
       const descr = prompt('Provide a description for the discount', 'Remise sur les honoraires') || '';
       const date = getISODate(new Date());
       const cells: [number, string | number][] = [
@@ -691,8 +694,8 @@ async function closeFileSession(sessionId: string, filePath: string, accessToken
 /**
  * Returns the headers of the Microsoft Graph API calls
  */
-function graphHeaders(accessToken:string, sessionID?:string, contentType?:string) {
-  const headers:header = {
+function graphHeaders(accessToken: string, sessionID?: string, contentType?: string) {
+  const headers: header = {
     'Authorization': `Bearer ${accessToken}`,
     'Content-Type': contentType || 'application/json',
   };
@@ -912,7 +915,7 @@ async function uploadFileToOneDriveWithGraphAPI(blob: Blob, filePath: string, ac
  * @param {number} rowIndex - 0-based index of the row.
  * @param {Array} values - 1D array of values for the row.
  */
-async function updateExcelTableRowWithGraphAPI(accessToken: string, sessionID:string|undefined, workbookPath: string, tableName: string, rowIndex: number, values: any[]) {
+async function updateExcelTableRowWithGraphAPI(accessToken: string, sessionID: string | undefined, workbookPath: string, tableName: string, rowIndex: number, values: any[]) {
   const url = `${GRAPH_API_BASE_URL}${workbookPath}:/workbook/tables/${tableName}/rows/itemAt(index=${rowIndex})`;
 
   const body = {
@@ -1458,7 +1461,7 @@ function base64ToBlob(base64: string): Blob {
 }
 
 function settings() {
-  const form = document.getElementById('form');
+  const form = byID();
   if (!form) return;
   form.innerHTML = '';
   const inputs = [
@@ -1501,6 +1504,10 @@ function settings() {
     }
 
   });
+
+  (function homeBtn() {
+    showMainUI(true);
+  })();
 }
 
 function spinner(show: boolean) {

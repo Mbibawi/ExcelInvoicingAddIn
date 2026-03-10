@@ -1,8 +1,9 @@
-
-(function showMainUI() {
-    const container = document.getElementById('btns');
+showMainUI();
+function showMainUI(homeBtn?: boolean) {
+    const container = byID('btns');
     if (!container) return;
     container.innerHTML = "";
+    if (homeBtn) return appendBtn('home', 'Back to Main', showMainUI)
 
     appendBtn('entry', 'Add Entry', addNewEntry);
     appendBtn('invoice', 'Invoice', invoice);
@@ -11,15 +12,17 @@
     appendBtn('search', 'Search Files', searchFiles);
     appendBtn('settings', 'Settings', settings);
 
-    function appendBtn(id: string, text:string, onClick: Function) {
+    function appendBtn(id: string, text: string, onClick: Function) {
         const btn = document.createElement('button');
         btn.id = id;
         btn.classList.add("ms-Button");
         btn.innerText = text;
         btn.onclick = () => onClick();
         container?.appendChild(btn);
+        return btn
     }
-})();
+};
+
 
 function getAccessToken() {
     const clientId = "157dd297-447d-4592-b2d3-76b643b97132";
@@ -38,7 +41,7 @@ function getAccessToken() {
     return getTokenWithMSAL(clientId, redirectUri, msalConfig)
 }
 
-async function setLocalStorageTitles(workbookPath:string, sessionId?: string) {
+async function setLocalStorageTitles(workbookPath: string, sessionId?: string) {
     if (!accessToken)
         accessToken = await getAccessToken() || '';
     if (!accessToken) return [];
@@ -50,7 +53,7 @@ async function setLocalStorageTitles(workbookPath:string, sessionId?: string) {
 
     tableTitles = TableRows?.[0];
     if (!tableTitles) return [];
-    localStorage.tableTitles =  JSON.stringify(tableTitles);
+    localStorage.tableTitles = JSON.stringify(tableTitles);
     await closeFileSession(sessionId, workbookPath, accessToken);
     return tableTitles;
 }
@@ -92,7 +95,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                 if (!titles) throw new Error('The table titles are missing. Check the console.log for more details');
 
 
-                const form = document.getElementById('form');
+                const form = byID();
                 if (!form) throw new Error('Could not find the form element');
                 form.innerHTML = '';
 
@@ -120,6 +123,10 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                     btnIssue.classList.add('button');
                     btnIssue.onclick = () => addNewEntry(true);
                     form.appendChild(btnIssue);
+                })();
+
+                (function homeBtn() {
+                    showMainUI(true);
                 })();
 
                 function newDiv(i: number, divs?: HTMLDivElement[], css: string = "block") {
@@ -316,7 +323,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                 })();
 
 
-                const form = document.getElementById('form');
+                const form = byID();
                 if (!form) throw new Error('The form element was not found');
                 if (form) {
                     form?.insertAdjacentElement('afterend', tableDiv);
@@ -324,7 +331,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
 
                 function createDivContainer() {
                     const id = 'retrieved';
-                    let tableDiv = document.getElementById(id)
+                    let tableDiv = byID(id)
                     if (tableDiv) {
                         tableDiv.innerHTML = '';
                         return tableDiv;
@@ -383,7 +390,7 @@ async function invoice(issue: boolean = false) {
 
         function insertInvoiceForm(tableTitles: string[]) {
             if (!tableTitles) throw new Error('The table titles are missing. Check the console.log for more details');
-            const form = document.getElementById('form');
+            const form = byID();
             if (!form) throw new Error('The form element was not found');
             form.innerHTML = '';
 
@@ -408,6 +415,10 @@ async function invoice(issue: boolean = false) {
                 form.appendChild(btnIssue);
             })();
 
+            (function homeBtns() {
+                showMainUI(true);
+            })();
+
             function insertInputsAndLables(indexes: (number | string)[], id: string, checkBox: boolean = false): HTMLInputElement[] {
                 const tableBody = TableRows.slice(1, -1);
                 let css = 'field';
@@ -418,7 +429,7 @@ async function invoice(issue: boolean = false) {
                     return appendInput(index, div);
                 });
 
-                function appendInput(index: number|string, div: HTMLDivElement) {
+                function appendInput(index: number | string, div: HTMLDivElement) {
                     const NaN = isNaN(Number(index));
                     const input = document.createElement('input');
                     input.classList.add(css);
@@ -541,9 +552,9 @@ async function invoice(issue: boolean = false) {
          */
         async function filterExcelData(inputs: HTMLInputElement[], discount: number, lang: string): Promise<[string[][], string[], string[], string[]] | void> {
             const matterCol = 1, dateCol = 3, addressCol = 15;//Indexes of the 'Matter' and 'Date' columns in the Excel table
-            const clientName = getInputByIndex(inputs, 0)?.value ||'';
+            const clientName = getInputByIndex(inputs, 0)?.value || '';
             const matters =
-                getArray(getInputByIndex(inputs, matterCol)?.value)|| []; //!The Matter input may include multiple entries separated by ', ' not only one entry.
+                getArray(getInputByIndex(inputs, matterCol)?.value) || []; //!The Matter input may include multiple entries separated by ', ' not only one entry.
 
             await clearFilterExcelTableGraphAPI(workbookPath, tableName, sessionId, accessToken);//We unfilter the table;
 
@@ -593,7 +604,7 @@ async function issueLetter(create: boolean = false) {
     (function showForm() {
         if (create) return;
         document.querySelector('table')?.remove();
-        const form = document.getElementById('form');
+        const form = byID();
         if (!form) return;
         form.innerHTML = '';
         const input = document.createElement('textarea');
@@ -610,11 +621,15 @@ async function issueLetter(create: boolean = false) {
             btn.innerText = 'Créer lettre'
             btn.onclick = () => issueLetter(true);
         })();
+
+        (function homeBtn() {
+            showMainUI(true);
+        })();
     })();
 
     (async function generate() {
         if (!create) return;
-        const input = document.getElementById('textInput') as HTMLTextAreaElement;
+        const input = byID('textInput') as HTMLTextAreaElement;
         if (!input) return;
         const templatePath = "Legal/Mon Cabinet d'Avocat/Administratif/Modèles Actes/Template_Lettre With Letter Head [DO NOT MODIFY].docx";
         const fileName = prompt('Provide the file name without special characthers');
@@ -676,7 +691,7 @@ async function issueLeaseLetter(create: boolean = false) {
     (function showForm() {
         if (create) return;
         document.querySelector('table')?.remove();
-        const form = document.getElementById('form');
+        const form = byID();
         if (!form) return;
         form.innerHTML = '';
 
@@ -732,6 +747,10 @@ async function issueLeaseLetter(create: boolean = false) {
             btn.classList.add('button');
             btn.innerText = 'Créer lettre'
             btn.onclick = () => issueLeaseLetter(true);
+        })();
+
+        (function homeBtn() {
+            showMainUI(true);
         })();
 
         function createInput(type: string, RT: RT, className: string, labelText: string) {
@@ -872,7 +891,7 @@ function inputOnChange(index: number, table: any[][] | undefined, invoice: boole
     boundInputs.map(input => {
         const index = getIndex(input);
         const list = getUniqueValues(index, filtered);
-        if(invoice && [1,2].includes(index)) list.push(list.join(', '));//For the "Matter" and "Nature" lists, we add a new element combining all the values separated by ","
+        if (invoice && [1, 2].includes(index)) list.push(list.join(', '));//For the "Matter" and "Nature" lists, we add a new element combining all the values separated by ","
         const dataList = populateSelectElement(input, list);
         if (dataList?.options.length === 1)
             input.value = dataList.options[0].value
@@ -1014,9 +1033,10 @@ async function createAndUploadXmlDocument(accessToken: string, templatePath: str
             return ctrls.find(control => (getXMLElements(control, "alias", 0) as Element)?.getAttributeNS(schema, 'val') === title);
         }
 
-        function editXMLContentControl(control: Element, text: string|null) {
-            if (text === "DELETECONTENTECONTROL") control.remove();
-            else if (!text) text = "NO VALUE WAS PROVIDED";
+        function editXMLContentControl(control: Element, text: string | null) {
+            if (text === "DELETECONTENTECONTROL") return control.remove();
+
+            if (!text) text = 'NO VALUE WAS PROVIDED';
             const sdtContent = getXMLElements(control, "sdtContent", 0) as Element;
             if (!sdtContent) return;
             const paragTemplate = getParagraphOrRun(sdtContent) as Element;//This will set the language for the paragraph or the run
@@ -1186,7 +1206,7 @@ function getNewExcelRow(inputs: HTMLInputElement[]) {
  * @returns 
  */
 async function addRowToExcelTableWithGraphAPI(row: any[], index: number | null, workbookPath: string, tableName: string, accessToken: string, filter: boolean = false) {
-    
+
     const sessionId = await createFileSession(workbookPath, accessToken, true);//!persist must be = true because 
     if (!sessionId) return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
     await clearFilterExcelTableGraphAPI(workbookPath, tableName, sessionId, accessToken);
@@ -1221,7 +1241,7 @@ async function addRowToExcelTableWithGraphAPI(row: any[], index: number | null, 
 
 function searchFiles() {
     (function showForm() {
-        const form = document.getElementById('form') as HTMLDivElement;
+        const form = byID('form') as HTMLDivElement;
         if (!form) return;
         form.innerHTML = '';
         if (localStorage.folderPath)
@@ -1340,7 +1360,7 @@ function searchFiles() {
         }
 
         async function fetchAllFilesByBatches() {
-            const path = (document.getElementById('folder') as HTMLInputElement)?.value;
+            const path = (byID('folder') as HTMLInputElement)?.value;
             if (!path) throw new Error('The file path could not be retrieved');
 
             const allFiles: fileItem[] = [];
