@@ -421,7 +421,7 @@ function getRowsData(tableRows: any[][], discount: number = 0, lang: string): [s
       FR: 'Remise sur honoraires',
       EN: 'Discount'
     },
-    totalFeesAfterDeduction: {
+    netFees: {
       nature: [],
       FR: 'Total honoraires après réduction',
       EN: 'Total fee after discount'
@@ -491,20 +491,22 @@ function getRowsData(tableRows: any[][], discount: number = 0, lang: string): [s
   function pushTotalsRows() {
     //Adding rows for the totals of the different categories and amounts
     const total = (lable: lable) => [colAmount, colVAT].map(col => sumColumn(col, lable.nature)) as values;//!It always returns the absolute values of the total amount and the total VAT
+    const amount = (v:values)=>v[0] ;
     const totalFees = total(labels.totalFees);
-    const feesDeductions = total(labels.totalDeduction);
     const feesDiscount = totalFees.map(amount => amount * (discount / 100));//This is an additional discount applied when the invoice is issued. The Excel table may already include other discounts registered as "Remise"
-    feesDeductions.forEach((amount, index) => amount += feesDiscount[index]);//This is the total of the deductions from the fees: the "Remise" deductions, and the additional discount added at the time the invoice is issued
+    const feesDeductions = total(labels.totalDeduction).map((amount, index) => amount += feesDiscount[index]) as values;//This is the total of the deductions from the fees: the "Remise" deductions, and the additional discount added at the time the invoice is issued
     const netFees = totalFees.map((amount, index) => amount - feesDeductions[index]) as values;
     const totalPayments = total(labels.totalPayments);
     const totalExpenses = total(labels.totalExpenses);
     const totalTimeSpent: values = [sumColumn(colHours), NaN];//by omitting to pass the "natures" argument to sumColumn, we do not filter the "Total Time" column by any crieteria. We will get the sum of all the column. since the VAT = NaN, the VAT cell will end up empty.
     const totalDue = netFees.map((amount, index) => amount + totalExpenses[index] - totalPayments[index]) as values;
+    const percentage = (amount(feesDeductions) / amount(totalFees)) * 100;
+    [labels.discountDescription.EN, labels.discountDescription.FR].forEach(descr=>descr = descr.replace('XXX', `${percentage}`));
 
     (function pushTotalsRows() {
-      const amount = (v:values)=>v[0] ;
       pushRow(labels.totalFees, totalFees);
       pushRow(labels.totalDeduction, feesDeductions, !amount(feesDeductions));
+      pushRow(labels.discountDescription, [0, 0], !amount(feesDeductions));
       pushRow(labels.netFees, netFees, !(amount(netFees) < amount(totalFees)));//We don't push this row if the there is no deduction applied on the fees or if the deduction is = 0
       pushRow(labels.totalTimeSpent, totalTimeSpent, !amount(totalTimeSpent));
       pushRow(labels.totalExpenses, totalExpenses, !amount(totalExpenses));
@@ -539,11 +541,12 @@ function getRowsData(tableRows: any[][], discount: number = 0, lang: string): [s
       if (ignore || !amount || isNaN(amount)) return;
       const lable = rowLable?.[lang as keyof lable] as string || '';
       if (lable) totalsLabels.push(lable);
+      const value = rowLable === labels.totalTimeSpent ? getTimeSpent(amount) : getAmountString(amount);
       wordRows.push(
         [
           lable,
           '',
-          rowLable === labels.totalTimeSpent ? getTimeSpent(amount) : getAmountString(amount),
+          value,
           getAmountString(vat)//VAT is always a positive value
         ]);
     }
@@ -765,7 +768,7 @@ async function fetchExcelTableWithGraphAPI(sessionId: string, accessToken: strin
  * @returns {string} 
  */
 async function filterExcelTableWithGraphAPI(filePath: string, tableName: string, columnName: string, values: string[] | number[] | boolean[], sessionId: string, accessToken: string, onValues: boolean = true) {
-  if (!accessToken || !sessionId) return;
+  if (!accessToken || !sessionId ||!columnName || !values?.length) return;
 
   // Step 3: Apply filter using the column name
   const filterUrl = `${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/columns/${columnName}/filter/apply`;
@@ -786,10 +789,9 @@ async function filterExcelTableWithGraphAPI(filePath: string, tableName: string,
       "operator": "And",
     }
   }
-  const resp = await POSTRequestWithGraphAPI(filterUrl, accessToken, sessionId, JSON.stringify(body), 'Error applying filter');
 
-  if (resp)
-    console.log(`Filter successfully applied to column ${columnName}!`);
+    const resp = await POSTRequestWithGraphAPI(filterUrl, accessToken, sessionId, JSON.stringify(body), 'Error applying filter');
+    if (resp) console.log(`Filter successfully applied to column ${columnName}!`);
 
 }
 /**
@@ -954,6 +956,7 @@ async function updateExcelTableRowWithGraphAPI(accessToken: string, sessionID: s
  */
 async function POSTRequestWithGraphAPI(url: string, accessToken: string, sessionId: string, body: string, message: string, filePath?: string) {
   if (!url || !accessToken || !sessionId) return;
+  
   const response = await fetch(url, {
     method: "POST",
     headers: graphHeaders(accessToken, sessionId),
@@ -963,12 +966,11 @@ async function POSTRequestWithGraphAPI(url: string, accessToken: string, session
   if (response.ok) {
     return response
   } else {
-    message = `${message}: ${await response.text()}`;
+    message = `${message}:\n ${await response.text()}`;
     alert(message);
     if (filePath) await closeFileSession(sessionId, filePath, accessToken)
     throw new Error(message)
   }
-
 }
 
 /**

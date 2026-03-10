@@ -432,19 +432,21 @@ function getRowsData(tableRows, discount = 0, lang) {
     function pushTotalsRows() {
         //Adding rows for the totals of the different categories and amounts
         const total = (lable) => [colAmount, colVAT].map(col => sumColumn(col, lable.nature)); //!It always returns the absolute values of the total amount and the total VAT
+        const amount = (v) => v[0];
         const totalFees = total(labels.totalFees);
-        const feesDeductions = total(labels.totalDeduction);
         const feesDiscount = totalFees.map(amount => amount * (discount / 100)); //This is an additional discount applied when the invoice is issued. The Excel table may already include other discounts registered as "Remise"
-        feesDeductions.forEach((amount, index) => amount += feesDiscount[index]); //This is the total of the deductions from the fees: the "Remise" deductions, and the additional discount added at the time the invoice is issued
+        const feesDeductions = total(labels.totalDeduction).map((amount, index) => amount += feesDiscount[index]); //This is the total of the deductions from the fees: the "Remise" deductions, and the additional discount added at the time the invoice is issued
         const netFees = totalFees.map((amount, index) => amount - feesDeductions[index]);
         const totalPayments = total(labels.totalPayments);
         const totalExpenses = total(labels.totalExpenses);
         const totalTimeSpent = [sumColumn(colHours), NaN]; //by omitting to pass the "natures" argument to sumColumn, we do not filter the "Total Time" column by any crieteria. We will get the sum of all the column. since the VAT = NaN, the VAT cell will end up empty.
         const totalDue = netFees.map((amount, index) => amount + totalExpenses[index] - totalPayments[index]);
+        const percentage = (amount(feesDeductions) / amount(totalFees)) * 100;
+        [labels.discountDescription.EN, labels.discountDescription.FR].forEach(descr => descr = descr.replace('XXX', `${percentage}`));
         (function pushTotalsRows() {
-            const amount = (v) => v[0];
             pushRow(labels.totalFees, totalFees);
             pushRow(labels.totalDeduction, feesDeductions, !amount(feesDeductions));
+            pushRow(labels.discountDescription, [0, 0], !amount(feesDeductions));
             pushRow(labels.netFees, netFees, !(amount(netFees) < amount(totalFees))); //We don't push this row if the there is no deduction applied on the fees or if the deduction is = 0
             pushRow(labels.totalTimeSpent, totalTimeSpent, !amount(totalTimeSpent));
             pushRow(labels.totalExpenses, totalExpenses, !amount(totalExpenses));
@@ -478,10 +480,11 @@ function getRowsData(tableRows, discount = 0, lang) {
             const lable = rowLable?.[lang] || '';
             if (lable)
                 totalsLabels.push(lable);
+            const value = rowLable === labels.totalTimeSpent ? getTimeSpent(amount) : getAmountString(amount);
             wordRows.push([
                 lable,
                 '',
-                rowLable === labels.totalTimeSpent ? getTimeSpent(amount) : getAmountString(amount),
+                value,
                 getAmountString(vat) //VAT is always a positive value
             ]);
         }

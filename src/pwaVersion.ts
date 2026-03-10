@@ -60,6 +60,7 @@ async function setLocalStorageTitles(workbookPath: string, sessionId?: string) {
 /**
  * 
  * @param {boolean} add - If false, the function will only show a form containing input fields for the user to provide the data for the new row to be added to the Excel Table. If true, the function will parse the values from the input fields in the form, and will add them as a new row to the Excel Table. Its default value is false.
+ * @param {boolean} display - If provided, the function will show the visible rows in the UI after the new row has been added.
  * @param {any[]} row - If provided, the function will add the row directly to the Excel Table without needing to retrieve the data from the inputs.
  */
 async function addNewEntry(add: boolean = false, row?: any[]) {
@@ -202,22 +203,21 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                 }
             }
         }
-
-
     })();
 
     (async function addEntry() {
         if (!add) return;
         spinner(true);//We show the spinner
+        const display = !row?.length;
+        if(!row) row = parseInputs() || [];
         try {
-            if (row) await addRow(row);//If a row is already passed, we will add them directly
-            else await addRow(parseInputs() || undefined, true);
+            const visibleCells = await addRow(row);
+            if(visibleCells?.length) displayVisibleCells(visibleCells, display);
+            spinner(false);//We hide the spinner
         } catch (error) {
             spinner(false);//We hide the spinner
             alert(error)
         }
-
-
 
         function parseInputs() {
             const colNature = 2, colDate = 3, colStart = 5, colEnd = 6, colRate = 8, colAmount = 9, colVAT = 10;
@@ -275,81 +275,80 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
             };
         }
 
-        async function addRow(row: any[] | undefined, filter: boolean = false) {
+        async function addRow(row: any[] | undefined) {
             if (!row) throw new Error('The row is not valid');
-            const visibleCells = await addRowToExcelTableWithGraphAPI(row, TableRows.length - 2, workbookPath, tableName, accessToken, filter);
-            if (!visibleCells)
+            const visibleCells = await addRowToExcelTableWithGraphAPI(row, TableRows.length - 2, workbookPath, tableName, accessToken, true);
+            
+            if (!visibleCells?.length)
                 return alert('There was an issue with the adding or the filtering, check the console.log for more details');
 
             alert('Row aded and the table was filtered');
+            return visibleCells
+            
+        };
+        function displayVisibleCells(visibleCells: string[][], display: boolean) {
+            if (!display) return;
+            const tableDiv = createDivContainer();
+            const table = document.createElement('table');
+            table.classList.add('table');
+            tableDiv.appendChild(table);
 
-            displayVisibleCells(visibleCells);
-            spinner(false);//We hide the spinner
-
-            function displayVisibleCells(visibleCells: string[][]) {
-                const tableDiv = createDivContainer();
-                const table = document.createElement('table');
-                table.classList.add('table');
-                tableDiv.appendChild(table);
-
-                const columns = [0, 1, 2, 3, 7, 8, 9, 10, 14, 15];//The columns that will be displayed in the table;
-                const rowClass = 'excelRow';
-                (function insertTableHeader() {
-                    if (!tableTitles) throw new Error('No Table Titles');
-                    const headerRow = document.createElement('tr');
-                    headerRow.classList.add(rowClass);
-                    const thead = document.createElement('thead');
-                    table.appendChild(thead);
-                    thead.appendChild(headerRow);
-                    tableTitles.forEach((cell, index) => {
+            const columns = [0, 1, 2, 3, 7, 8, 9, 10, 14, 15];//The columns that will be displayed in the table;
+            const rowClass = 'excelRow';
+            (function insertTableHeader() {
+                if (!tableTitles) throw new Error('No Table Titles');
+                const headerRow = document.createElement('tr');
+                headerRow.classList.add(rowClass);
+                const thead = document.createElement('thead');
+                table.appendChild(thead);
+                thead.appendChild(headerRow);
+                tableTitles.forEach((cell, index) => {
+                    if (!columns.includes(index)) return;
+                    addTableCell(headerRow, cell, 'th');
+                });
+            })();
+            (function insertTableRows() {
+                const tbody = document.createElement('tbody');
+                table.appendChild(tbody);
+                visibleCells.forEach((row, index) => {
+                    if (index < 1) return;//We exclude the header row
+                    if (!row) return;
+                    const tr = document.createElement('tr');
+                    tr.classList.add(rowClass);
+                    tbody.appendChild(tr);
+                    row.forEach((cell, index) => {
                         if (!columns.includes(index)) return;
-                        addTableCell(headerRow, cell, 'th');
+                        addTableCell(tr, cell, 'td');
                     });
-                })();
-                (function insertTableRows() {
-                    const tbody = document.createElement('tbody');
-                    table.appendChild(tbody);
-                    visibleCells.forEach((row, index) => {
-                        if (index < 1) return;//We exclude the header row
-                        if (!row) return;
-                        const tr = document.createElement('tr');
-                        tr.classList.add(rowClass);
-                        tbody.appendChild(tr);
-                        row.forEach((cell, index) => {
-                            if (!columns.includes(index)) return;
-                            addTableCell(tr, cell, 'td');
-                        });
-                    });
-                })();
+                });
+            })();
 
 
-                const form = byID();
-                if (!form) throw new Error('The form element was not found');
-                if (form) {
-                    form?.insertAdjacentElement('afterend', tableDiv);
-                }
+            const form = byID();
+            if (!form) throw new Error('The form element was not found');
+            if (form) {
+                form?.insertAdjacentElement('afterend', tableDiv);
+            }
 
-                function createDivContainer() {
-                    const id = 'retrieved';
-                    let tableDiv = byID(id)
-                    if (tableDiv) {
-                        tableDiv.innerHTML = '';
-                        return tableDiv;
-                    };
-                    tableDiv = document.createElement('div');
-                    tableDiv.classList.add('table-div');
-                    tableDiv.id = id;
+            function createDivContainer() {
+                const id = 'retrieved';
+                let tableDiv = byID(id)
+                if (tableDiv) {
+                    tableDiv.innerHTML = '';
                     return tableDiv;
-                }
+                };
+                tableDiv = document.createElement('div');
+                tableDiv.classList.add('table-div');
+                tableDiv.id = id;
+                return tableDiv;
+            }
 
-                function addTableCell(parent: HTMLElement, text: string, tag: string) {
-                    const cell = document.createElement(tag);
-                    //   cell.classList.add(css);
-                    cell.textContent = text;
-                    parent.appendChild(cell);
-                }
-            };
-
+            function addTableCell(parent: HTMLElement, text: string, tag: string) {
+                const cell = document.createElement(tag);
+                //   cell.classList.add(css);
+                cell.textContent = text;
+                parent.appendChild(cell);
+            }
         };
 
     })();
@@ -1211,7 +1210,7 @@ async function addRowToExcelTableWithGraphAPI(row: any[], index: number | null, 
     if (!sessionId) return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
     await clearFilterExcelTableGraphAPI(workbookPath, tableName, sessionId, accessToken);
     await addRow();
-    if (filter) await filterTable();
+    await filterTable();
     await sortExcelTableWithGraphAPI(workbookPath, tableName, [[3, true]], false, sessionId, accessToken);//We sort the table by the first column (the date column)
     const visible = await getVisibleCellsWithGraphAPI(workbookPath, tableName, sessionId, accessToken);
     await closeFileSession(sessionId, workbookPath, accessToken);
@@ -1233,7 +1232,7 @@ async function addRowToExcelTableWithGraphAPI(row: any[], index: number | null, 
         if (!filter) return;
         [0, 1].map(async index => {
             //!We use map because forEach doesn't await
-            await filterExcelTableWithGraphAPI(workbookPath, tableName, tableTitles?.[index], [row[index]?.toString()], sessionId, accessToken);
+            await filterExcelTableWithGraphAPI(workbookPath, tableName, tableTitles[index], [row[index].toString()], sessionId, accessToken);
         });
     };
 
