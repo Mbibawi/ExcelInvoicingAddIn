@@ -682,7 +682,7 @@ async function fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath,
     if (range)
         return data.values;
     else
-        return data.value.flatmap((row) => row.values); //! the graph api returns an object with a "value" property which is an array of rows, each row is also an object with a "values" property which is an array of the cells values of the row. So we need to flatmap the data to return an array of rows, each row being an array of cells values;
+        return data.value.flatMap((row) => row.values); //! the graph api returns an object with a "value" property which is an array of rows, each row is also an object with a "values" property which is an array of the cells values of the row. So we need to flatMap() the data to return an array of rows, each row being an array of cells values;
 }
 /**
  * Filters an Excel table column based on the values

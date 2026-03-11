@@ -643,13 +643,13 @@ async function issueLetter(create: boolean = false) {
 
 }
 async function issueLeaseLetter(create: boolean = false) {
+    spinner(true);
     accessToken = await getAccessToken() || '';
     if (!localStorage.leasesPath)
         localStorage.leasesPath = prompt('Please provide the OneDrive full path (including the file name and extension) for the Excel Workbook', "Legal/Mon Cabinet d'Avocat/Clients/LeasesDataBase.xlsm");
     const workbookPath = localStorage.leasesPath || alert('The excel Workbook path is not valid');
     const tableName: string = 'LEASES';
-    const table = await retrieveExcelTableRowsUsingGraphAPI(accessToken, workbookPath, tableName, false, false) as any[][]; //!persist must be = true because we might add a new row if there is a discount. If we don't persist the session, the table will be filtered and the new row will not be added.
-    if (!table) return;
+
     const RTs: { [index: string]: RT } = {
         owner: { tag: 'RTBailleur', col: 0, value: '' },
         adress: { tag: 'RTAdresseDestinataire', col: 1, value: '' },
@@ -686,9 +686,11 @@ async function issueLeaseLetter(create: boolean = false) {
 
     const inputs: HTMLInputElement[] = [];
 
-    let row: any[] = [], rowIndex: number | null = null;
-    (function showForm() {
+    let  row: any[] = [], rowIndex: number | null = null;
+    (async function showForm() {
         if (create) return;
+        const table = await retrieveExcelTableRowsUsingGraphAPI(accessToken, workbookPath, tableName, false, false) as any[][]; //!persist must be = true because we might add a new row if there is a discount. If we don't persist the session, the table will be filtered and the new row will not be added.
+        if (!table) return;
         document.querySelector('table')?.remove();
         const form = byID();
         if (!form) return;
@@ -751,7 +753,7 @@ async function issueLeaseLetter(create: boolean = false) {
         (function homeBtn() {
             showMainUI(true);
         })();
-
+        spinner(false);
         function createInput(type: string, RT: RT, className: string, labelText: string) {
             const id = RT.tag;
             const div = document.createElement('div');
@@ -827,9 +829,8 @@ async function issueLeaseLetter(create: boolean = false) {
                 });
                 await addRowToExcelTableWithGraphAPI(row, rowIndex, workbookPath, tableName, accessToken)
             });
-
-
         })();
+        spinner(false);
     })();
 
 }

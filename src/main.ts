@@ -752,7 +752,7 @@ async function fetchExcelTableWithGraphAPI(sessionId: string, accessToken: strin
   const data = await response.json();
   if (range)
     return data.values as any[][];
-  else return data.value.flatmap((row: any) => row.values) as any[][]//! the graph api returns an object with a "value" property which is an array of rows, each row is also an object with a "values" property which is an array of the cells values of the row. So we need to flatmap the data to return an array of rows, each row being an array of cells values;
+  else return data.value.flatMap((row: any) => row.values) as any[][]//! the graph api returns an object with a "value" property which is an array of rows, each row is also an object with a "values" property which is an array of the cells values of the row. So we need to flatMap() the data to return an array of rows, each row being an array of cells values;
 }
 
 /**
