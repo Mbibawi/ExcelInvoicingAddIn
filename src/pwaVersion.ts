@@ -209,10 +209,10 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
         if (!add) return;
         spinner(true);//We show the spinner
         const display = !row?.length;
-        if(!row) row = parseInputs() || [];
+        if (!row) row = parseInputs() || [];
         try {
             const visibleCells = await addRow(row);
-            if(visibleCells?.length) displayVisibleCells(visibleCells, display);
+            if (visibleCells?.length) displayVisibleCells(visibleCells, display);
             spinner(false);//We hide the spinner
         } catch (error) {
             spinner(false);//We hide the spinner
@@ -278,13 +278,13 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
         async function addRow(row: any[] | undefined) {
             if (!row) throw new Error('The row is not valid');
             const visibleCells = await addRowToExcelTableWithGraphAPI(row, TableRows.length - 2, workbookPath, tableName, accessToken, true);
-            
+
             if (!visibleCells?.length)
                 return alert('There was an issue with the adding or the filtering, check the console.log for more details');
 
             alert('Row aded and the table was filtered');
             return visibleCells
-            
+
         };
         function displayVisibleCells(visibleCells: string[][], display: boolean) {
             if (!display) return;
@@ -648,7 +648,7 @@ async function issueLeaseLetter(create: boolean = false) {
         localStorage.leasesPath = prompt('Please provide the OneDrive full path (including the file name and extension) for the Excel Workbook', "Legal/Mon Cabinet d'Avocat/Clients/LeasesDataBase.xlsm");
     const workbookPath = localStorage.leasesPath || alert('The excel Workbook path is not valid');
     const tableName: string = 'LEASES';
-    const table = await retrieveDataFromExcelTableUsingGraphAPI(accessToken, workbookPath, tableName, true, false) as any[][]; //!persist must be = true because we might add a new row if there is a discount. If we don't persist the session, the table will be filtered and the new row will not be added.
+    const table = await retrieveExcelTableRowsUsingGraphAPI(accessToken, workbookPath, tableName, false, false) as any[][]; //!persist must be = true because we might add a new row if there is a discount. If we don't persist the session, the table will be filtered and the new row will not be added.
     if (!table) return;
     const RTs: { [index: string]: RT } = {
         owner: { tag: 'RTBailleur', col: 0, value: '' },

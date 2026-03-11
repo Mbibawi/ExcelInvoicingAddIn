@@ -491,7 +491,7 @@ function getRowsData(tableRows: any[][], discount: number = 0, lang: string): [s
   function pushTotalsRows() {
     //Adding rows for the totals of the different categories and amounts
     const total = (lable: lable) => [colAmount, colVAT].map(col => sumColumn(col, lable.nature)) as values;//!It always returns the absolute values of the total amount and the total VAT
-    const amount = (v:values)=>v[0] ;
+    const amount = (v: values) => v[0];
     const totalFees = total(labels.totalFees);
     const feesDiscount = totalFees.map(amount => amount * (discount / 100));//This is an additional discount applied when the invoice is issued. The Excel table may already include other discounts registered as "Remise"
     const feesDeductions = total(labels.totalDeduction).map((amount, index) => amount += feesDiscount[index]) as values;//This is the total of the deductions from the fees: the "Remise" deductions, and the additional discount added at the time the invoice is issued
@@ -501,7 +501,7 @@ function getRowsData(tableRows: any[][], discount: number = 0, lang: string): [s
     const totalTimeSpent: values = [sumColumn(colHours), NaN];//by omitting to pass the "natures" argument to sumColumn, we do not filter the "Total Time" column by any crieteria. We will get the sum of all the column. since the VAT = NaN, the VAT cell will end up empty.
     const totalDue = netFees.map((amount, index) => amount + totalExpenses[index] - totalPayments[index]) as values;
     const percentage = (amount(feesDeductions) / amount(totalFees)) * 100;
-    [labels.discountDescription.EN, labels.discountDescription.FR].forEach(descr=>descr = descr.replace('XXX', `${percentage}`));
+    [labels.discountDescription.EN, labels.discountDescription.FR].forEach(descr => descr = descr.replace('XXX', `${percentage}`));
 
     (function pushTotalsRows() {
       pushRow(labels.totalFees, totalFees);
@@ -713,12 +713,10 @@ function graphHeaders(accessToken: string, sessionID?: string, contentType?: str
  * @param {boolean} range - Its default value is true. If true, it calls the "/range" endpoint and returns the whole table including the header row, otherwise, it calls the "/rows" endpoint and returns only the body (the rows) of the table. The structure of the date returned is different for each endpoint  
  * @returns {Promise<any[][]>}
  */
-async function retrieveDataFromExcelTableUsingGraphAPI(accessToken: string, workbookPath: string, tableName: string, persist: boolean, range: boolean) {
+async function retrieveExcelTableRowsUsingGraphAPI(accessToken: string, workbookPath: string, tableName: string, persist: boolean, range: boolean) {
   const sessionId = await createFileSession(workbookPath, accessToken, persist) || '';
   if (!sessionId) throw new Error('There was an issue with the creation of the file cession. Check the console.log for more details');
   return await fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName, range);
-
-  //return await getVisibleCellsWithGraphAPI(workbookPath, 'Leases', '', accessToken);
 
 }
 
@@ -754,7 +752,7 @@ async function fetchExcelTableWithGraphAPI(sessionId: string, accessToken: strin
   const data = await response.json();
   if (range)
     return data.values as any[][];
-  else return data.value.map((row: any) => row.values) as any[][];
+  else return data.value.flatmap((row: any) => row.values) as any[][]//! the graph api returns an object with a "value" property which is an array of rows, each row is also an object with a "values" property which is an array of the cells values of the row. So we need to flatmap the data to return an array of rows, each row being an array of cells values;
 }
 
 /**
@@ -768,7 +766,7 @@ async function fetchExcelTableWithGraphAPI(sessionId: string, accessToken: strin
  * @returns {string} 
  */
 async function filterExcelTableWithGraphAPI(filePath: string, tableName: string, columnName: string, values: string[] | number[] | boolean[], sessionId: string, accessToken: string, onValues: boolean = true) {
-  if (!accessToken || !sessionId ||!columnName || !values?.length) return;
+  if (!accessToken || !sessionId || !columnName || !values?.length) return;
 
   // Step 3: Apply filter using the column name
   const filterUrl = `${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/columns/${columnName}/filter/apply`;
@@ -790,8 +788,8 @@ async function filterExcelTableWithGraphAPI(filePath: string, tableName: string,
     }
   }
 
-    const resp = await POSTRequestWithGraphAPI(filterUrl, accessToken, sessionId, JSON.stringify(body), 'Error applying filter');
-    if (resp) console.log(`Filter successfully applied to column ${columnName}!`);
+  const resp = await POSTRequestWithGraphAPI(filterUrl, accessToken, sessionId, JSON.stringify(body), 'Error applying filter');
+  if (resp) console.log(`Filter successfully applied to column ${columnName}!`);
 
 }
 /**
@@ -956,7 +954,7 @@ async function updateExcelTableRowWithGraphAPI(accessToken: string, sessionID: s
  */
 async function POSTRequestWithGraphAPI(url: string, accessToken: string, sessionId: string, body: string, message: string, filePath?: string) {
   if (!url || !accessToken || !sessionId) return;
-  
+
   const response = await fetch(url, {
     method: "POST",
     headers: graphHeaders(accessToken, sessionId),

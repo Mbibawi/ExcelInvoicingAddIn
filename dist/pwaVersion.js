@@ -599,7 +599,7 @@ async function issueLeaseLetter(create = false) {
         localStorage.leasesPath = prompt('Please provide the OneDrive full path (including the file name and extension) for the Excel Workbook', "Legal/Mon Cabinet d'Avocat/Clients/LeasesDataBase.xlsm");
     const workbookPath = localStorage.leasesPath || alert('The excel Workbook path is not valid');
     const tableName = 'LEASES';
-    const table = await retrieveDataFromExcelTableUsingGraphAPI(accessToken, workbookPath, tableName, true, false); //!persist must be = true because we might add a new row if there is a discount. If we don't persist the session, the table will be filtered and the new row will not be added.
+    const table = await retrieveExcelTableRowsUsingGraphAPI(accessToken, workbookPath, tableName, false, false); //!persist must be = true because we might add a new row if there is a discount. If we don't persist the session, the table will be filtered and the new row will not be added.
     if (!table)
         return;
     const RTs = {

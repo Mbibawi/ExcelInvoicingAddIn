@@ -644,12 +644,11 @@ function graphHeaders(accessToken, sessionID, contentType) {
  * @param {boolean} range - Its default value is true. If true, it calls the "/range" endpoint and returns the whole table including the header row, otherwise, it calls the "/rows" endpoint and returns only the body (the rows) of the table. The structure of the date returned is different for each endpoint
  * @returns {Promise<any[][]>}
  */
-async function retrieveDataFromExcelTableUsingGraphAPI(accessToken, workbookPath, tableName, persist, range) {
+async function retrieveExcelTableRowsUsingGraphAPI(accessToken, workbookPath, tableName, persist, range) {
     const sessionId = await createFileSession(workbookPath, accessToken, persist) || '';
     if (!sessionId)
         throw new Error('There was an issue with the creation of the file cession. Check the console.log for more details');
     return await fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName, range);
-    //return await getVisibleCellsWithGraphAPI(workbookPath, 'Leases', '', accessToken);
 }
 /**
  * Returns all the rows of an Excel table in a workbook stored on OneDrive, using the Graph API
@@ -683,7 +682,7 @@ async function fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath,
     if (range)
         return data.values;
     else
-        return data.value.map((row) => row.values);
+        return data.value.flatmap((row) => row.values); //! the graph api returns an object with a "value" property which is an array of rows, each row is also an object with a "values" property which is an array of the cells values of the row. So we need to flatmap the data to return an array of rows, each row being an array of cells values;
 }
 /**
  * Filters an Excel table column based on the values
