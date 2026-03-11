@@ -710,7 +710,8 @@ async function issueLeaseLetter(create = false) {
             })();
             return appendInput();
             function appendInput() {
-                const input = document.createElement(type);
+                const input = document.createElement('input');
+                input.type = type;
                 input.id = id;
                 input.classList.add(className);
                 if (RT.col) {

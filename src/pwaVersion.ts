@@ -766,7 +766,8 @@ async function issueLeaseLetter(create: boolean = false) {
             })();
             return appendInput();
             function appendInput() {
-                const input = document.createElement(type) as HTMLInputElement;
+                const input = document.createElement('input') as HTMLInputElement;
+                input.type = type;
                 input.id = id;
                 input.classList.add(className);
                 if (RT.col) {
