@@ -86,6 +86,9 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
             if (!sessionId) throw new Error('There was an issue with the creation of the file cession. Check the console.log for more details');
             if (!workbookPath || !tableName) throw new Error('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
             if (!tableTitles || !TableRows) tableTitles = await setLocalStorageTitles(workbookPath, sessionId);
+            const tableBody = TableRows.slice(1, -1);
+            const inputs:HTMLInputElement[] = [];
+            const bound = (indexes:number[])=>inputs.filter(input=>indexes.includes(getIndex(input))) as HTMLInputElement[];
 
             insertAddForm(tableTitles);
             await closeFileSession(sessionId, workbookPath, accessToken);
@@ -170,6 +173,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                         input.autocomplete = "on";
                         input.dataset.index = index.toString();
                         input.type = 'text';
+                        inputs.push(input);
                     })();
 
                     (function customize() {
@@ -182,11 +186,9 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                         else if ([4, 7].includes(index)) input.style.display = 'none';//We hide those 2 columns: 'Total Time' and the 'Year'
 
                         (function addDataLists() {
-                            if (index > 1) return;//We add DataList and onChange event only for the "Client" (0) and "Matter" (1) inputs;
-
-                            const tableBody = TableRows.slice(1, -1);
-
-                            input.onchange = () => inputOnChange(index, tableBody, false);
+                            if (index > 2) return;//We add DataList and onChange event only for the "Client" (0) and "Matter" (1), and "Nature" (2) inputs;
+                            const indexes = [0, 1, 2, 8, 15]//Those are the indexes of the inputs (i.e; the columns numbers) that need to get their dataLists created or updated when the previous input is changed: "Client"(0), "Affaire"(1), "Nature"(2), "Taux Horaire"(8), "Adresse"(15)
+                            input.onchange = () => inputOnChange(index, bound(indexes), tableBody, false);
                             if (index > 0) return;//We will populate the "Client" list only, the other inputs will be populate when the onChange function will be called
                             populateSelectElement(input, getUniqueValues(index, tableBody));
                         })();
@@ -194,8 +196,8 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
                         (function addRestOnChange() {
                             if (index < 5 || index > 10) return;
                             //Only for the  "Start Time", "End Time", "Total Time", "Hourly Rate", "Amount", "VAT" columns . The "Total Time" input (7) is hidden, so it can't be changed by the user. We will add the onChange event to it by simplicity
-
-                            input.onchange = () => inputOnChange(index, undefined, false);//!We are passing the table[][] argument as undefined, and the invoice argument as false which means that the function will only reset the bound inputs without updating any data list
+                            const indexes =  [5, 6, 7, 9, 10];//Those are "Start Time" (5), "End Time" (6), "Total Time" (7, although it is hidden), "Amount" (9), "VAT" (10) columns. We exclude the "Hourly Rate" column (8). We let the user rest it if he wants
+                            input.onchange = () => inputOnChange(index, bound(indexes), undefined, false);//!We are passing the table[][] argument as undefined, and the invoice argument as false which means that the function will only reset the bound inputs without updating any data list
                         })();
                     })();
 
@@ -355,8 +357,6 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
 
 };
 
-
-
 // Update Word Document
 async function invoice(issue: boolean = false) {
     const workbookPath = getAccountsWorkBookPath();
@@ -392,6 +392,8 @@ async function invoice(issue: boolean = false) {
             const form = byID();
             if (!form) throw new Error('The form element was not found');
             form.innerHTML = '';
+            const tableBody = TableRows.slice(1, -1);
+            const boundInputs:HTMLInputElement[] = [];
 
             insertInputsAndLables([0, 1, 2, 3, 3], 'input');//Inserting the fields inputs (Client, Matter, Nature, Date). We insert the date twice
 
@@ -419,7 +421,6 @@ async function invoice(issue: boolean = false) {
             })();
 
             function insertInputsAndLables(indexes: (number | string)[], id: string, checkBox: boolean = false): HTMLInputElement[] {
-                const tableBody = TableRows.slice(1, -1);
                 let css = 'field';
                 if (checkBox) css = 'checkBox';
                 return indexes.map((index) => {
@@ -445,9 +446,10 @@ async function invoice(issue: boolean = false) {
                         index = Number(index);
                         input.name = input.id;
                         input.dataset.index = index.toString();
+                        if (index < 3)
+                            boundInputs.push(input);//Fields "Client"(0), "Affaire"(1), "Nature"(2) are the inputs that will need to get their dataList created or updated each time the previous input is changed.
                         if (index < 2)
-                            input.onchange = () => inputOnChange(index as number, tableBody, true);//We add onChange on "Client" (0) and "Affaire" (1) columns
-
+                            input.onchange = () => inputOnChange(index as number, boundInputs, tableBody, true);//We add onChange on "Client" (0) and "Affaire" (1) columns
                         if (index < 1)
                             populateSelectElement(input, getUniqueValues(0, tableBody));//We create a unique values dataList for the "Client" (0) input
                     })();
@@ -716,19 +718,35 @@ async function issueLeaseLetter(create: boolean = false) {
 
             (function inputsOnChange() {
                 owner.onchange = () => {
-                    row = table.find(row => adress.value === row[column(RTs.adress)] && tenant.value === row[column(RTs.tenant)]) || [];
-                    if (!row.length) return;
-                    rowIndex = table.indexOf([row]) || null;
-                    inputs.forEach(input => {
-                        const RT = findRT(input.id)
-                        if (!RT) return;
-                        const value = row[column(RT)].toString();
-                        input.value = value;
-                        RT.value = value
-                    });
+                    const leases = table.filter(row => row[column(RTs.owner)] === owner.value);
+                    if (!leases.length) return;
+                    if(leaseFound(leases, column(RTs.owner))) return;
+
+                    const colAdress = column(RTs.adress);
+                    populateSelectElement(adress, getUniqueValues(colAdress, leases), false);
+                };
+               
+                adress.onchange = () => {
+                    const leases = table.filter(row => adress.value === row[column(RTs.adress)] && owner.value === row[column(RTs.owner)]) || [];
+                    if(!leases.length) return;
+                    if(leaseFound(leases, column(RTs.adress))) return;
+
+                    const colTenant = column(RTs.tenant);
+                    populateSelectElement(tenant, getUniqueValues(colTenant, leases), false);
+                };
+
+                tenant.onchange = () => {
+                    const leases = table.filter(row => adress.value === row[column(RTs.adress)] && owner.value === row[column(RTs.owner)] && tenant.value === row[column(RTs.tenant)]) || [];
+
+                    if(!leases.length) return;
+                    if (leaseFound(leases, column(RTs.tenant))) return;
                 };
 
                 index.onchange = () => {
+                    if(!row?.length) {
+                        prompt('No lease having owner name, property adress and tenant name as in the inputs was found' )
+                        return;
+                    }
                     const base = row[column(RTs.baseIndex)] || row[column(RTs.initialIndex)];
                     const latest = index.value;
                     const lease = row[column(RTs.currentLease)];
@@ -738,6 +756,23 @@ async function issueLeaseLetter(create: boolean = false) {
                     RTs.baseIndex.value = latest;
                     RTs.newLease.value = newLease;//We update the new lease RT
                 };
+                
+                function leaseFound(rows: any[][], col:number){
+                    if (!rows?.length || rows.length > 1) return false;
+                    row = rows[0];
+                    rowIndex = table.indexOf([row]);
+                    row.forEach((cell, index) => {
+                        if (index <= col) return;
+                        const RT = rts.find(RT => RT.col === index);
+                        if (!RT) return;
+                        const input = findInput(RT.tag);
+                        if (!input) return;
+                        const value:string = cell.toString();
+                        input.value = value;
+                        RT.value = value;
+                    });
+                    return true
+                }
             })();
 
         })();
@@ -843,23 +878,22 @@ async function issueLeaseLetter(create: boolean = false) {
  * @param {boolean} invoice - If true, it means that we called the function in order to generate an invoice. If false, we called it in order to add a new entry in the table
  * @returns 
  */
-function inputOnChange(index: number, table: any[][] | undefined, invoice: boolean) {
-    let inputs = Array.from(document.getElementsByTagName('input'))
-        .filter(input => input.dataset.index) as HTMLInputElement[];
+function inputOnChange(index: number, inputs:HTMLInputElement[], table: any[][] | undefined, invoice: boolean) {
 
     (function resetInputs() {
         //In some cases, we only need to rest the values of other inputs bound to the input that has been changed. If the function is called for this purpose, we will just rest those inputs without updating their data list.
-        if (table || invoice) return;//This function only applies for the adding new entries form
-        const boundInputs = [5, 6, 7, 9, 10];//Those are "Start Time" (5), "End Time" (6), "Total Time" (7, although it is hidden), "Amount" (9), "VAT" (10) columns. We exclude the "Hourly Rate" column (8). We let the user rest it if he wants
-        boundInputs
-            .forEach(i => i > index ? reset(i) : i = i);//We reset any input which dataset-index is > than the dataset-index of the input that has been changed
+        if (invoice) return;//This function only applies for the adding new entries form
+        
+        inputs
+            .filter(input=>getIndex(input)>index)
+            .forEach(input => reset(input));//We reset any input which dataset-index is > than the dataset-index of the input that has been changed
 
         if (index === 9)
-            boundInputs
-                .forEach(i => i < index ? reset(i) : i = i);//If the input is the input for the "Montant" column of the Excel table, we also reset the "Start Time" (5), "End Time" (6) and "Hourly Rate" (7) columns' inputs. We do this because we assume that if the user provided the amount, it means that either this is not a fee, or the fee is not hourly billed.
+            inputs
+                .filter(input=>getIndex(input)<index)
+                .forEach(input => reset(input));//If the input is the input for the "Montant" column of the Excel table, we also reset the "Start Time" (5), "End Time" (6) and "Hourly Rate" (7) columns' inputs. We do this because we assume that if the user provided the amount, it means that either this is not a fee, or the fee is not hourly billed.
 
-        function reset(i: number) {
-            const input = getInputByIndex(inputs, i);
+        function reset(input: HTMLInputElement) {
             if (!input) return;
             input.value = '';
             if (input.valueAsNumber) input.valueAsNumber = 0;
@@ -868,39 +902,31 @@ function inputOnChange(index: number, table: any[][] | undefined, invoice: boole
 
     if (!table) return;
 
-    if (invoice)
-        inputs = inputs.filter(input => getIndex(input) < 3); //Those are all the inputs that serve to filter the table (first 3 columns only) when we are invoicing the client
-    else
-        inputs = inputs.filter(input => [0, 1, 8, 15].includes(getIndex(input))); //Those are all the inputs that have data lists associated with them that need to be updated if an input calls inputOnChage(). Only the "Client" and "Affaire" inputs call this function in the context of adding a new entry, so index will always be <3
-
     const filledInputs =
         inputs
             .filter(input => input.value && getIndex(input) <= index)//Those are all the inputs that the user filled with data
 
+            const filtered = filterOnInput(filledInputs, table);//We filter the table based on the filled inputs
 
-    const boundInputs = inputs.filter(input => getIndex(input) > index);//Those are the inputs for which we want to create  or update their data lists
+    const boundInputs = inputs.filter(input => getIndex(input) > index)//Those are the inputs for which we want to create  or update their data lists
 
-
-    if (filledInputs.length < 1 || boundInputs.length < 1) return;
-
-    boundInputs.forEach(input => input.value = '');
-
-    const filtered = filterOnInput(filledInputs, table);//We filter the table based on the filled inputs
-
-    if (filtered.length < 1) return;
-
-    boundInputs.map(input => {
+    boundInputs.forEach(input => {
+        input.value = ''; //We reset the value of all bound inputs.
         const index = getIndex(input);
         const list = getUniqueValues(index, filtered);
-        if (invoice && [1, 2].includes(index)) list.push(list.join(', '));//For the "Matter" and "Nature" lists, we add a new element combining all the values separated by ","
-        const dataList = populateSelectElement(input, list);
-        if (dataList?.options.length === 1)
-            input.value = dataList.options[0].value
+        if(list?.length<2)  return input.value = list[0]?.toString() || '';//If there is only one value in the list, we set it as the value of the input and we don't create a data list for it because there is no need
+        const combine = (invoice && [1, 2].includes(index)) ? true : false;//For the "Matter" and "Nature" lists, we add a new element combining all the values separated by ","
+        
+        populateSelectElement(input, list, combine);
     });
 
     function filterOnInput(filled: HTMLInputElement[], table: any[][]) {
         filled
-            .forEach(input => table = table.filter(row => row[getIndex(input)].toString() === input.value));
+            .forEach(input =>
+                table = table.filter(row =>
+                    input.value.split(', ')//!input values can be comma separted values if the user has selected more than one "Matter" or more than one "Nature".
+                        .includes(row[getIndex(input)]
+                            .toString())));
         return table
     }
 };

@@ -112,7 +112,7 @@ async function showForm(id?: string) {
   function invoice(title: string[], clientUniqueValues: string[]) {
     const inputs = insertInputsAndLables([0, 1, 2, 3]);//Inserting the fields inputs (Client, Matter, Nature, Date)
 
-    inputs.forEach(input => input?.addEventListener('focusout', async () => await inputOnChange(input), { passive: true }));
+    inputs.forEach(input => input?.addEventListener('focusout', async () => await _inputOnChange(input), { passive: true }));
 
     insertInputsAndLables(['Français', 'English'], true); //Inserting langauges checkboxes
     form.innerHTML += `<button onclick="generateInvoice()"> Generate Invoice</button>`; //Inserting the button that generates the invoice
@@ -138,15 +138,15 @@ async function showForm(id?: string) {
 
         form.appendChild(label);
         form.appendChild(input);
-        if (Number(index) === 0) createDataList(input?.id, clientUniqueValues);//We create a unique values dataList for the 'Client' input
+        if (Number(index) <1) createDataList(input?.id, clientUniqueValues);//We create a unique values dataList for the 'Client' input
         return input
       });
     };
 
-    async function inputOnChange(input: HTMLInputElement, unfilter: boolean = false) {
-      const index = Number(input.dataset.index);
+    async function _inputOnChange(input: HTMLInputElement, unfilter: boolean = false) {
+      const index = getIndex(input);
 
-      if (index === 0) unfilter = true;//If this is the 'Client' column, we remove any filter from the table;
+      if (index < 1) unfilter = true;//If this is the 'Client' column, we remove any filter from the table;
 
       //We filter the table accordin to the input's value and return the visible cells
       const visibleCells = await filterTable(tableName, [{ column: index, value: getArray(input.value) }], unfilter);
@@ -156,8 +156,9 @@ async function showForm(id?: string) {
       //We create (or update) the unique values dataList for the next input 
       const nextInput = getNextInput(input);
       if (!nextInput) return;
-      createDataList(nextInput?.id || '', getUniqueValues(Number(nextInput.dataset.index), visibleCells));
-
+      const list = getUniqueValues(getIndex(nextInput), visibleCells);
+      if (list?.length < 2) return nextInput.value = list[0].toString() || '';//If there is only one value in the list, we set it as the value of the input and we don't create a data list for it because there is no need
+      populateSelectElement(nextInput, list);
 
       function getNextInput(input: HTMLInputElement) {
         let nextInput: Element | null = input.nextElementSibling;
@@ -268,10 +269,10 @@ async function showForm(id?: string) {
  *
  * @param select 
  * @param uniqueValues 
- * @param  {boolean} multiple - determines whether we will add to the list an element containing all the options. Its defalult value is "false"
+ * @param  {boolean} combine - determines whether we will add to the list an element containing all the options. Its defalult value is "false"
  */
-function populateSelectElement(select: HTMLInputElement, uniqueValues: string[], multiple: boolean = false) {
-  const list = createDataList(select.id, uniqueValues, multiple);
+function populateSelectElement(select: HTMLInputElement, uniqueValues: string[], combine: boolean = false) {
+  const list = createDataList(select.id, uniqueValues, combine);
   if (!list) return;
   select.setAttribute('list', list.id);
   select.autocomplete = "on";
@@ -281,12 +282,12 @@ function populateSelectElement(select: HTMLInputElement, uniqueValues: string[],
  * 
  * @param id 
  * @param uniqueValues 
- * @param multiple 
+ * @param combine 
  * @returns 
  */
-function createDataList(id: string, uniqueValues: string[], multiple: boolean = false) {
+function createDataList(id: string, uniqueValues: string[], combine: boolean = false) {
   //const uniqueValues = Array.from(new Set(visible.map(row => row[i])));
-  if (!id || !uniqueValues?.length) return;
+  if (!id || uniqueValues?.length<2) return;
   id += 's';
 
   // Create a new datalist element
@@ -297,7 +298,7 @@ function createDataList(id: string, uniqueValues: string[], multiple: boolean = 
   // Append options to the datalist
   uniqueValues.forEach(option => addOption(option));
 
-  if (multiple && uniqueValues.length > 1)
+  if (combine)
     addOption(uniqueValues.join(', '));
 
   // Attach the datalist to the body or a specific element
