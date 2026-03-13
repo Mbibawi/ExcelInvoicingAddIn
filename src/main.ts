@@ -364,7 +364,7 @@ async function _generateInvoice() {
   const discount = parseInt(inputs.find(input => input.id = 'discount')?.value || '0%');
 
   const visible = await filterTable(tableName, undefined, false);
-
+  const date = new Date()
   const invoiceDetails = {
     number: getInvoiceNumber(new Date()),
     clientName: visible.map(row => String(row[0]))[0] || 'CLIENT',
@@ -374,8 +374,8 @@ async function _generateInvoice() {
   };
 
   const filePath = `${destinationFolder}/${getInvoiceFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`
-  const rows = getRowsData(visible, discount, lang);
-  await createAndUploadXmlDocument(await getAccessToken() || '', templatePath, filePath, lang, 'Invoice', rows[0], getContentControlsValues(invoiceDetails, new Date()));
+  const [rows, totalsLabels] = getRowsData(visible, discount, lang, getInvoiceNumber(date));
+  await createAndUploadXmlDocument(await getAccessToken() || '', templatePath, filePath, lang, 'Invoice', rows, getContentControlsValues(invoiceDetails, new Date()));
 
 }
 /**
@@ -384,7 +384,7 @@ async function _generateInvoice() {
  * @param {string} lang - The language in which the invoice will issued
  * @returns {string[][]} - the rows to be added to the table. Each row has 4 elements
  */
-function getRowsData(tableRows: any[][], discount: number = 0, lang: string): [string[][], string[]] {
+function getRowsData(tableRows: any[][], discount: number = 0, lang: string, invoiceNumber:string): [string[][], string[]] {
 
   const labels: { [index: string]: lable } = {
     totalFees: {
@@ -419,8 +419,8 @@ function getRowsData(tableRows: any[][], discount: number = 0, lang: string): [s
     },
     totalDeduction: {
       nature: ['Remise'],
-      FR: 'Remise sur honoraires',
-      EN: 'Discount'
+      FR: 'Total des remises sur honoraires',
+      EN: 'Total fees\' discounts'
     },
     netFees: {
       nature: [],
@@ -428,6 +428,7 @@ function getRowsData(tableRows: any[][], discount: number = 0, lang: string): [s
       EN: 'Total fee after discount'
     },
     discountDescription: {
+      //This value is not used
       nature: [],
       FR: `XXX% de remise sur les honoraires`,
       EN: `XXX% discount on accrued fees`
@@ -478,14 +479,13 @@ function getRowsData(tableRows: any[][], discount: number = 0, lang: string): [s
 
 
     const rowValues: string[] = [
-      [date.getDate(), date.getMonth() + 1, date.getFullYear()].map(el => el.toString().padStart(2, '0')).join('/'),//Column Date
+      getDateString(date),//Column Date
       description,
       getAmountString(row[colAmount] * -1), //Column "Amount": we inverse the +/- sign for all the values 
       getAmountString(Math.abs(row[colVAT])), //Column VAT: always a positive value
     ];
     return rowValues;
   });
-
   pushTotalsRows();
   return [wordRows, totalsLabels];
 
@@ -502,12 +502,12 @@ function getRowsData(tableRows: any[][], discount: number = 0, lang: string): [s
     const totalTimeSpent: values = [sumColumn(colHours), NaN];//by omitting to pass the "natures" argument to sumColumn, we do not filter the "Total Time" column by any crieteria. We will get the sum of all the column. since the VAT = NaN, the VAT cell will end up empty.
     const totalDue = netFees.map((amount, index) => amount + totalExpenses[index] - totalPayments[index]) as values;
     const percentage = (amount(feesDeductions) / amount(totalFees)) * 100;
-    [labels.discountDescription.EN, labels.discountDescription.FR].forEach(descr => descr = descr.replace('XXX', `${percentage}`));
+    
+    ['EN', 'FR'].forEach((lang) => (labels.totalDeduction[lang as keyof lable] as string) += ` (${percentage}%)`);
 
     (function pushTotalsRows() {
       pushRow(labels.totalFees, totalFees);
       pushRow(labels.totalDeduction, feesDeductions, !amount(feesDeductions));
-      pushRow(labels.discountDescription, [0, 0], !amount(feesDeductions));
       pushRow(labels.netFees, netFees, !(amount(netFees) < amount(totalFees)));//We don't push this row if the there is no deduction applied on the fees or if the deduction is = 0
       pushRow(labels.totalTimeSpent, totalTimeSpent, !amount(totalTimeSpent));
       pushRow(labels.totalExpenses, totalExpenses, !amount(totalExpenses));
@@ -519,12 +519,12 @@ function getRowsData(tableRows: any[][], discount: number = 0, lang: string): [s
     (function addDiscountRowToExcel() {
       if (!discount) return;
       const newRow = tableRows
-        .find(row => row[colNature] === 'Honoraire');
+        .find(row => labels.totalFees.nature.includes(row[colNature]));
       if (!newRow) return;
       const [amount, vat] = feesDiscount;//!The discount must be added as a positive number. This is like a payment made by the client
-      const descr = prompt('Provide a description for the discount', 'Remise sur les honoraires') || '';
+      const descr = prompt('Provide a description for the discount', `Remise sur les honoraires de la facture n° ${invoiceNumber}`) || '';
       const date = getISODate(new Date());
-      const cells: [number, string | number][] = [
+      const cells: [number, string|number][] = [
         [colNature, 'Remise'],
         [colAmount, amount],
         [colVAT, vat],
@@ -611,7 +611,7 @@ function getContentControlsValues(invoice: { number: string, clientName: string,
     },
     date: {
       title: 'RTInvoiceDate',
-      text: [date.getDate(), date.getMonth() + 1, date.getFullYear()].map(el => el.toString().padStart(2, '0')).join('/'),
+      text: getDateString(date),
     },
     numberLabel: {
       title: 'LabelInvoiceNumber',
@@ -662,6 +662,7 @@ function getUniqueValues(index: number, array: any[][]): any[] {
   return Array.from(new Set(array.map(row => row[index])))
     .map(el => el)//we remove empty strings/values
 };
+
 
 /**
  * Creates a new Graph API File session and returns its id
@@ -1011,8 +1012,7 @@ async function getExcelTableRowsCountViaGraphAPI(filePath: string, tableName: st
 function getInvoiceNumber(date: Date): string {
   const padStart = (n: number) => n.toString().padStart(2, '0');
 
-  return (date.getFullYear() - 2000).toString() + padStart(date.getMonth() + 1) + padStart(date.getDate()) + '/' + padStart(date.getHours()) + padStart(date.getMinutes());
-
+  return `${date.getFullYear() - 2000}${padStart(date.getMonth() + 1)}${padStart(date.getDate())}/${padStart(date.getHours())}${padStart(date.getMinutes())}`;
 }
 
 /**
@@ -1024,6 +1024,16 @@ function getISODate(date: Date | undefined) {
   //@ts-ignore
   return [date?.getFullYear(), date?.getMonth() + 1, date?.getDate()].map(el => el.toString().padStart(2, '0')).join('-');
 }
+
+/**
+ * Returns the date in a string formated like: "DD/MM/YYYY"
+ */
+function getDateString(date:Date){
+  return [date.getDate(), date.getMonth() + 1, date.getFullYear()]
+    .map(el => el.toString().padStart(2, '0'))
+    .join('/');
+}
+
 /**
  * Returns the value from a time input as a number matching the Excel time format (which is a fraction of the day)
  * @param {HTMLInputElement[]} inputs - If a single input is passed, it will return the Excel formatted time value from this input or 0. If 2 inputs are passed, it will return the total time by calculting the difference between the second input and the first input in the array
@@ -1146,7 +1156,7 @@ async function addEntry(tableName: string, rows?: any[][]) {
         value = parseFloat(value);
       else if (input.type === 'date' && input.valueAsDate)
         //@ts-ignore
-        value = [String(input.valueAsDate?.getDay()).padStart(2, '0'), String(input.valueAsDate.getMonth() + 1).padStart(2, '0'), String(input.valueAsDate?.getFullYear())].join('/');
+        value = getDateString(input.valueAsDate);
       else if (input.type === 'time' && input.valueAsDate) value = [input.valueAsDate?.getHours().toString().padStart(2, '0'), input.valueAsDate?.getMinutes().toString().padStart(2, '0'), '00'].join(':');
 
       newRow[index] = value;
@@ -1439,8 +1449,8 @@ function getInputByIndex(inputs: HTMLInputElement[], index: number) {
  * @param {HTMLInputElement} input - the input with a dataset.index attribute
  * @returns {number} - the dataset.index value of the input as a number
  */
-function getIndex(input: HTMLInputElement) {
-  return Number(input.dataset.index)
+function getIndex(element: HTMLElement) {
+  return Number(element?.dataset.index)
 }
 
 // Utility function: Convert Blob to Base64

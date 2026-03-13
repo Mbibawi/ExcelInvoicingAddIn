@@ -10,9 +10,12 @@ type lable = {
 };
 type RT = {
     tag: string;
+    label: string | undefined;
     col: number | undefined;
+    type: string;
     value: string
 };
 type values = [number, number];
 type folderItem = { name: string; id: string; folder: any; createdDateTime: string; lastModifiedDateTime: string };
 type fileItem = { name: string; id: string; file: any; createdDateTime: string; lastModifiedDateTime: string; "@microsoft.graph.downloadUrl": string };
+type InputCol = [HTMLInputElement, number];

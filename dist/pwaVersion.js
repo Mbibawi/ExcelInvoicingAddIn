@@ -92,7 +92,7 @@ async function addNewEntry(add = false, row) {
                 tableTitles = await setLocalStorageTitles(workbookPath, sessionId);
             const tableBody = TableRows.slice(1, -1);
             const inputs = [];
-            const bound = (indexes) => inputs.filter(input => indexes.includes(getIndex(input)));
+            const bound = (indexes) => inputs.filter(input => indexes.includes(getIndex(input))).map(input => [input, getIndex(input)]);
             insertAddForm(tableTitles);
             await closeFileSession(sessionId, workbookPath, accessToken);
             spinner(false); //We hide the spinner
@@ -176,24 +176,40 @@ async function addNewEntry(add = false, row) {
                         else if ([4, 7].includes(index))
                             input.style.display = 'none'; //We hide those 2 columns: 'Total Time' and the 'Year'
                         (function addDataLists() {
-                            if (index > 2)
-                                return; //We add DataList and onChange event only for the "Client" (0) and "Matter" (1), and "Nature" (2) inputs;
-                            const indexes = [0, 1, 2, 8, 15]; //Those are the indexes of the inputs (i.e; the columns numbers) that need to get their dataLists created or updated when the previous input is changed: "Client"(0), "Affaire"(1), "Nature"(2), "Taux Horaire"(8), "Adresse"(15)
-                            input.onchange = () => inputOnChange(index, bound(indexes), tableBody, false);
-                            if (index > 0)
-                                return; //We will populate the "Client" list only, the other inputs will be populate when the onChange function will be called
+                            const updateNext = [0, 1, 8, 15]; //Those are the indexes of the inputs (i.e; the columns numbers) that need to get an onChange event in order to update the dataLists of the next inputs when the current input is changed: "Client"(0), "Affaire"(1), "Taux Horaire"(8), "Adresses"(15)
+                            if (updateNext.includes(index))
+                                input.onchange = () => inputOnChange(index, bound(updateNext), tableBody, false);
+                            if (![0, 2, 11, 12, 13].includes(index))
+                                return; //We will initially populate the "Client"(0), Nature(2), "Payment Method"(11), "Bank Account"(12), "Third Party"(13) lists only, the other inputs will be populate when the onChange function will be called
                             populateSelectElement(input, getUniqueValues(index, tableBody));
                         })();
                         (function addRestOnChange() {
                             if (index < 5 || index > 10)
                                 return;
                             //Only for the  "Start Time", "End Time", "Total Time", "Hourly Rate", "Amount", "VAT" columns . The "Total Time" input (7) is hidden, so it can't be changed by the user. We will add the onChange event to it by simplicity
-                            const indexes = [5, 6, 7, 9, 10]; //Those are "Start Time" (5), "End Time" (6), "Total Time" (7, although it is hidden), "Amount" (9), "VAT" (10) columns. We exclude the "Hourly Rate" column (8). We let the user rest it if he wants
-                            input.onchange = () => inputOnChange(index, bound(indexes), undefined, false); //!We are passing the table[][] argument as undefined, and the invoice argument as false which means that the function will only reset the bound inputs without updating any data list
+                            const reset = [5, 6, 7, 9, 10]; //Those are "Start Time" (5), "End Time" (6), "Total Time" (7, although it is hidden), "Amount" (9), "VAT" (10) columns. We exclude the "Hourly Rate" column (8). We let the user rest it if he wants
+                            input.onchange = () => resetInputs(bound(reset), index); //!We are passing the table[][] argument as undefined, and the invoice argument as false which means that the function will only reset the bound inputs without updating any data list
                         })();
                     })();
                     return input;
                 }
+                function resetInputs(inputs, index) {
+                    inputs
+                        .filter(([input, index]) => index > index)
+                        .forEach(([input, index]) => reset(input)); //We reset any input which dataset-index is > than the dataset-index of the input that has been changed
+                    if (index === 9)
+                        inputs
+                            .filter(([input, index]) => index < index)
+                            .forEach(([input], index) => reset(input)); //If the input is the input for the "Montant" column of the Excel table, we also reset the "Start Time" (5), "End Time" (6) and "Hourly Rate" (7) columns' inputs. We do this because we assume that if the user provided the amount, it means that either this is not a fee, or the fee is not hourly billed.
+                    function reset(input) {
+                        if (!input)
+                            return;
+                        input.value = '';
+                        if (input.valueAsNumber)
+                            input.valueAsNumber = 0;
+                    }
+                }
+                ;
             }
         }
     })();
@@ -437,7 +453,7 @@ async function invoice(issue = false) {
                         input.name = input.id;
                         input.dataset.index = index.toString();
                         if (index < 3)
-                            boundInputs.push(input); //Fields "Client"(0), "Affaire"(1), "Nature"(2) are the inputs that will need to get their dataList created or updated each time the previous input is changed.
+                            boundInputs.push([input, index]); //Fields "Client"(0), "Affaire"(1), "Nature"(2) are the inputs that will need to get their dataList created or updated each time the previous input is changed.
                         if (index < 2)
                             input.onchange = () => inputOnChange(index, boundInputs, tableBody, true); //We add onChange on "Client" (0) and "Affaire" (1) columns
                         if (index < 1)
@@ -491,23 +507,24 @@ async function invoice(issue = false) {
         if (!sessionId)
             throw new Error('There was an issue with the creation of the file cession. Check the console.log for more details');
         const inputs = Array.from(document.getElementsByTagName('input'));
-        const criteria = inputs.filter(input => Number(input.dataset.index) >= 0);
+        const criteria = inputs.filter(input => getIndex(input) >= 0);
         const discount = parseInt(inputs.find(input => input.id === 'discount')?.value || '0%');
         const lang = inputs.find(input => input.dataset.language && input.checked === true)?.dataset.language || 'FR';
-        const data = await filterExcelData(criteria, discount, lang);
+        const date = new Date(); //We need to generate the date at this level and pass it down to all the functions that need it
+        const invoiceNumber = getInvoiceNumber(date);
+        const data = await filterExcelData(criteria, discount, lang, invoiceNumber);
         if (!data)
             throw new Error('Could not retrieve the filtered Excel table');
-        const [wordRows, totalsLabels, matters, adress] = data;
-        const date = new Date();
+        const [wordRows, totalsLabels, clientName, matters, adress] = data;
         const invoice = {
-            number: getInvoiceNumber(date),
-            clientName: getInputByIndex(criteria, 0)?.value || '',
+            number: invoiceNumber,
+            clientName: clientName,
             matters: matters,
             adress: adress,
             lang: lang
         };
         const contentControls = getContentControlsValues(invoice, date);
-        const fileName = getInvoiceFileName(invoice.clientName, invoice.matters, invoice.number);
+        const fileName = getInvoiceFileName(clientName, matters, invoiceNumber);
         let filePath = `${destinationFolder}/${fileName}`;
         filePath = prompt(`The file will be saved in ${destinationFolder}, and will be named : ${fileName}./nIf you want to change the path or the name, provide the full file path and name of your choice without any sepcial characters`, filePath) || filePath;
         (async function editInvoiceFilterExcelClose() {
@@ -523,10 +540,12 @@ async function invoice(issue = false) {
          * @param {string} lang - The language in which the invoice will be issued
          * @returns {Promise<[string[][], string[], string[], string[]]>} - The values of the rows that will be added to the Word table in the invoice template
          */
-        async function filterExcelData(inputs, discount, lang) {
+        async function filterExcelData(inputs, discount, lang, invoiceNumber) {
             const matterCol = 1, dateCol = 3, addressCol = 15; //Indexes of the 'Matter' and 'Date' columns in the Excel table
             const clientName = getInputByIndex(inputs, 0)?.value || '';
             const matters = getArray(getInputByIndex(inputs, matterCol)?.value) || []; //!The Matter input may include multiple entries separated by ', ' not only one entry.
+            if (!clientName || !matters?.length)
+                throw new Error('could not retrieve the client name or the matter/matters list from the inputs');
             await clearFilterExcelTableGraphAPI(workbookPath, tableName, sessionId, accessToken); //We unfilter the table;
             //Filtering by Client (criteria[0])
             await filterExcelTableWithGraphAPI(workbookPath, tableName, client, [clientName], sessionId, accessToken);
@@ -534,12 +553,13 @@ async function invoice(issue = false) {
             if (!visible) {
                 return alert('Could not retrieve the visible cells of the Excel table');
             }
-            visible = visible.slice(1, -1); //We exclude the first and the last rows of the table. The first row is the header, and the last row is the total row.
+            visible = visible.slice(1, -1); //We exclude the first and the last rows of the table. Since we are calling the "range" endpoint, we get the whole table including the headers. The first row is the header, and the last row is the total row.
             const adresses = getUniqueValues(addressCol, visible); //!We must retrieve the adresses at this stage before filtering by "Matter" or any other column
             visible = visible.filter(row => matters.includes(row[matterCol]));
             //We finaly filter by date
             visible = filterByDate(visible, dateCol);
-            return [...getRowsData(visible, discount, lang), matters, adresses];
+            const [wordRows, totalLabels] = getRowsData(visible, discount, lang, invoiceNumber);
+            return [wordRows, totalLabels, clientName, matters, adresses];
             function filterByDate(visible, date) {
                 const convertDate = (date) => dateFromExcel(Number(date)).getTime();
                 const [from, to] = inputs
@@ -608,26 +628,26 @@ async function issueLeaseLetter(create = false) {
         localStorage.leasesPath = prompt('Please provide the OneDrive full path (including the file name and extension) for the Excel Workbook', "Legal/Mon Cabinet d'Avocat/Clients/LeasesDataBase.xlsm");
     const workbookPath = localStorage.leasesPath || alert('The excel Workbook path is not valid');
     const tableName = 'LEASES';
-    const RTs = {
-        owner: { tag: 'RTBailleur', col: 0, value: '' },
-        adress: { tag: 'RTAdresseDestinataire', col: 1, value: '' },
-        tenant: { tag: 'RTLocataire', col: 2, value: '' },
-        leaseDate: { tag: 'RTDateBail', col: 3, value: '' },
-        leaseType: { tag: 'RTNature', col: 4, value: '' },
-        initialIndex: { tag: 'RTIndiceInitial', col: 5, value: '' },
-        indexQuarter: { tag: 'RTTrimestre', col: 6, value: '' },
-        initialIndexDate: { tag: 'RTIndiceInitialDate', col: 7, value: '' },
-        baseIndex: { tag: 'RTIndiceBase', col: 8, value: '' },
-        baseIndexDate: { tag: 'RTDateIndiceBase', col: 9, value: '' },
-        index: { tag: 'RTIndice', col: 10, value: '' },
-        indexDate: { tag: 'RTDateIndice', col: 11, value: '' },
-        currentLease: { tag: 'RTLoyerActuel', col: 12, value: '' },
-        revisionDate: { tag: 'RTDate', col: 13, value: '' },
-        initialYear: { tag: 'RTIndiceInitialAnnée', col: undefined, value: '' },
-        revisionYear: { tag: 'RTYear', col: undefined, value: '' },
-        baseYear: { tag: 'RTPreviousYear', col: undefined, value: '' },
-        newLease: { tag: 'RTLoyerNouveau', col: undefined, value: '' },
-        nextRevision: { tag: 'RTNextRevision', col: undefined, value: '' },
+    const Ctrls = {
+        owner: { tag: 'RTBailleur', col: 0, label: 'Nom du Bailleur', type: 'select', value: '' },
+        adress: { tag: 'RTAdresseDestinataire', label: 'Adresse du bien loué', col: 1, type: 'select', value: '' },
+        tenant: { tag: 'RTLocataire', label: 'Nom du Locataire', col: 2, type: 'select', value: '' },
+        leaseDate: { tag: 'RTDateBail', label: 'Date du Bail', col: 3, type: 'date', value: '' },
+        leaseType: { tag: 'RTNature', label: 'Nature du Bail', col: 4, type: 'text', value: '' },
+        initialIndex: { tag: 'RTIndiceInitial', label: 'Indice initial', col: 5, type: 'text', value: '' },
+        indexQuarter: { tag: 'RTTrimestre', label: 'Trimestre de l\'indice', col: 6, type: 'text', value: '' },
+        initialIndexDate: { tag: 'RTIndiceInitialDate', label: 'Date de l\'indice initial', col: 7, type: 'date', value: '' },
+        baseIndex: { tag: 'RTIndiceBase', label: `Indice de référence`, col: 8, type: 'text', value: '' },
+        baseIndexDate: { tag: 'RTDateIndiceBase', label: `Date de l'indice de référence`, col: 9, type: 'date', value: '' },
+        index: { tag: 'RTIndice', label: 'Indice de révision', col: 10, type: 'text', value: '' },
+        indexDate: { tag: 'RTDateIndice', label: 'Date de l\'indice de révision', col: 11, type: 'date', value: '' },
+        currentLease: { tag: 'RTLoyerActuel', label: 'Loyer Actuel (ou révisé)', col: 12, type: 'text', value: '' },
+        revisionDate: { tag: 'RTDate', label: 'Date de la dernière Révision', col: 13, type: 'date', value: '' },
+        initialYear: { tag: 'RTIndiceInitialAnnée', label: undefined, col: undefined, type: 'text', value: '' },
+        revisionYear: { tag: 'RTYear', label: undefined, col: undefined, type: 'text', value: '' },
+        baseYear: { tag: 'RTPreviousYear', label: undefined, col: undefined, type: 'text', value: '' },
+        newLease: { tag: 'RTLoyerNouveau', label: undefined, col: undefined, type: 'text', value: '' },
+        nextRevision: { tag: 'RTNextRevision', label: undefined, col: undefined, type: 'text', value: '' },
     };
     /**
      * This function casts the "col" property as "number" beacause the col property of some RTs is "undefined". So this function will mainly cast the col property to a number in order to avoid casting each time we retrieve the col property
@@ -635,101 +655,100 @@ async function issueLeaseLetter(create = false) {
      * @returns {number}
      */
     const column = (RT) => RT.col;
-    const rts = Object.values(RTs);
-    const findRT = (id) => rts.find(RT => RT.tag === id);
+    const ctrls = Object.values(Ctrls);
+    const findRT = (id) => ctrls.find(RT => RT.tag === id);
     const findInput = (id) => inputs.find(input => input.id === id);
     const inputs = [];
     let row = [], rowIndex = null;
     (async function showForm() {
         if (create)
             return;
-        const table = await retrieveExcelTableRowsUsingGraphAPI(accessToken, workbookPath, tableName, false, false); //!persist must be = true because we might add a new row if there is a discount. If we don't persist the session, the table will be filtered and the new row will not be added.
-        if (!table)
+        const tableRows = await retrieveExcelTableRowsUsingGraphAPI(accessToken, workbookPath, tableName, false, false); //We are calling the "rows" endpoint which returns the table rows without the headers.
+        if (!tableRows)
             return;
         document.querySelector('table')?.remove();
         const form = byID();
         if (!form)
             return;
         form.innerHTML = '';
+        const divs = [];
         (function insertInputs() {
             const unvalid = (values) => values.find(value => !value || isNaN(Number(value)));
-            const owner = createInput('select', RTs.owner, 'field', 'Nom du Bailleur');
-            populateSelectElement(owner, getUniqueValues(0, table), false);
-            const adress = createInput('text', RTs.adress, 'field', 'Adresse du bien loué');
-            const tenant = createInput('text', RTs.tenant, 'field', 'Nom du Locataire');
-            createInput('text', RTs.leaseDate, 'field', 'Date du Bail');
-            createInput('text', RTs.leaseType, 'field', 'Nature du Bail');
-            createInput('text', RTs.initialIndex, 'field', 'Indice initial');
-            createInput('date', RTs.initialIndexDate, 'field', 'Date de l\'indice initial');
-            createInput('text', RTs.indexQuarter, 'field', 'Trimestre de l\'indice');
-            createInput('text', RTs.baseIndex, 'field', `Indice de référence`);
-            createInput('date', RTs.baseIndexDate, 'field', `Date de l'indice de référence`);
-            const index = createInput('text', RTs.index, 'field', 'Indice de révision');
-            createInput('date', RTs.indexDate, 'field', 'Date de l\'indice de révision');
-            createInput('date', RTs.revisionDate, 'field', 'Date de la dernière Révision');
-            const currentLease = createInput('text', RTs.currentLease, 'field', 'Loyer Actuel (ou révisé)');
+            const owner = createInput(Ctrls.owner);
+            populateSelectElement(owner, getUniqueValues(column(Ctrls.owner), tableRows), false);
+            const adress = createInput(Ctrls.adress);
+            const tenant = createInput(Ctrls.tenant);
+            const index = createInput(Ctrls.index);
+            [Ctrls.leaseDate, Ctrls.leaseType, Ctrls.initialIndex, Ctrls.initialIndexDate, Ctrls.baseIndex, Ctrls.baseIndexDate, Ctrls.indexDate, Ctrls.revisionDate].forEach(ctrl => createInput(ctrl));
+            const currentLease = createInput(Ctrls.currentLease);
             (function inputsOnChange() {
-                owner.onchange = () => {
-                    const leases = table.filter(row => row[column(RTs.owner)] === owner.value);
-                    if (!leases.length)
-                        return;
-                    if (leaseFound(leases, column(RTs.owner)))
-                        return;
-                    const colAdress = column(RTs.adress);
-                    populateSelectElement(adress, getUniqueValues(colAdress, leases), false);
-                };
-                adress.onchange = () => {
-                    const leases = table.filter(row => adress.value === row[column(RTs.adress)] && owner.value === row[column(RTs.owner)]) || [];
-                    if (!leases.length)
-                        return;
-                    if (leaseFound(leases, column(RTs.adress)))
-                        return;
-                    const colTenant = column(RTs.tenant);
-                    populateSelectElement(tenant, getUniqueValues(colTenant, leases), false);
-                };
-                tenant.onchange = () => {
-                    const leases = table.filter(row => adress.value === row[column(RTs.adress)] && owner.value === row[column(RTs.owner)] && tenant.value === row[column(RTs.tenant)]) || [];
-                    if (!leases.length)
-                        return;
-                    if (leaseFound(leases, column(RTs.tenant)))
-                        return;
-                };
+                const bound = [owner, adress, tenant].map(input => [input, getIndex(input)]);
+                bound.forEach(([input, index]) => input.onchange = () => inputOnChange(index, bound, tableRows, false));
                 index.onchange = () => {
                     if (!row?.length) {
                         prompt('No lease having owner name, property adress and tenant name as in the inputs was found');
                         return;
                     }
-                    const base = row[column(RTs.baseIndex)] || row[column(RTs.initialIndex)];
+                    const base = row[column(Ctrls.baseIndex)] || row[column(Ctrls.initialIndex)];
                     const latest = index.value;
-                    const lease = row[column(RTs.currentLease)];
+                    const lease = row[column(Ctrls.currentLease)];
                     if (unvalid([base, latest, lease]))
                         return alert('Please make sure that the values of the current lease, the base indice and the new indice are all provided and valid numbers');
                     const newLease = (Number(lease) * (Number(latest) / Number(base))).toFixed(2).toString();
                     currentLease.value = newLease;
-                    RTs.baseIndex.value = latest;
-                    RTs.newLease.value = newLease; //We update the new lease RT
+                    Ctrls.baseIndex.value = latest;
+                    Ctrls.newLease.value = newLease; //We update the new lease RT
                 };
                 function leaseFound(rows, col) {
                     if (!rows?.length || rows.length > 1)
                         return false;
                     row = rows[0];
-                    rowIndex = table.indexOf([row]);
+                    rowIndex = tableRows.indexOf([row]);
                     row.forEach((cell, index) => {
                         if (index <= col)
                             return;
-                        const RT = rts.find(RT => RT.col === index);
+                        const RT = ctrls.find(RT => RT.col === index);
                         if (!RT)
                             return;
                         const input = findInput(RT.tag);
                         if (!input)
                             return;
-                        const value = cell.toString();
-                        input.value = value;
-                        RT.value = value;
+                        (function ifDate() {
+                            if (RT.type !== 'date')
+                                return;
+                            const date = getISODate(dateFromExcel(cell));
+                            input.value = date;
+                            RT.value = date;
+                        })();
+                        (function notDate() {
+                            if (RT.type === 'date')
+                                return;
+                            input.value = cell.toString();
+                            RT.value = input.value || '';
+                        })();
                     });
                     return true;
                 }
             })();
+        })();
+        (function groupDivs() {
+            [
+                [0, 1, 2], //"Bailleur"(0), "Adresse"(1), "Locataire"(2)
+                [3, 4], //"Date du Bail"(3), "Nature du Bail"(4)
+                [5, 6, 7], //"Indice Initial"(5), "Date de l'indice initial"(6), "Trimestre de l'indice"(7)
+                [8, 9], //"Indice de référence"(8), "Date de l'indice de référence"(9)
+                [10, 11], //"Indice de révision"(10), "Date de l'indice de révision"(11)
+                [12, 13], //"Loyer Actuel (ou révisé)"(12), "Date de la dernière Révision"(13)
+            ]
+                .forEach((group, index) => groupDivs(divs.filter(div => group.includes(getIndex(div))), index));
+            function groupDivs(divs, i) {
+                const div = document.createElement('div');
+                div.classList.add("group");
+                div.dataset.block = i.toString();
+                divs?.forEach(el => div.appendChild(el));
+                form?.appendChild(div);
+                return div;
+            }
         })();
         (function generateBtn() {
             const btn = document.createElement('button');
@@ -742,25 +761,30 @@ async function issueLeaseLetter(create = false) {
             showMainUI(true);
         })();
         spinner(false);
-        function createInput(type, RT, className, labelText) {
+        function createInput(RT, className = 'field') {
             const id = RT.tag;
             const div = document.createElement('div');
             form?.appendChild(div);
             const append = (el) => div.appendChild(el);
             (function appendLabel() {
+                if (!RT.label)
+                    return;
                 const label = document.createElement('label');
                 label.htmlFor = id;
-                label.innerText = labelText;
+                label.innerText = RT.label;
                 append(label);
             })();
             return appendInput();
             function appendInput() {
                 const input = document.createElement('input');
-                input.type = type;
+                input.type = RT.type || 'text';
                 input.id = id;
                 input.classList.add(className);
                 if (RT.col) {
-                    input.dataset.column = RT.col.toString();
+                    const index = RT.col.toString();
+                    input.dataset.index = index;
+                    div.dataset.index = index;
+                    divs.push(div);
                     inputs.push(input);
                 }
                 ;
@@ -785,28 +809,32 @@ async function issueLeaseLetter(create = false) {
             return;
         inputs.map(input => {
             const id = input.id;
-            if (id === RTs.currentLease.tag)
+            if (id === Ctrls.currentLease.tag)
                 return; //!We don't update the value of current lease from the input because the value of the input is the new lease not the old one
             const RT = findRT(id);
-            if (RT)
+            if (!RT)
+                return;
+            if ([3, 6,].includes(column(RT)))
+                RT.value = getDateString(input.valueAsDate);
+            else
                 RT.value = input.value;
         });
         const date = new Date();
         const year = date.getFullYear();
-        RTs.revisionDate.value = [date.getDate(), date.getMonth() + 1, year].join('/');
-        RTs.revisionYear.value = year.toString();
-        RTs.previousYear.value = (year - 1).toString();
-        RTs.nextRevision.value = (year + 1).toString();
-        const contentControls = rts.map(RT => [RT.tag, RT.value]);
+        Ctrls.revisionDate.value = getDateString(date);
+        Ctrls.revisionYear.value = year.toString();
+        Ctrls.previousYear.value = (year - 1).toString();
+        Ctrls.nextRevision.value = (year + 1).toString();
+        const contentControls = ctrls.map(RT => [RT.tag, RT.value]);
         createAndUploadXmlDocument(accessToken, templatePath, filePath, 'FR', undefined, undefined, contentControls);
         (function updateLeasesTable() {
             (async function updateRow() {
                 if (!rowIndex)
                     return;
-                const col = RTs.revisionDate.col;
-                const revisionDate = RTs.initialIndexDate.value.replace(RTs.initialYear.value, RTs.revisionYear.value);
+                const col = Ctrls.revisionDate.col;
+                const revisionDate = Ctrls.initialIndexDate.value.replace(Ctrls.initialYear.value, Ctrls.revisionYear.value);
                 row[col] = new Date(revisionDate);
-                const input = findInput(RTs.revisionDate.tag);
+                const input = findInput(Ctrls.revisionDate.tag);
                 if (input)
                     input.value = revisionDate;
                 await updateExcelTableRowWithGraphAPI(accessToken, undefined, workbookPath, tableName, rowIndex, row);
@@ -835,47 +863,31 @@ async function issueLeaseLetter(create = false) {
  * @returns
  */
 function inputOnChange(index, inputs, table, invoice) {
-    (function resetInputs() {
-        //In some cases, we only need to rest the values of other inputs bound to the input that has been changed. If the function is called for this purpose, we will just rest those inputs without updating their data list.
-        if (invoice)
-            return; //This function only applies for the adding new entries form
-        inputs
-            .filter(input => getIndex(input) > index)
-            .forEach(input => reset(input)); //We reset any input which dataset-index is > than the dataset-index of the input that has been changed
-        if (index === 9)
-            inputs
-                .filter(input => getIndex(input) < index)
-                .forEach(input => reset(input)); //If the input is the input for the "Montant" column of the Excel table, we also reset the "Start Time" (5), "End Time" (6) and "Hourly Rate" (7) columns' inputs. We do this because we assume that if the user provided the amount, it means that either this is not a fee, or the fee is not hourly billed.
-        function reset(input) {
-            if (!input)
-                return;
-            input.value = '';
-            if (input.valueAsNumber)
-                input.valueAsNumber = 0;
-        }
-    })();
-    if (!table)
+    if (!table?.length)
         return;
     const filledInputs = inputs
-        .filter(input => input.value && getIndex(input) <= index); //Those are all the inputs that the user filled with data
-    const filtered = filterOnInput(filledInputs, table); //We filter the table based on the filled inputs
-    const boundInputs = inputs.filter(input => getIndex(input) > index); //Those are the inputs for which we want to create  or update their data lists
-    boundInputs.forEach(input => {
+        .filter(([input, i]) => input.value && i <= index); //Those are all the inputs that the user filled with data
+    const filtered = filterTableByInputsValues(filledInputs, table); //We filter the table based on the filled inputs
+    const boundInputs = inputs.filter(([input, i]) => i > index); //Those are the inputs for which we want to create  or update their data lists
+    boundInputs.forEach(([input, index]) => {
         input.value = ''; //We reset the value of all bound inputs.
-        const index = getIndex(input);
         const list = getUniqueValues(index, filtered);
         if (list?.length < 2)
             return input.value = list[0]?.toString() || ''; //If there is only one value in the list, we set it as the value of the input and we don't create a data list for it because there is no need
         const combine = (invoice && [1, 2].includes(index)) ? true : false; //For the "Matter" and "Nature" lists, we add a new element combining all the values separated by ","
         populateSelectElement(input, list, combine);
     });
-    function filterOnInput(filled, table) {
-        filled
-            .forEach(input => table = table.filter(row => input.value.split(', ') //!input values can be comma separted values if the user has selected more than one "Matter" or more than one "Nature".
-            .includes(row[getIndex(input)]
-            .toString())));
-        return table;
-    }
+}
+;
+/**
+ * Filters the table according to the values of the inputs. The value of each input is compared to the value of the cell in the corresponding column in the table. If the value of the input is included in the cell value, it means that this row matches the criteria of this input. For a row to be included in the resulting filtered table, it must match the criteria of all the inputs.
+ * @param {HTMLInputElement[]} inputs - the html inputs containing the values based on which the table will be filtered
+ * @param {any[][]} table - The table that will be filtered
+ * @returns {any[][]} - The resulting filtered table
+ */
+function filterTableByInputsValues(inputs, table) {
+    const values = inputs.map(([input, index]) => [index, input.value.split(', ')]); //!some inputs may contain multiple comma separated values if the user has selected more than one option in the data list. So we split the input value by ", " and we check if the cell value is included in the resulting array.
+    return table.filter(row => values.every(([index, value]) => value.includes(row[index])));
 }
 ;
 /**
@@ -1147,9 +1159,7 @@ function getMSGraphClient(accessToken) {
     });
 }
 function getNewExcelRow(inputs) {
-    return inputs.map(input => {
-        input.value;
-    });
+    return inputs.map(input => input.value);
 }
 /**
  * Adds a new row to the Excel table using the Grap API
