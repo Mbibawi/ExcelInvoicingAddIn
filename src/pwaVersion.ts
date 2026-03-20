@@ -912,23 +912,36 @@ async function issueLeaseLetter(create: boolean = false) {
  */
 function inputOnChange(index: number, inputs:InputCol[], table: any[][] | undefined, invoice: boolean) {
     if (!table?.length) return;
+    const setValue = (input: HTMLInputElement, value: any) => input.value = value?.toString() || '';
+
     const filledInputs =
         inputs
-            .filter(([input, i]) => input.value && i <= index)//Those are all the inputs that the user filled with data
+            .filter(([input, col]) => input.value && col <= index)//Those are all the inputs that the user filled with data
 
     const filtered = filterTableByInputsValues(filledInputs, table);//We filter the table based on the filled inputs
 
-    const boundInputs = inputs.filter(([input, i]) => i > index)//Those are the inputs for which we want to create  or update their data lists
+    if(!filtered.length) return;
 
-    boundInputs.forEach(([input, index]) => {
+    const boundInputs = inputs.filter(([input, col]) => col > index)//Those are the inputs for which we want to create  or update their data lists
+
+    for (const [input, col] of boundInputs){
         input.value = ''; //We reset the value of all bound inputs.
-        const list = getUniqueValues(index, filtered);
-        if (list?.length < 2) return input.value = list[0]?.toString() || '';//If there is only one value in the list, we set it as the value of the input and we don't create a data list for it because there is no need
-        const combine = (invoice && [1, 2].includes(index)) ? true : false;//For the "Matter" and "Nature" lists, we add a new element combining all the values separated by ","
+        const list = getUniqueValues(col, filtered);
+        if(fillBound(list, input)) break;//!If the function returns true, it means that we filled the value of all the bound inputs, so we break the loop. If it returns false, it means that there is more than one value in the list, so we need to create or update the data list of the input.
+        const combine = (invoice && [1, 2].includes(col))//For the "Matter" and "Nature" lists, we add a new element combining all the values separated by ","
+        
+        populateSelectElement(input, list, combine);    
+    }
+    
 
-        populateSelectElement(input, list, combine);
-    });
-
+    function fillBound(list:any[], input:HTMLInputElement):boolean {
+        if(list.length>1) return false;
+        const value = list[0], found = filtered.length <2;
+        if(!found) return setValue(input, value);//If the filtered array contains more than one row with the same unique value in the corresponding column, we will not fill the next inputs
+        const row = filtered[0];//This is the unique row in the filtered list, we will use it to fill all the other inputs
+        boundInputs.forEach(([input, col]) =>setValue(input, row[col]));
+        return found;
+    }
 };
 /**
  * Filters the table according to the values of the inputs. The value of each input is compared to the value of the cell in the corresponding column in the table. If the value of the input is included in the cell value, it means that this row matches the criteria of this input. For a row to be included in the resulting filtered table, it must match the criteria of all the inputs.
