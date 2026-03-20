@@ -780,8 +780,9 @@ async function issueLeaseLetter(create = false) {
                 input.type = RT.type || 'text';
                 input.id = id;
                 input.classList.add(className);
-                if (RT.col) {
-                    const index = RT.col.toString();
+                const col = column(RT);
+                if (!isNaN(col)) {
+                    const index = col.toString();
                     input.dataset.index = index;
                     div.dataset.index = index;
                     divs.push(div);
