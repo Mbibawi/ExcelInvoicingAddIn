@@ -1414,9 +1414,10 @@ class XML {
    * @param {number} index - if provided, it will only return the element having the specified index
    * @returns {Element[] | Element}
    */
-  private getXMLElements(parent: XMLDocument | Element, tag: string, index: number = NaN): Element[] | Element {
-    const elements = parent.getElementsByTagNameNS(this.schema(), tag);
-    if (!isNaN(index)) return elements?.[index];
+  private getXMLElements(parent: XMLDocument | Element, tag: string, index: number = NaN): Element[] | Element | undefined {
+    const elements = parent?.getElementsByTagNameNS(this.schema(), tag);
+    if (!elements?.length) return;
+    if (!isNaN(index)) return elements[index];
     return Array.from(elements)
   }
 
