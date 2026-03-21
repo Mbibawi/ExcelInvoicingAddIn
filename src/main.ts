@@ -902,11 +902,11 @@ class GraphAPI {
 
     if (!this.accessToken || !templatePath || !this.filePath) return;
 
-    const blob = await this.fetchFileFromOneDrive();
+    const blob = await this.fetchFileFromOneDrive(templatePath);//!We must provide the Word templatePath not the Excel workbook path stored in the this.filePath variable
 
     if (!blob) return;
 
-    const [doc, zip] = await convertBlobIntoXML(blob);
+    const [doc, zip] = await this.convertBlobIntoXML(blob);
 
     if (!doc) return;
 
@@ -975,6 +975,29 @@ class GraphAPI {
   };
 
   /**
+ * Converts the blob of a Word document into an XML
+ * @param blob - the blob of the file to be converted
+ * @returns {[XMLDocument, JSZip]} - The xml document, and the zip containing all the xml files
+ */
+//@ts-expect-error
+private async convertBlobIntoXML(blob: Blob): Promise<[XMLDocument, JSZip]> {
+  //@ts-ignore
+  const zip = new JSZip();
+
+  const arrayBuffer = await blob.arrayBuffer();
+
+  await zip.loadAsync(arrayBuffer);
+
+  const documentXml = await zip.file("word/document.xml").async("string");
+
+  const parser = new DOMParser();
+
+  const xmlDoc = parser.parseFromString(documentXml, "application/xml");
+
+  return [xmlDoc, zip]
+}
+
+  /**
  * Filters an Excel table column based on the values
  * @param {string} filePath - the full path and file name of the Excel workbook
  * @param {string} tableName - the name of the table that will be filtered
@@ -1015,15 +1038,10 @@ class GraphAPI {
  * @param {string} filePath 
  * @returns {Blob} - A blob of the fetched file, if successful
  */
-  private async fetchFileFromOneDrive(): Promise<Blob> {
-    const fileUrl = `${this.GRAPH_API_BASE_URL}${this.filePath}:/content`;
-
-    const response = await fetch(fileUrl, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${this.accessToken}` }
-    });
-
-    if (!response.ok) throw new Error("Failed to fetch Word template");
+  private async fetchFileFromOneDrive(filePath = this.filePath): Promise<Blob> {
+    const endPoint = `${this.GRAPH_API_BASE_URL}${filePath}:/content`;
+    const response = await this.sendRequest(endPoint, 'GET')
+     if (!response?.ok) throw new Error("Failed to fetch Word template");
 
     return await response.blob(); // Returns the Word template as a Blob
   };
@@ -1076,11 +1094,9 @@ class GraphAPI {
   /**
    * Sends a POST request to edit a file using graph API
    * @param {string} endPoint - The url of the file to be edited
-   * @param {string} accessToken - the accessToken
-   * @param {string} sessionId - the session ID
    * @param {string} body - the body of the request
    * @param {string} message - The alert that will be displayed if the request fails
-   * @param {string} filePath - If provided the session will be closed if the request fails
+   * @param {string} sessionId - the session ID
    * @returns {string | void} - The response from the server, if successful or an alert message in case of an error
    */
   private async POSTRequest(endPoint: string, body: object | undefined, message: string, sessionId?: string) {

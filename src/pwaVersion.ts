@@ -542,12 +542,12 @@ async function invoice(issue: boolean = false) {
         const contentControls = getContentControlsValues(invoice, date);
 
         const fileName = getInvoiceFileName(clientName, matters, invoiceNumber);
-        let filePath = `${destinationFolder}/${fileName}`;
+        let savePath = `${destinationFolder}/${fileName}`;
 
-        filePath = prompt(`The file will be saved in ${destinationFolder}, and will be named : ${fileName}./nIf you want to change the path or the name, provide the full file path and name of your choice without any sepcial characters`, filePath) || filePath;
+        savePath = prompt(`The file will be saved in ${destinationFolder}, and will be named : ${fileName}.\nIf you want to change the path or the name, provide the full file path and name of your choice without any sepcial characters`, savePath) || savePath;
 
         (async function editInvoiceFilterExcelClose() {
-            await graph.createAndUploadWordDocument(templatePath, filePath, lang, 'Invoice', wordRows, contentControls, totalsLabels);
+            await graph.createAndUploadWordDocument(templatePath, savePath, lang, 'Invoice', wordRows, contentControls, totalsLabels);
 
             await graph.filterExcelTable(tableName, matter, matters, sessionId);//We filter the table by the matters that were invoiced
 
@@ -919,29 +919,6 @@ function filterTableByInputsValues(inputs: InputCol[], table: any[][]): any[][] 
     return table.filter(row => values.every(([index, value]) => value.includes(row[index])));
 };
 
-
-/**
- * Converts the blob of a Word document into an XML
- * @param blob - the blob of the file to be converted
- * @returns {[XMLDocument, JSZip]} - The xml document, and the zip containing all the xml files
- */
-//@ts-expect-error
-async function convertBlobIntoXML(blob: Blob): Promise<[XMLDocument, JSZip]> {
-    //@ts-ignore
-    const zip = new JSZip();
-
-    const arrayBuffer = await blob.arrayBuffer();
-
-    await zip.loadAsync(arrayBuffer);
-
-    const documentXml = await zip.file("word/document.xml").async("string");
-
-    const parser = new DOMParser();
-
-    const xmlDoc = parser.parseFromString(documentXml, "application/xml");
-
-    return [xmlDoc, zip]
-}
 
 /**
  * Convert the date in an Excel row into a javascript date (in milliseconds)
