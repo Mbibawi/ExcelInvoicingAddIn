@@ -1,5 +1,4 @@
 "use strict";
-const GRAPH_API_BASE_URL = "https://graph.microsoft.com/v1.0/me/drive/root:/";
 if (!localStorage.templatePath)
     localStorage.templatePath = prompt('Please provide the OneDrive full path (including the file name and extension) for the Word template', "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/FactureTEMPLATE [NE PAS MODIFIDER].docx");
 const templatePath = localStorage.templatePath || alert('The template path is not valid or is missing');
@@ -11,7 +10,8 @@ if (!localStorage.destinationFolder)
 const destinationFolder = localStorage.destinationFolder || alert('the destination folder path is missing or not valid');
 var TableRows, accessToken, tableTitles = JSON.parse(localStorage.tableTitles);
 const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
-const byID = (id = 'form') => document.getElementById(id);
+const byID = (id = "form") => document.getElementById(id);
+const splitter = "; OR "; //This is the splitter that will be used to separate multiple values in the input fields. We need to use a splitter that is not likely to be included in the values themselves.
 function getAccountsWorkBookPath() {
     if (!localStorage.accountsPath)
         localStorage.accountsPath = prompt('Please provide the OneDrive full path (including the file name and extension) for the Excel Workbook', "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm");
@@ -260,7 +260,7 @@ function createDataList(id, uniqueValues, combine = false) {
     // Append options to the datalist
     uniqueValues.forEach(option => addOption(option));
     if (combine)
-        addOption(uniqueValues.join(', '));
+        addOption(uniqueValues.join(splitter));
     // Attach the datalist to the body or a specific element
     document.body.appendChild(dataList);
     function addOption(option) {
@@ -326,9 +326,10 @@ async function _generateInvoice() {
         adress: (getUniqueValues(15, visible)).map(el => String(el)),
         lang: lang
     };
-    const filePath = `${destinationFolder}/${getInvoiceFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`;
+    const savePath = `${destinationFolder}/${getInvoiceFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`;
     const [rows, totalsLabels] = getRowsData(visible, discount, lang, getInvoiceNumber(date));
-    await createAndUploadXmlDocument(await getAccessToken() || '', templatePath, filePath, lang, 'Invoice', rows, getContentControlsValues(invoiceDetails, new Date()));
+    const accessToken = await getAccessToken() || '';
+    await new GraphAPI(accessToken, '').createAndUploadWordDocument(templatePath, savePath, lang, 'Invoice', rows, getContentControlsValues(invoiceDetails, new Date()));
 }
 /**
  * Returns a string[][] representing the rows to be inserted in the Word table containing the invoice details
@@ -599,294 +600,871 @@ function getUniqueValues(index, array) {
         .map(el => el); //we remove empty strings/values
 }
 ;
-/**
- * Creates a new Graph API File session and returns its id
- * @returns
- */
-async function createFileSession(filePath, accessToken, persist = false) {
-    const response = await fetch(`${GRAPH_API_BASE_URL}${filePath}:/workbook/createSession`, {
-        method: "POST",
-        headers: graphHeaders(accessToken),
-        body: JSON.stringify({ persistChanges: persist }),
-    });
-    if (!response.ok) {
-        alert(await response.text());
-        throw new Error("Failed to create workbook session");
+class GraphAPI {
+    constructor(accessToken, filePath, sessionId, presist = false) {
+        this.GRAPH_API_BASE_URL = "https://graph.microsoft.com/v1.0/me/drive/root:/";
+        this.accessToken = accessToken;
+        this.filePath = filePath || '';
+        this.sessionId = sessionId || '';
     }
-    const session = await response.json();
-    if (!session) {
-        alert('Failed to create workbook session');
-        throw new Error('Failed to create workbook session');
+    /**
+   * Creates a new Graph API File session and returns its id
+   * @returns
+   */
+    async createFileSession(persist = false) {
+        const endPoint = `${this.GRAPH_API_BASE_URL}${this.filePath}:/workbook/createSession`;
+        const body = { persistChanges: persist };
+        const response = await this.sendRequest(endPoint, 'POST', body);
+        if (!response?.ok) {
+            alert(await response?.text());
+            throw new Error("Failed to create workbook session");
+        }
+        const session = await response?.json();
+        if (!session) {
+            alert('Failed to create workbook session');
+            throw new Error('Failed to create workbook session');
+        }
+        return session.id;
     }
-    return session.id;
-}
-/**
- * Closes the current Excel file session
- */
-async function closeFileSession(sessionId, filePath, accessToken) {
-    const resp = await POSTRequestWithGraphAPI(`${GRAPH_API_BASE_URL}${filePath}:/workbook/closeSession`, accessToken, sessionId, '', 'Error closing the session');
-    if (resp)
-        console.log(`The session was closed successfully! ${await resp.text()}`);
-}
-/**
- * Returns the headers of the Microsoft Graph API calls
- */
-function graphHeaders(accessToken, sessionID, contentType) {
-    const headers = {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': contentType || 'application/json',
-    };
-    if (sessionID)
-        headers["workbook-session-id"] = sessionID;
-    return headers;
-}
-/**
- * retries the values of the rows of an Excel table
-  * @param {string} accessToken - the access token
- * @param {string} workbookPath - file path (folder + file nam) of the file to be fetched
- * @param {string} tableName - Name of the table to be fetched
- * @param {boolean} range - Its default value is true. If true, it calls the "/range" endpoint and returns the whole table including the header row, otherwise, it calls the "/rows" endpoint and returns only the body (the rows) of the table. The structure of the date returned is different for each endpoint
- * @returns {Promise<any[][]>}
- */
-async function retrieveExcelTableRowsUsingGraphAPI(accessToken, workbookPath, tableName, persist, range) {
-    const sessionId = await createFileSession(workbookPath, accessToken, persist) || '';
-    if (!sessionId)
-        throw new Error('There was an issue with the creation of the file cession. Check the console.log for more details');
-    return await fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName, range);
-}
-/**
- * Returns all the rows of an Excel table in a workbook stored on OneDrive, using the Graph API
- * @param {string} accessToken - the access token
- * @param {string} workbookPath - file path (folder + file nam) of the file to be fetched
- * @param {string} tableName - Name of the table to be fetched
- * @param {boolean} range - Its default value is true. If true, it calls the "/range" endpoint and returns the whole table including the header row, otherwise, it calls the "/rows" endpoint and returns only the body (the rows) of the table. The structure of the date returned is different for each endpoint
- * @param {boolean} columns - If true it will return the columns
- * @returns {any[][] | number | void} - All the rows (including the title) of the Excel table
- */
-async function fetchExcelTableWithGraphAPI(sessionId, accessToken, workbookPath, tableName, range = true, columns) {
-    if (!accessToken)
-        accessToken = await getAccessToken() || '';
-    let endPoint = `${GRAPH_API_BASE_URL}${workbookPath}:/workbook/tables/${tableName}/`;
-    if (range)
-        endPoint += 'range'; //The "range" endpoint returns all the table including the headers row
-    if (!range)
-        endPoint += 'rows'; //The "rows" endpoint returns only  the body of the table without the headers
-    else if (columns)
-        endPoint += 'columns';
-    const response = await fetch(endPoint, {
-        method: "GET",
-        headers: graphHeaders(accessToken, sessionId)
-    });
-    if (!response.ok) {
-        alert(`Error fetching row count: ${await response.text()}`);
-        throw new Error(`Error fetching row count: ${await response.text()}`);
+    /**
+     * Closes the current Excel file session
+     */
+    async closeFileSession(sessionId) {
+        if (!this.filePath)
+            return;
+        const endPoint = `${this.GRAPH_API_BASE_URL}${this.filePath}:/workbook/closeSession`;
+        const resp = await this.POSTRequest(endPoint, undefined, 'Error closing the session', sessionId);
+        if (resp)
+            console.log(`The session was closed successfully! ${await resp.text()}`);
+    }
+    /**
+     * Returns all the rows of an Excel table in a workbook stored on OneDrive, using the Graph API
+     * @param {string} tableName - Name of the table to be fetched
+     * @param {boolean} headers - Its default value is true. If true, it calls the "/range" endpoint and returns the whole table including the headers row, otherwise, it calls the "/rows" endpoint and returns only the body (the rows) of the table. The structure of the date returned is different for each endpoint
+     * @param {boolean} columns - If true it will return the columns
+     * @returns {any[][] | number | void} - All the rows (including the title) of the Excel table
+     */
+    async fetchExcelTable(tableName, headers = true, columns) {
+        if (!this.accessToken)
+            this.accessToken = await getAccessToken() || '';
+        let endPoint = `${this.GRAPH_API_BASE_URL}${this.filePath}:/workbook/tables/${tableName}/`;
+        if (headers)
+            endPoint += 'range'; //The "range" endpoint returns all the table including the headers row
+        if (!headers)
+            endPoint += 'rows'; //The "rows" endpoint returns only  the body of the table without the headers
+        else if (columns)
+            endPoint += 'columns';
+        const response = await this.sendRequest(endPoint, 'GET');
+        if (!response?.ok) {
+            alert(`Error fetching row count: ${await response?.text()}`);
+            throw new Error(`Error fetching row count: ${await response?.text()}`);
+        }
+        ;
+        const data = await response?.json();
+        if (headers)
+            return data.values;
+        else
+            return data.value.flatMap((row) => row.values); //! the graph api returns an object with a "value" property which is an array of rows, each row is also an object with a "values" property which is an array of the cells values of the row. So we need to flatMap() the data to return an array of rows, each row being an array of cells values;
     }
     ;
-    const data = await response.json();
-    if (range)
-        return data.values;
-    else
-        return data.value.flatMap((row) => row.values); //! the graph api returns an object with a "value" property which is an array of rows, each row is also an object with a "values" property which is an array of the cells values of the row. So we need to flatMap() the data to return an array of rows, each row being an array of cells values;
-}
-/**
- * Filters an Excel table column based on the values
- * @param {string} filePath - the full path and file name of the Excel workbook
- * @param {string} tableName - the name of the table that will be filtered
- * @param {string} columnName - the name of the column that will be filtered
- * @param {string[]|number[]|boolean[]} values - the values based on which the column will be filtered
- * @param {string} sessionId - the id of the current Excel file session
- * @param {string} accessToken - the access token
- * @returns {string}
- */
-async function filterExcelTableWithGraphAPI(filePath, tableName, columnName, values, sessionId, accessToken, onValues = true) {
-    if (!accessToken || !sessionId || !columnName || !values?.length)
-        return;
-    // Step 3: Apply filter using the column name
-    const filterUrl = `${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/columns/${columnName}/filter/apply`;
-    let body;
-    if (onValues)
-        body = {
-            "criteria": {
-                "filterOn": "values",
-                "values": values,
-            }
-        };
-    else
-        body = {
-            "criteria": {
-                "filterOn": "custom",
-                "criterion1": values[0],
-                "criterion2": values[1] || null,
-                "operator": "And",
-            }
-        };
-    const resp = await POSTRequestWithGraphAPI(filterUrl, accessToken, sessionId, JSON.stringify(body), 'Error applying filter');
-    if (resp)
-        console.log(`Filter successfully applied to column ${columnName}!`);
-}
-/**
- * Filters an Excel table column based on the values
- * @param {string} filePath - the full path and file name of the Excel workbook
- * @param {string} tableName - the name of the table that will be filtered
- * @param {[string, boolean][]} columns - each element contains the name of the column and whether it will be sorted ascending or descending
- * @param {string} sessionId - the id of the current Excel file session
- * @param {string} accessToken - the access token
- * @returns {string}
- */
-async function sortExcelTableWithGraphAPI(filePath, tableName, columns, matchCase, sessionId, accessToken) {
-    if (!accessToken || !sessionId)
-        return;
-    // Step 3: Apply filter using the column name
-    const filterUrl = `${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/sort/apply`;
-    const fields = columns.map(([index, ascending]) => {
-        return {
-            key: index,
-            ascending: ascending,
-            sortOn: "value"
-        };
-    });
-    const body = {
-        fields: fields,
-        "matchCase": matchCase
-    };
-    const resp = await POSTRequestWithGraphAPI(filterUrl, accessToken, sessionId, JSON.stringify(body), "Error sorting table");
-    if (resp)
-        console.log(`Table successfully sorted according to columns criteria: ${columns.map(([col, asc]) => col).join(' & ')}!`);
-}
-/**
- * Returns the visible cells of a filtered Excel table using Graph API
- * @param {string} filePath - the full path and file name of the Excel workbook
- * @param {string} tableName - the name of the table that will be filtered
- * @param {string} sessionId - the id of the current Excel file session
- * @param {string} accessToken - the access token
- * @returns {any[][]} - the visible cells of the filtered table
- */
-async function getVisibleCellsWithGraphAPI(filePath, tableName, sessionId, accessToken) {
-    if (!accessToken || !sessionId)
-        return;
-    // Step 3: Apply filter using the column name
-    const endPoint = `${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/range/visibleView`;
-    const response = await fetch(endPoint, {
-        method: "GET",
-        headers: graphHeaders(accessToken, sessionId),
-    });
-    if (response.ok) {
-        const data = await response.json();
-        return data.values;
+    /**
+     * Filters an Excel table column based on the values
+     * @param {string} filePath - the full path and file name of the Excel workbook
+     * @param {string} tableName - the name of the table that will be filtered
+     * @param {string} columnName - the name of the column that will be filtered
+     * @param {string[]|number[]|boolean[]} values - the values based on which the column will be filtered
+     * @param {string} sessionId - the id of the current Excel file session
+     * @param {string} accessToken - the access token
+     * @returns {string}
+     */
+    async filterExcelTable(tableName, columnName, values, sessionId = this.sessionId, onValues = true) {
+        if (!columnName || !values?.length || !this.filePath)
+            return;
+        // Step 3: Apply filter using the column name
+        const filterUrl = `${this.GRAPH_API_BASE_URL}${this.filePath}:/workbook/tables/${tableName}/columns/${columnName}/filter/apply`;
+        let body;
+        if (onValues)
+            body = {
+                "criteria": {
+                    "filterOn": "values",
+                    "values": values,
+                }
+            };
+        else
+            body = {
+                "criteria": {
+                    "filterOn": "custom",
+                    "criterion1": values[0],
+                    "criterion2": values[1] || null,
+                    "operator": "And",
+                }
+            };
+        const resp = await this.POSTRequest(filterUrl, body, 'Error applying filter', sessionId);
+        if (resp)
+            console.log(`Filter successfully applied to column ${columnName}!`);
     }
-    else {
-        alert(`Error applying filter: ${await response.text()}`);
+    ;
+    /**
+     * Returns the visible cells of a filtered Excel table using Graph API
+     * @param {string} filePath - the full path and file name of the Excel workbook
+     * @param {string} tableName - the name of the table that will be filtered
+     * @param {string} sessionId - the id of the current Excel file session
+     * @param {string} accessToken - the access token
+     * @returns {any[][]} - the visible cells of the filtered table
+     */
+    async getVisibleCells(tableName, sessionId) {
+        if (!tableName || !this.filePath)
+            return alert('Either the tableName or the filePath are mission or not valid');
+        // Step 3: Apply filter using the column name
+        const endPoint = `${this.GRAPH_API_BASE_URL}${this.filePath}:/workbook/tables/${tableName}/range/visibleView`;
+        const response = await this.sendRequest(endPoint, 'GET', undefined, sessionId);
+        if (response?.ok) {
+            const data = await response?.json();
+            return data.values;
+        }
+        else {
+            const message = `Error applying filter: ${await response?.text()}`;
+            alert(message);
+        }
     }
-}
-/**
- * Clears the filters on an Excel table using the Graph API
- * @param {string} filePath - the full path and file name of the Excel workbook
- * @param {string} tableName - the name of the table that will be filtered
- * @param {string} sessionId - the id of the current Excel file session
- * @param {string} accessToken - the access token
- */
-async function clearFilterExcelTableGraphAPI(filePath, tableName, sessionId, accessToken) {
-    // First, clear filters on the table (optional step)
-    await fetch(`${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/clearFilters`, {
-        method: "POST",
-        headers: graphHeaders(accessToken, sessionId)
-    });
-}
-/**
- * Returns a blob from a file stored on OneDrive, using the Graph API and the file path
- * @param {string} accessToken
- * @param {string} filePath
- * @returns {Blob} - A blob of the fetched file, if successful
- */
-async function fetchFileFromOneDriveWithGraphAPI(accessToken, filePath) {
-    const fileUrl = `${GRAPH_API_BASE_URL}${filePath}:/content`;
-    const response = await fetch(fileUrl, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${accessToken}` }
-    });
-    if (!response.ok)
-        throw new Error("Failed to fetch Word template");
-    return await response.blob(); // Returns the Word template as a Blob
-}
-/**
- * Uploads a file blob to OneDrive using the Graph API
- * @param {Blob } blob
- * @param {string} filePath
- * @param {string} accessToken
- */
-async function uploadFileToOneDriveWithGraphAPI(blob, filePath, accessToken) {
-    const endpoint = `${GRAPH_API_BASE_URL}${filePath}:/content`;
-    const response = await fetch(endpoint, {
-        method: 'PUT',
-        headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // Correct MIME type for Word docs
-        },
-        body: blob, // Use the template's content as the new document's content
-    });
-    response.ok ? alert('succefully uploaded the new file') : console.log('failed to upload the file to onedrive error = ', await response.json());
+    ;
+    /**
+     * Clears the filters on an Excel table using the Graph API
+     * @param {string} filePath - the full path and file name of the Excel workbook
+     * @param {string} tableName - the name of the table that will be filtered
+     * @param {string} sessionId - the id of the current Excel file session
+     * @param {string} accessToken - the access token
+     */
+    async clearFilterExcelTable(tableName, sessionId) {
+        const endPoint = `${this.GRAPH_API_BASE_URL}${this.filePath}:/workbook/tables/${tableName}/clearFilters`;
+        this.sendRequest(endPoint, 'POST', undefined, sessionId);
+    }
+    ;
+    /**
+   * Adds a new row to the Excel table using the Grap API
+   * @param {string} row - The row that will be added to the Excel table
+   * @param {number} index - The index at which the row will be added
+   * @param {string} workbookPath - The full path of the Excel file
+   * @param {string} tableName - The name of the Excel table
+   * @param {string} accessToken - The Graph API access token
+   * @param {boolean} filter - If true, the table will be filtered after the row is added
+   * @returns
+   */
+    async addRowToExcelTable(row, index, tableName, filter = false) {
+        if (!this.filePath || !tableName || !row?.length)
+            return alert('The filePath or the tableName argument is missing or not valid');
+        const sessionId = await this.createFileSession(true);
+        if (sessionId)
+            return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
+        const url = `${this.GRAPH_API_BASE_URL}${this.filePath}:/workbook/tables/${tableName}/rows`; //The url to add a row to the table
+        const body = {
+            index: index,
+            values: [row],
+        };
+        await this.clearFilterExcelTable(tableName, sessionId); //We clear the filtering of the table
+        const resp = await this.POSTRequest(url, body, "Error adding row", sessionId);
+        if (resp)
+            console.log("Row added successfully!");
+        for (const index of [0, 1]) {
+            if (!filter)
+                break;
+            await this.filterExcelTable(tableName, tableTitles[index], [row[index].toString()], sessionId); //!We use "for of" loop because forEach doesn't await
+        }
+        await this.sortExcelTable(tableName, [[3, true]], false, sessionId); //We sort the table by the first column (the date column)
+        const visible = await this.getVisibleCells(tableName, sessionId);
+        await this.closeFileSession(sessionId);
+        return visible;
+    }
+    ;
+    /**
+     * Updates a specific row in an Excel table using the file path.
+     * @param {string} accessToken - OAuth2 token.
+     * @param {string} workbookPath -
+     * @param {string} tableName - The name of the table.
+     * @param {number} rowIndex - 0-based index of the row.
+     * @param {Array} values - 1D array of values for the row.
+     */
+    async updateExcelTableRow(tableName, rowIndex, values) {
+        if (!this.filePath || !tableName || !rowIndex || !values?.length)
+            return alert('One of the arguments is missing or not valid');
+        const sessionId = await this.createFileSession();
+        if (!sessionId)
+            return alert('Failed to create a new Session');
+        const url = `${this.GRAPH_API_BASE_URL}${this.filePath}:/workbook/tables/${tableName}/rows/itemAt(index=${rowIndex})`;
+        const body = {
+            values: [values] // API requires a 2D array
+        };
+        try {
+            const response = await this.sendRequest(url, 'PATCH', body, sessionId);
+            if (!response?.ok) {
+                const error = await response?.json();
+                throw new Error(`Graph API Error: ${error.error.message}`);
+            }
+            const data = await response?.json();
+            console.log('Update Successful:', data);
+            return data;
+        }
+        catch (err) {
+            console.error('Update Failed:', err);
+            this.closeFileSession(sessionId);
+        }
+    }
+    ;
+    /**
+   * Creates an invoice Word document from the invoice Word template, then uploads it to the destination folder
+   * @param {string} accessToken - The access token that will be used to authenticate the user
+   * @param {string} templatePath - The full path of the Word invoice template
+   * @param {string} savePath - The full path of the destination folder where the new invoice will be saved
+   * @param {string} lang - The language in which the invoice will be issued
+   * @param {string} tableTitle - The title of the table in the Word document that will be updated
+   * @param {string[][]} rows - The rows that will be added to the table in the Word document
+   * @param {string[][]} contentControls - The titles and text of each of the content controls that will be updated in the Word document
+   * @param {string[]} totalsLabels - The labels of the rows that will be formatted as totals
+   * @returns
+   */
+    async createAndUploadWordDocument(templatePath, savePath = this.filePath, lang, tableTitle, rows, contentControls, totalsLabels) {
+        if (!this.accessToken || !templatePath || !this.filePath)
+            return;
+        const blob = await this.fetchFileFromOneDrive();
+        if (!blob)
+            return;
+        const [doc, zip] = await convertBlobIntoXML(blob);
+        if (!doc)
+            return;
+        const xml = new XML(doc, lang);
+        const schema = xml.schema();
+        (function editTable() {
+            if (!rows || !tableTitle)
+                return;
+            const tables = xml.getTables(doc);
+            const table = xml.findTableByTitle(tables, tableTitle);
+            if (!table)
+                return;
+            const firstRow = xml.getTableRow(table, 1);
+            rows.forEach((row, index) => {
+                const newXmlRow = xml.insertRowToXMLTable(table, firstRow, NaN, true) || table.appendChild(xml.createTableRow());
+                if (!newXmlRow)
+                    return;
+                const isTotal = totalsLabels?.includes(row[0]);
+                const isLast = index === rows.length - 1;
+                return editCells(newXmlRow, row, isLast, isTotal);
+            });
+            firstRow.remove(); //We remove the first row when we finish
+            function editCells(tableRow, values, isLast = false, isTotal = false) {
+                const cells = xml.getRowCells(tableRow) || values.map(v => tableRow.appendChild(xml.createTableCell())); //getting all the cells in the row element
+                cells.forEach((cell, index) => {
+                    const textElement = xml.getTextElement(cell, 0) || xml.appendParagraph(cell);
+                    if (!textElement)
+                        return console.log('No text element was found !');
+                    const pPr = xml.setTextLanguage(cell); //We call this here in order to set the language for all the cells. It returns the pPr element if any.
+                    textElement.textContent = values[index];
+                    (function totalsRowsFormatting() {
+                        if (!isLast && !isTotal)
+                            return;
+                        (function cellBackgroundColor() {
+                            const tcPr = xml.getPropElement(cell, 0) || cell.prepend(xml.createPropElement(cell));
+                            const shadow = xml.getShadowElement(tcPr, 0) || tcPr.appendChild(xml.createShadowElement()); //Adding background color to cell
+                            shadow.setAttributeNS(schema, 'val', "clear");
+                            shadow.setAttributeNS(schema, 'fill', 'D9D9D9');
+                        })();
+                        (function paragraphStyle() {
+                            if (!pPr)
+                                return console.log('No "w:pPr" or "w:rPr" property element was found !');
+                            const style = xml.getParagraphStyle(pPr, 0) || pPr.appendChild(xml.createParagraphStyle());
+                            style.setAttributeNS(schema, 'val', xml.getStyle(index, isTotal && !isLast));
+                        })();
+                    })();
+                });
+            }
+        })();
+        (function editContentControls() {
+            if (!contentControls)
+                return;
+            const ctrls = xml.getContentControls(doc);
+            contentControls
+                .forEach(([title, text]) => {
+                const control = xml.findContentControlByTitle(ctrls, title);
+                if (!control)
+                    return;
+                xml.editContentControlText(control, text);
+            });
+        })();
+        await this.convertXMLToBlobAndUpload(doc, zip, savePath);
+    }
+    ;
+    /**
+   * Filters an Excel table column based on the values
+   * @param {string} filePath - the full path and file name of the Excel workbook
+   * @param {string} tableName - the name of the table that will be filtered
+   * @param {[string, boolean][]} columns - each element contains the name of the column and whether it will be sorted ascending or descending
+   * @param {string} sessionId - the id of the current Excel file session
+   * @param {string} accessToken - the access token
+   * @returns {string}
+   */
+    async sortExcelTable(tableName, columns, matchCase, sessionId) {
+        if (!this.filePath)
+            return;
+        // Step 3: Apply filter using the column name
+        const filterUrl = `${this.GRAPH_API_BASE_URL}${this.filePath}:/workbook/tables/${tableName}/sort/apply`;
+        const fields = columns.map(([index, ascending]) => {
+            return {
+                key: index,
+                ascending: ascending,
+                sortOn: "value"
+            };
+        });
+        const body = {
+            fields: fields,
+            "matchCase": matchCase
+        };
+        const resp = await this.POSTRequest(filterUrl, body, "Error sorting table", sessionId);
+        if (resp)
+            console.log(`Table successfully sorted according to columns criteria: ${columns.map(([col, asc]) => col).join(' & ')}!`);
+    }
+    ;
+    /**
+   * Returns a blob from a file stored on OneDrive, using the Graph API and the file path
+   * @param {string} accessToken
+   * @param {string} filePath
+   * @returns {Blob} - A blob of the fetched file, if successful
+   */
+    async fetchFileFromOneDrive() {
+        const fileUrl = `${this.GRAPH_API_BASE_URL}${this.filePath}:/content`;
+        const response = await fetch(fileUrl, {
+            method: "GET",
+            headers: { Authorization: `Bearer ${this.accessToken}` }
+        });
+        if (!response.ok)
+            throw new Error("Failed to fetch Word template");
+        return await response.blob(); // Returns the Word template as a Blob
+    }
+    ;
+    /**
+   * Uploads a file blob to OneDrive using the Graph API
+   * @param {Blob } blob
+   * @param {string} filePath
+   * @param {string} accessToken
+   */
+    async uploadFileToOneDrive(blob, filePath) {
+        if (!filePath || !this.accessToken)
+            return;
+        const endpoint = `${this.GRAPH_API_BASE_URL}${filePath}:/content`;
+        const response = await fetch(endpoint, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${this.accessToken}`,
+                'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // Correct MIME type for Word docs
+            },
+            body: blob, // Use the template's content as the new document's content
+        });
+        response.ok ? alert('succefully uploaded the new file') : console.log('failed to upload the file to onedrive error = ', await response.json());
+    }
+    ;
+    /**
+   * Converts an XML Word document into a Blob, and uploads it to OneDrive using the Graph API
+   * @param {XMLDocument} doc
+   * @param {JSZip} zip
+   * @param {string} filePath - the full OneDrive file path (including file name and extension) of the file that will be uploaded
+   * @param {string} accessToken - the Graph API accessToken
+   */
+    //@ts-expect-error
+    async convertXMLToBlobAndUpload(doc, zip, filePath = this.filePath) {
+        const blob = await convertXMLIntoBlob();
+        if (!blob)
+            return;
+        await this.uploadFileToOneDrive(blob, filePath);
+        async function convertXMLIntoBlob() {
+            const serializer = new XMLSerializer();
+            let modifiedDocumentXml = serializer.serializeToString(doc);
+            zip.file("word/document.xml", modifiedDocumentXml);
+            return await zip.generateAsync({ type: "blob" });
+        }
+    }
+    ;
+    /**
+     * Sends a POST request to edit a file using graph API
+     * @param {string} endPoint - The url of the file to be edited
+     * @param {string} accessToken - the accessToken
+     * @param {string} sessionId - the session ID
+     * @param {string} body - the body of the request
+     * @param {string} message - The alert that will be displayed if the request fails
+     * @param {string} filePath - If provided the session will be closed if the request fails
+     * @returns {string | void} - The response from the server, if successful or an alert message in case of an error
+     */
+    async POSTRequest(endPoint, body, message, sessionId) {
+        if (!endPoint || !this.accessToken)
+            return;
+        const response = await this.sendRequest(endPoint, 'POST', body, sessionId);
+        if (response?.ok) {
+            return response;
+        }
+        else {
+            message = `${message}:\n ${await response?.text()}`;
+            alert(message);
+            if (sessionId)
+                await this.closeFileSession(sessionId);
+            throw new Error(message);
+        }
+    }
+    async sendRequest(endPoint, method, body, sessionId, contentType) {
+        if (!this.accessToken)
+            return;
+        const request = {
+            method: method,
+            headers: this.graphHeaders(sessionId, contentType)
+        };
+        if (body)
+            request.body = JSON.stringify(body);
+        return await fetch(endPoint, request);
+    }
+    ;
+    /**
+   * Returns the headers of the Microsoft Graph API calls
+   */
+    graphHeaders(sessionId, contentType) {
+        const headers = {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': contentType || 'application/json',
+        };
+        if (sessionId)
+            headers["workbook-session-id"] = sessionId;
+        return headers;
+    }
+    async getExcelTableRowsCount(filePath, tableName, accessToken) {
+        const url = `${this.GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/rows/$count`;
+        const response = await fetch(url, {
+            method: "GET",
+            headers: {
+                "Authorization": `Bearer ${accessToken}`
+            }
+        });
+        if (response.ok) {
+            const rowCount = await response.text(); // The API returns a number as plain text
+            console.log(`Row count: ${rowCount}`);
+            return parseInt(rowCount, 10); // Convert to number
+        }
+        else {
+            console.error("Error fetching row count:", await response.text());
+            return null;
+        }
+    }
 }
 ;
-/**
- * Updates a specific row in an Excel table using the file path.
- * @param {string} accessToken - OAuth2 token.
- * @param {string} workbookPath -
- * @param {string} tableName - The name of the table.
- * @param {number} rowIndex - 0-based index of the row.
- * @param {Array} values - 1D array of values for the row.
- */
-async function updateExcelTableRowWithGraphAPI(accessToken, sessionID, workbookPath, tableName, rowIndex, values) {
-    const url = `${GRAPH_API_BASE_URL}${workbookPath}:/workbook/tables/${tableName}/rows/itemAt(index=${rowIndex})`;
-    const body = {
-        values: [values] // API requires a 2D array
-    };
-    try {
-        const response = await fetch(url, {
-            method: 'PATCH',
-            headers: graphHeaders(accessToken, sessionID),
-            body: JSON.stringify(body)
-        });
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(`Graph API Error: ${error.error.message}`);
+class XML {
+    constructor(doc, lang) {
+        this.tags = {
+            ctrl: "sdt",
+            ctrlContent: 'sdtContent',
+            table: "tbl",
+            row: "tr",
+            cell: "tc",
+            text: 't',
+            shadow: 'shd',
+            style: 'pStyle',
+            paragraph: 'p',
+            run: 'r',
+            alias: 'alias',
+            lang: 'lang',
+            tableCaption: 'tblCaption',
+        };
+        this.schema = () => 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+        this.Pr = (tag) => `${tag}Pr`;
+        this.doc = doc;
+        this.lang = lang;
+    }
+    /**
+     * Returns all the XML ContentConrol ("sdt") elements of the parent XML Element passed as argument
+     * @param {XMLDocument | Element} parent - the parent XML Document or Element that we want to retrieve all its nested XML ContentControl elements
+     * @returns {Element[]}
+     */
+    getContentControls(parent = this.doc) {
+        return this.getXMLElements(parent, this.tags.ctrl);
+    }
+    /**
+     * Returns a XML ContentControl element ("sdt") nested in the parent XML Element passed as argument
+     * @param {Element} parent - the parent XML element of the XML ContentControl element we want to retrieve
+     * @param {number} index - the index of the XML ContentControl element we want to retrieve
+     * @returns {Element}
+     */
+    getControlContent(parent, index) {
+        return this.getXMLElements(parent, this.tags.ctrlContent, index);
+    }
+    /**
+     * Returns all the XML table ("tbl") elements nested in the XML Document or the XML Element passed as argument
+     * @param {XMLDocument | Element} parent - the parent XML document or Element for which we want to retrieve the XML tables
+     * @returns {Elemnt[]}
+     */
+    getTables(parent = this.doc) {
+        return this.getXMLElements(parent, this.tags.table);
+    }
+    /**
+     * Returns an XML table row ("tr") element nested in the XML table element passed as argument
+     * @param {Element} table - the table element for which we want to retrieve a specifc XML row element by its index
+     * @param {number} index - the index of the row
+     * @returns {Element}
+     */
+    getTableRow(table, index) {
+        return this.getXMLElements(table, this.tags.row, index);
+    }
+    /**
+   * Returns the XML '[tag]Pr' element child of any element
+   * @param {Element} parent - the parent XML Element for which we are trying to retrieve the "[tag]Pr" element
+   * @param {number} index - the index of the "[tag]Pr" element
+   * @returns {Element}
+   */
+    getPropElement(parent, index = 0) {
+        const tag = this.Pr(parent.tagName.toLowerCase());
+        return this.getXMLElements(parent, tag, index);
+    }
+    /**
+     * Creates and returns a table row ("tr") XML element
+     * @returns {Element}
+     */
+    createTableRow() {
+        return this.createXMLElement(this.tags.row);
+    }
+    /**
+     * Creates and returns a table XML cell ("tc") element
+     * @returns {Element}
+     */
+    createTableCell() {
+        return this.createXMLElement(this.tags.cell);
+    }
+    /**
+     * Creates and returns a "[tag]Pr" XML element which is a child element holding the properties of the parent XML Element
+     * @param {Element} parent - the parent XML Element from which we will retrieve the tag of XML "[tag]Pr" element that we will create
+     * @returns {Element}
+     */
+    createPropElement(parent) {
+        const tag = this.Pr(parent.tagName.toLowerCase());
+        return this.createXMLElement(tag);
+    }
+    /**
+     * Returns the XML cell elements of row in the table
+     * @param {Element} tableRow - the XML row element that we want to retrieve its XML cell children elements
+     * @returns {Element[]}
+     */
+    getRowCells(tableRow) {
+        return this.getXMLElements(tableRow, this.tags.cell);
+    }
+    /**
+     * Returns a text XML element of the parent according to its index
+     * @param {Element} parent - the XML element that we want to retrieve one of its text ("t") XML children
+     * @param {number} index - the index of the text ("t") XML element we want to retrieve
+     * @returns {Element}
+     */
+    getTextElement(parent, index) {
+        return this.getXMLElements(parent, this.tags.text, index);
+    }
+    /**
+     * Creates and returns a pargraph style ("pStyle") XML element
+     * @returns {Element}
+     */
+    createParagraphStyle() {
+        return this.createXMLElement(this.tags.style);
+    }
+    /**
+     * Returns a XML shadow element ("shd") of the parent according to its index passed as argument
+     * @param {Element} parent -
+     * @param {number} index -
+     * @returns {Element}
+     */
+    getShadowElement(parent, index) {
+        return this.getXMLElements(parent, this.tags.shadow, index);
+    }
+    /**
+     * Creates and returns a XML shadow element ("shd")
+     * @returns {Element} - an XML shadow ("shd") element
+     */
+    createShadowElement() {
+        return this.createXMLElement(this.tags.shadow);
+    }
+    /**
+      * Looks for a child "w:p" (paragraph) element, if it doesn't find any, it looks for a "w:r" (run) element.
+      * @param {Element} parent - the parent XML of the paragraph or run element we want to retrieve.
+      * @returns {Element | undefined} - an XML element representing a "w:p" (paragraph) or, if not found, a "w:r" (run), or undefined
+      */
+    getParagraphOrRun(parent) {
+        return this.getXMLElements(parent, this.tags.paragraph, 0) || this.getXMLElements(parent, this.tags.run, 0);
+    }
+    /**
+     * Returns the cells of row in the table
+     * @param {Element} tableRow
+     */
+    getParagraphStyle(parent, index) {
+        return this.getXMLElements(parent, this.tags.style, index);
+    }
+    insertRowToXMLTable(table, firstRow, after = -1, clone = false) {
+        const self = this;
+        if (clone)
+            return cloneFirstRow();
+        else
+            return create();
+        function create() {
+            if (!table)
+                return;
+            const row = self.createTableRow();
+            after >= 0 ? self.getXMLElements(table, 'tr', after)?.insertAdjacentElement('afterend', row) :
+                table.appendChild(row);
+            return row;
         }
-        const data = await response.json();
-        console.log('Update Successful:', data);
-        return data;
+        function cloneFirstRow() {
+            if (!firstRow)
+                return;
+            const row = firstRow.cloneNode(true);
+            table?.appendChild(row);
+            return row;
+        }
+        ;
     }
-    catch (err) {
-        console.error('Update Failed:', err);
+    getStyle(cell, isTotal = false) {
+        let style = 'Invoice';
+        if (cell === 0 && isTotal)
+            style += 'BoldItalicLeft';
+        else if (cell === 0)
+            style += 'BoldLeft';
+        else if (cell === 1)
+            style += 'NotBoldItalicLeft';
+        else if (cell === 2 && isTotal)
+            style += 'BoldItalicCentered';
+        else if (cell === 2)
+            style += 'BoldCentered';
+        else if (cell === 3)
+            style += 'BoldItalicCentered';
+        else
+            style = '';
+        return style;
+    }
+    /**
+     *
+     * @param {Element[]} ctrls - the XML ContentControls array from which we will retrieve an XML ContentControl by its title
+     * @param {string} title - the title of the XML ContentControl we want to retrieve
+     * @returns {Element | undefined}
+     */
+    findContentControlByTitle(ctrls, title) {
+        if (!title)
+            return;
+        return this.findElementByTitle(ctrls, this.tags.alias, title);
+    }
+    /**
+     * Finds and returns a XML Table by its title ("tblCaption")
+     * @param {Element[]} tables - the XML tables array in which we will search for a table having the specified title
+     * @param {string} title - the title of the table
+     * @returns {Element | undefined}
+     */
+    findTableByTitle(tables, title) {
+        if (!title)
+            return;
+        return this.findElementByTitle(tables, this.tags.tableCaption, title);
+    }
+    findElementByTitle(elements, prop, title) {
+        const hasProp = (parent) => this.getXMLElements(parent, prop, 0);
+        return elements.find(element => hasProp(element)?.getAttributeNS(this.schema(), 'val') === title);
+    }
+    /**
+  * Adds a new paragraph XML element or appends a cloned paragraph, and in both cases, it returns the textElement of the paragraph
+  * @param {Element} element - The element to which the new paragraph will be appended if the parent argument is not provided. If the parent argument is provided, the element will be cloned assuming that this is a pargraph element
+  * @param {Elemenet} parent - If provided, element will be cloned and appended to parent.
+  * @returns {Element} the textElemenet attached to the paragraph
+  */
+    appendParagraph(element, parent) {
+        const self = this;
+        if (parent)
+            return clone();
+        else
+            return create();
+        function clone() {
+            const parag = element?.cloneNode(true);
+            parent?.appendChild(parag);
+            return self.getXMLElements(parag, 't', 0);
+        }
+        function create() {
+            const parag = element.appendChild(self.createXMLElement(self.tags.paragraph));
+            parag.appendChild(self.createXMLElement(self.Pr(self.tags.paragraph)));
+            const run = parag.appendChild(self.createXMLElement(self.tags.run));
+            return run.appendChild(self.createXMLElement(self.tags.text));
+        }
+    }
+    createXMLElement(tag) {
+        return this.doc.createElementNS(this.schema(), tag);
+    }
+    /**
+     *
+     * @param {XMLDocument | Element} parent - the parent XML Document or XML Element nesting the XML Element(s) we want to retrieve
+     * @param {string} tag - the tag of the XML Element(s) we want to retrieve
+     * @param {number} index - if provided, it will only return the element having the specified index
+     * @returns {Element[] | Element}
+     */
+    getXMLElements(parent, tag, index = NaN) {
+        const elements = parent.getElementsByTagNameNS(this.schema(), tag);
+        if (!isNaN(index))
+            return elements?.[index];
+        return Array.from(elements);
+    }
+    editContentControlText(control, text) {
+        if (text === "DELETECONTENTECONTROL")
+            return control.remove();
+        if (!text)
+            text = 'NO VALUE WAS PROVIDED';
+        const sdtContent = this.getControlContent(control, 0);
+        if (!sdtContent)
+            return;
+        const paragTemplate = this.getParagraphOrRun(sdtContent); //This will set the language for the paragraph or the run
+        if (!paragTemplate)
+            return console.log('No template paragraph or run were found !');
+        this.setTextLanguage(paragTemplate); //We amend the language element to the "w:pPr" or "r:pPr" child elements of paragTemplate
+        const self = this;
+        text?.split('\n')
+            .forEach((parag, index) => editParagraph(parag, index));
+        function editParagraph(parag, index) {
+            let textElement;
+            if (index < 1)
+                textElement = self.getXMLElements(paragTemplate, self.tags.text, index);
+            else
+                textElement = self.appendParagraph(paragTemplate, sdtContent); //We pass sdtContent as parent argumself
+            if (!textElement)
+                return console.log('No textElement was found !');
+            textElement.textContent = parag;
+        }
+    }
+    /**
+   * Finds a "w:pPr" XML element (property element) which is a child of the XML parent element passed as argument. If does not find it, it looks for a "w:rPr" XML element. When it finds either a "w:pPr" or a "w:rPr" element, it appends a "w:lang" element to it, and sets its "w:val" attribute to the language passed as "lang"
+   * @param {Element} parent - the XML element containing the paragraph or the run for which we want to set the language.
+   * @returns {Element | undefined} - the "w:pPr" or "w:rPr" property XML element child of the parent element passed as argument
+   */
+    setTextLanguage(parent) {
+        const pPr = this.getXMLElements(parent, this.Pr(this.tags.paragraph), 0) ||
+            this.getXMLElements(parent, this.Pr(this.tags.run), 0);
+        if (!pPr)
+            return;
+        pPr
+            .appendChild(this.createXMLElement(this.tags.lang)) //appending a "w:lang" element
+            .setAttributeNS(this.schema(), 'val', `${this.lang.toLowerCase()}-${this.lang.toUpperCase()}`); //setting the "w:val" attribute of "w:lang" to the appropriate language like "fr-FR"
+        return pPr;
     }
 }
-/**
- * Sends a POST request to edit a file using graph API
- * @param {string} url - The url of the file to be edited
- * @param {string} accessToken - the accessToken
- * @param {string} sessionId - the session ID
- * @param {string} body - the body of the request
- * @param {string} message - The alert that will be displayed if the request fails
- * @param {string} filePath - If provided the session will be closed if the request fails
- * @returns {string | void} - The response from the server, if successful or an alert message in case of an error
- */
-async function POSTRequestWithGraphAPI(url, accessToken, sessionId, body, message, filePath) {
-    if (!url || !accessToken || !sessionId)
-        return;
-    const response = await fetch(url, {
-        method: "POST",
-        headers: graphHeaders(accessToken, sessionId),
-        body: body
-    });
-    if (response.ok) {
-        return response;
+class officeJS {
+    constructor() {
+        this.GRAPH_API_BASE_URL = "https://graph.microsoft.com/v1.0/me/drive/root:/";
     }
-    else {
-        message = `${message}:\n ${await response.text()}`;
-        alert(message);
-        if (filePath)
-            await closeFileSession(sessionId, filePath, accessToken);
-        throw new Error(message);
+    async editDocumentWordJSAPI(id, accessToken, data, controlsData) {
+        if (!id || !accessToken || !data)
+            return;
+        const graph = new GraphAPI(accessToken);
+        await Word.run(async (context) => {
+            // Open the document by downloading its content
+            const fileResponse = await fetch(`${this.GRAPH_API_BASE_URL}/items/${id}/content`, {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${accessToken}`
+                }
+            });
+            if (!fileResponse.ok)
+                throw new Error("Failed to retrieve document");
+            const blob = await fileResponse.blob();
+            const base64File = await convertBlobToBase64(blob);
+            const doc = context.application.createDocument(base64File);
+            console.log("Word document opened for editing:", document);
+            const tables = doc.body.tables;
+            const contentControls = doc.body.contentControls;
+            context.load(tables);
+            context.load(contentControls);
+            await context.sync();
+            const table = tables.items[0];
+            if (!table)
+                return;
+            data.forEach(dataRow => table.addRows("End", 1, [dataRow]));
+            await editRichTextContentControls();
+            async function editRichTextContentControls() {
+                if (!controlsData || contentControls)
+                    return;
+                controlsData.forEach(control => edit(control));
+                async function edit(control) {
+                    const [title, text] = control;
+                    const field = contentControls.getByTitle(title).getFirst();
+                    if (!field)
+                        return;
+                    context.load(field);
+                    await context.sync();
+                    if (!text)
+                        field.delete(false);
+                    else
+                        field.insertText(text, 'Replace');
+                    await context.sync();
+                    return field;
+                }
+            }
+        });
+    }
+    async addEntry(tableName, rows) {
+        await Excel.run(async (context) => {
+            const sheet = context.workbook.worksheets.getActiveWorksheet();
+            const table = sheet.tables.getItem(tableName);
+            const columns = table.columns.getCount();
+            await context.sync();
+            table.rows.add(-1, getNewRow(columns.value), true);
+            table.getDataBodyRange().load('rowCount');
+            await context.sync();
+            [5, 6].forEach(i => {
+                const cell = table.getRange()
+                    .getCell(table.getDataBodyRange().rowCount - 1, i);
+                console.log('cell = ', cell);
+                cell.numberFormatLocal = [["hh:mm:ss"]];
+            });
+            await context.sync();
+        });
+        function getNewRow(columns) {
+            const newRow = Array(columns).map(el => '');
+            const inputs = Array.from(document.getElementsByTagName('input')).filter(input => input.dataset.index);
+            console.log('inputs = ', inputs);
+            if (inputs.length < 1)
+                return;
+            inputs.forEach(input => {
+                const index = Number(input.dataset.index);
+                let value = input.value;
+                if (input.type === 'number')
+                    value = parseFloat(value);
+                else if (input.type === 'date' && input.valueAsDate)
+                    //@ts-ignore
+                    value = getDateString(input.valueAsDate);
+                else if (input.type === 'time' && input.valueAsDate)
+                    value = [input.valueAsDate?.getHours().toString().padStart(2, '0'), input.valueAsDate?.getMinutes().toString().padStart(2, '0'), '00'].join(':');
+                newRow[index] = value;
+            });
+            console.log('newRow = ', newRow);
+            return [newRow];
+            function convertTo24HourFormat(time12h) {
+                const [time, modifier] = time12h.split(' ');
+                let [hours, minutes] = time.split(':');
+                if (hours === '12')
+                    hours = '00';
+                if (modifier === 'PM')
+                    hours = String(parseInt(hours, 10) + 12);
+                return `${hours}:${minutes}:00`;
+            }
+        }
     }
 }
+;
+class blob {
+    // Utility function: Convert Blob to Base64
+    async blobToBase64(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result.toString().split(",")[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    }
+    // Utility function: Convert Base64 to Blob
+    base64ToBlob(base64) {
+        const byteCharacters = atob(base64);
+        const byteNumbers = new Array(byteCharacters.length).fill(0).map((_, i) => byteCharacters.charCodeAt(i));
+        const byteArray = new Uint8Array(byteNumbers);
+        return new Blob([byteArray], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+    }
+}
+;
 /**
  * Returns the Word file name by which the newly issued invoice will be saved on OneDrive
  * @param {string} clientName - The name of the client for which the invoice will be issued
@@ -901,28 +1479,12 @@ function getInvoiceFileName(clientName, matters, invoiceNumber) {
         .replaceAll('"', '')
         .replaceAll("\\", '');
 }
-async function getExcelTableRowsCountViaGraphAPI(filePath, tableName, accessToken) {
-    const url = `${GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/rows/$count`;
-    const response = await fetch(url, {
-        method: "GET",
-        headers: {
-            "Authorization": `Bearer ${accessToken}`
-        }
-    });
-    if (response.ok) {
-        const rowCount = await response.text(); // The API returns a number as plain text
-        console.log(`Row count: ${rowCount}`);
-        return parseInt(rowCount, 10); // Convert to number
-    }
-    else {
-        console.error("Error fetching row count:", await response.text());
-        return null;
-    }
-}
+;
 function getInvoiceNumber(date) {
     const padStart = (n) => n.toString().padStart(2, '0');
     return `${date.getFullYear() - 2000}${padStart(date.getMonth() + 1)}${padStart(date.getDate())}/${padStart(date.getHours())}${padStart(date.getMinutes())}`;
 }
+;
 /**
  * Returns any date in the ISO format (YYY-MM-DD) accepted by Excel
  * @param {Date} date - the Date that we need to convert to ISO format
@@ -932,6 +1494,7 @@ function getISODate(date) {
     //@ts-ignore
     return [date?.getFullYear(), date?.getMonth() + 1, date?.getDate()].map(el => el.toString().padStart(2, '0')).join('-');
 }
+;
 /**
  * Returns the date in a string formated like: "DD/MM/YYYY"
  */
@@ -940,6 +1503,7 @@ function getDateString(date) {
         .map(el => el.toString().padStart(2, '0'))
         .join('/');
 }
+;
 /**
  * Returns the value from a time input as a number matching the Excel time format (which is a fraction of the day)
  * @param {HTMLInputElement[]} inputs - If a single input is passed, it will return the Excel formatted time value from this input or 0. If 2 inputs are passed, it will return the total time by calculting the difference between the second input and the first input in the array
@@ -961,54 +1525,7 @@ function getTime(inputs) {
         time = (to + day - from) / day; //It means we started on one day and finished the next day 
     return time;
 }
-async function editDocumentWordJSAPI(id, accessToken, data, controlsData) {
-    if (!id || !accessToken || !data)
-        return;
-    await Word.run(async (context) => {
-        // Open the document by downloading its content
-        const fileResponse = await fetch(`${GRAPH_API_BASE_URL}/items/${id}/content`, {
-            method: "GET",
-            headers: {
-                "Authorization": `Bearer ${accessToken}`
-            }
-        });
-        if (!fileResponse.ok)
-            throw new Error("Failed to retrieve document");
-        const blob = await fileResponse.blob();
-        const base64File = await convertBlobToBase64(blob);
-        const doc = context.application.createDocument(base64File);
-        console.log("Word document opened for editing:", document);
-        const tables = doc.body.tables;
-        const contentControls = doc.body.contentControls;
-        context.load(tables);
-        context.load(contentControls);
-        await context.sync();
-        const table = tables.items[0];
-        if (!table)
-            return;
-        data.forEach(dataRow => table.addRows("End", 1, [dataRow]));
-        await editRichTextContentControls();
-        async function editRichTextContentControls() {
-            if (!controlsData || contentControls)
-                return;
-            controlsData.forEach(control => edit(control));
-            async function edit(control) {
-                const [title, text] = control;
-                const field = contentControls.getByTitle(title).getFirst();
-                if (!field)
-                    return;
-                context.load(field);
-                await context.sync();
-                if (!text)
-                    field.delete(false);
-                else
-                    field.insertText(text, 'Replace');
-                await context.sync();
-                return field;
-            }
-        }
-    });
-}
+;
 /**
  * Helper function to convert Blob to Base64
  *  */
@@ -1020,110 +1537,63 @@ function convertBlobToBase64(blob) {
         reader.readAsDataURL(blob);
     });
 }
-async function addEntry(tableName, rows) {
-    await Excel.run(async (context) => {
-        const sheet = context.workbook.worksheets.getActiveWorksheet();
-        const table = sheet.tables.getItem(tableName);
-        const columns = table.columns.getCount();
-        await context.sync();
-        table.rows.add(-1, getNewRow(columns.value), true);
-        table.getDataBodyRange().load('rowCount');
-        await context.sync();
-        [5, 6].forEach(i => {
-            const cell = table.getRange()
-                .getCell(table.getDataBodyRange().rowCount - 1, i);
-            console.log('cell = ', cell);
-            cell.numberFormatLocal = [["hh:mm:ss"]];
-        });
-        await context.sync();
-    });
-    function getNewRow(columns) {
-        const newRow = Array(columns).map(el => '');
-        const inputs = Array.from(document.getElementsByTagName('input')).filter(input => input.dataset.index);
-        console.log('inputs = ', inputs);
-        if (inputs.length < 1)
-            return;
-        inputs.forEach(input => {
-            const index = Number(input.dataset.index);
-            let value = input.value;
-            if (input.type === 'number')
-                value = parseFloat(value);
-            else if (input.type === 'date' && input.valueAsDate)
-                //@ts-ignore
-                value = getDateString(input.valueAsDate);
-            else if (input.type === 'time' && input.valueAsDate)
-                value = [input.valueAsDate?.getHours().toString().padStart(2, '0'), input.valueAsDate?.getMinutes().toString().padStart(2, '0'), '00'].join(':');
-            newRow[index] = value;
-        });
-        console.log('newRow = ', newRow);
-        return [newRow];
-        function convertTo24HourFormat(time12h) {
-            const [time, modifier] = time12h.split(' ');
-            let [hours, minutes] = time.split(':');
-            if (hours === '12')
-                hours = '00';
-            if (modifier === 'PM')
-                hours = String(parseInt(hours, 10) + 12);
-            return `${hours}:${minutes}:00`;
-        }
+;
+class MSAL {
+    constructor(clientId, redirectUri, msalConfig, scopes = ["Files.ReadWrite"]) {
+        this.clientId = '';
+        this.redirectUri = '';
+        this.loginRequest = { scopes: [''] };
+        this.clientId = clientId;
+        this.redirectUri = redirectUri;
+        this.loginRequest.scopes = scopes;
+        //@ts-expect-error
+        this.msalInstance = new msal.PublicClientApplication(msalConfig);
     }
-}
-/*
-// Create a new Word document based on a template and populate it with filtered data
-async function createWordDocument(filtered: any[][]) {
-  return console.log("filtered = ", filtered);
- 
-  await Word.run(async (context) => {
-    const templateUrl = "https://your-onedrive-path/template.docx";
-    const newDoc = context.application.createDocument(templateUrl);
-    await context.sync();
- 
-    const table = newDoc.body.tables.getFirst();
-    //const filteredData = await getFilteredData();
- 
-    //filtered.forEach(el) => {
-    // table.(index + 1, row);
-    //});
- 
-    await context.sync();
- 
-    const saveUrl = "https://your-onedrive-path/newDocument.docx";
-    await newDoc.saveAs(saveUrl);
-  });
-}*/
-function getTokenWithMSAL(clientId, redirectUri, msalConfig) {
-    if (!clientId || !redirectUri || !msalConfig)
-        return;
-    //@ts-expect-error
-    const msalInstance = new msal.PublicClientApplication(msalConfig);
-    const loginRequest = { scopes: ["Files.ReadWrite"] };
-    return acquireToken();
+    async getTokenWithMSAL() {
+        if (!this.clientId || !this.redirectUri || !this.msalInstance)
+            return;
+        return await this.acquireToken();
+    }
+    ;
     // Function to check existing authentication context
-    async function acquireToken() {
+    async acquireToken() {
         try {
-            const account = msalInstance.getAllAccounts()[0];
+            const account = this.msalInstance.getAllAccounts()[0];
             if (account) {
-                return acquireTokenSilently(account);
+                return await this.acquireTokenSilently(account);
             }
             else {
-                return loginWithPopup();
-                //return loginAndGetToken();
-                //openLoginWindow()
-                //return getOfficeToken()
-                //return getTokenWithSSO('minabibawi@gmail.com')
-                //return credentitalsToken()
+                return await this.loginWithPopup();
             }
         }
         catch (error) {
             console.error("Failed to acquire token from acquireToken(): ", error);
         }
     }
-    async function loginWithPopup() {
+    // Function to get access token silently
+    async acquireTokenSilently(account) {
         try {
-            const loginResponse = await msalInstance.loginPopup(loginRequest);
+            const tokenRequest = {
+                account: account,
+                scopes: this.loginRequest.scopes, // OneDrive scopes
+            };
+            const tokenResponse = await this.msalInstance.acquireTokenSilent(tokenRequest);
+            if (tokenResponse && tokenResponse.accessToken) {
+                console.log("Token acquired silently :", tokenResponse.accessToken);
+                return tokenResponse.accessToken;
+            }
+        }
+        catch (error) {
+            console.error("Token silent acquisition error:", error);
+        }
+    }
+    ;
+    async loginWithPopup() {
+        try {
+            const loginResponse = await this.msalInstance.loginPopup(this.loginRequest);
             console.log('loginResponse = ', loginResponse);
-            msalInstance.setActiveAccount(loginResponse.account);
-            const tokenResponse = await msalInstance.acquireTokenSilent({
+            this.msalInstance.setActiveAccount(loginResponse.account);
+            const tokenResponse = await this.msalInstance.acquireTokenSilent({
                 account: loginResponse.account,
                 scopes: ["Files.ReadWrite"]
             });
@@ -1135,7 +1605,7 @@ function getTokenWithMSAL(clientId, redirectUri, msalConfig) {
             //@ts-ignore
             if (error instanceof InteractionRequiredAuthError) {
                 // Fallback to popup if silent token acquisition fails
-                const response = await msalInstance.acquireTokenPopup({
+                const response = await this.msalInstance.acquireTokenPopup({
                     scopes: ["Files.ReadWrite"]
                 });
                 console.log("Token acquired via popup:", response.accessToken);
@@ -1143,10 +1613,10 @@ function getTokenWithMSAL(clientId, redirectUri, msalConfig) {
             }
         }
     }
-    async function credentitalsToken(tenantId) {
+    async credentitalsToken(tenantId) {
         const msalConfig = {
             auth: {
-                clientId: clientId,
+                clientId: this.clientId,
                 authority: `https://login.microsoftonline.com/${tenantId}`,
                 //clientSecret: clientSecret,
             }
@@ -1165,7 +1635,7 @@ function getTokenWithMSAL(clientId, redirectUri, msalConfig) {
             return null;
         }
     }
-    async function getOfficeToken() {
+    async getOfficeToken() {
         try {
             //@ts-ignore
             return await OfficeRuntime.auth.getAccessToken();
@@ -1174,12 +1644,12 @@ function getTokenWithMSAL(clientId, redirectUri, msalConfig) {
             console.log("Error : ", error);
         }
     }
-    async function getTokenWithSSO(email, tenantId) {
+    async getTokenWithSSO(email, tenantId) {
         const msalConfig = {
             auth: {
-                clientId: clientId,
+                clientId: this.clientId,
                 authority: `https://login.microsoftonline.com/${tenantId}`,
-                redirectUri: redirectUri,
+                redirectUri: this.redirectUri,
                 navigateToLoginRequestUrl: true,
             },
             cache: {
@@ -1189,7 +1659,7 @@ function getTokenWithMSAL(clientId, redirectUri, msalConfig) {
         };
         try {
             //@ts-ignore
-            const response = await msal.PublicClientApplication(msalConfig).ssoSilent({
+            const response = await this.msalInstance.ssoSilent({
                 scopes: ["Files.ReadWrite"],
                 //scopes: ["https://graph.microsoft.com/.default"],
                 loginHint: email // Forces MSAL to recognize the signed-in user
@@ -1202,8 +1672,8 @@ function getTokenWithMSAL(clientId, redirectUri, msalConfig) {
             return null;
         }
     }
-    function openLoginWindow() {
-        const loginUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${clientId}&response_type=token&redirect_uri=${redirectUri}&scope=https://graph.microsoft.com/.default`;
+    openLoginWindow() {
+        const loginUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${this.clientId}&response_type=token&redirect_uri=${this.redirectUri}&scope=https://graph.microsoft.com/.default`;
         // Open in a new window (only works if triggered by user action)
         const authWindow = window.open(loginUrl, "_blank", "width=500,height=600");
         if (!authWindow) {
@@ -1211,31 +1681,29 @@ function getTokenWithMSAL(clientId, redirectUri, msalConfig) {
         }
     }
     // Function to handle login and acquire token
-    async function loginAndGetToken() {
+    async loginAndGetToken() {
         const msalConfig = {
             auth: {
-                clientId: clientId,
+                clientId: this.clientId,
                 authority: "https://login.microsoftonline.com/common",
-                redirectUri: redirectUri
+                redirectUri: this.redirectUri
             },
             cache: {
                 cacheLocation: "ExcelInvoicing", // Specify cache location
                 storeAuthStateInCookie: true // Set this to true for IE 11
             }
         };
-        //@ts-ignore
-        const msalInstance = new msal.PublicClientApplication(msalConfig);
-        return await acquire();
-        async function acquire() {
+        return await acquire(this);
+        async function acquire(self) {
             try {
-                const response = await msalInstance.handleRedirectPromise();
+                const response = await self.msalInstance.handleRedirectPromise();
                 if (response !== null) {
                     console.log("Login successful:", response);
                     return response.accessToken;
                 }
-                const accounts = msalInstance.getAllAccounts();
+                const accounts = self.msalInstance.getAllAccounts();
                 if (accounts.length > 0) {
-                    const tokenResponse = await msalInstance.acquireTokenSilent({
+                    const tokenResponse = await self.msalInstance.acquireTokenSilent({
                         account: accounts[0],
                         scopes: ["https://graph.microsoft.com/.default"]
                     });
@@ -1247,28 +1715,16 @@ function getTokenWithMSAL(clientId, redirectUri, msalConfig) {
                 console.error("Error acquiring token:", error);
                 //@ts-ignore
                 if (error instanceof msal.InteractionRequiredAuthError) {
-                    msalInstance.acquireTokenRedirect({
+                    self.msalInstance.acquireTokenRedirect({
                         scopes: ["https://graph.microsoft.com/.default"]
                     });
                 }
             }
         }
-        return;
-        try {
-            const loginRequest = {
-                scopes: ["Files.ReadWrite"] // OneDrive scopes
-            };
-            await msalInstance.loginRedirect(loginRequest);
-            return handleRedirectResponse();
-        }
-        catch (error) {
-            console.error("Login error:", error);
-            return undefined;
-        }
         // Function to handle redirect response
-        async function handleRedirectResponse() {
+        async function handleRedirectResponse(self) {
             try {
-                const authResult = await msalInstance.handleRedirectPromise();
+                const authResult = await self.msalInstance.handleRedirectPromise();
                 if (authResult && authResult.accessToken) {
                     console.log("Access token:", authResult.accessToken);
                     return authResult.accessToken;
@@ -1278,23 +1734,6 @@ function getTokenWithMSAL(clientId, redirectUri, msalConfig) {
                 console.error("Redirect handling error:", error);
             }
             return undefined;
-        }
-    }
-    // Function to get access token silently
-    async function acquireTokenSilently(account) {
-        try {
-            const tokenRequest = {
-                account: account,
-                scopes: ["Files.ReadWrite"], // OneDrive scopes
-            };
-            const tokenResponse = await msalInstance.acquireTokenSilent(tokenRequest);
-            if (tokenResponse && tokenResponse.accessToken) {
-                console.log("Token acquired silently :", tokenResponse.accessToken);
-                return tokenResponse.accessToken;
-            }
-        }
-        catch (error) {
-            console.error("Token silent acquisition error:", error);
         }
     }
 }
@@ -1308,6 +1747,7 @@ function sortByColumn(data, columnIndex) {
         return String(valA).localeCompare(String(valB)); // String sorting
     });
 }
+;
 function getInputByIndex(inputs, index) {
     return inputs.find(input => Number(input.dataset.index) === index);
 }
@@ -1318,22 +1758,6 @@ function getInputByIndex(inputs, index) {
  */
 function getIndex(element) {
     return Number(element?.dataset.index);
-}
-// Utility function: Convert Blob to Base64
-async function blobToBase64(blob) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result.toString().split(",")[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-    });
-}
-// Utility function: Convert Base64 to Blob
-function base64ToBlob(base64) {
-    const byteCharacters = atob(base64);
-    const byteNumbers = new Array(byteCharacters.length).fill(0).map((_, i) => byteCharacters.charCodeAt(i));
-    const byteArray = new Uint8Array(byteNumbers);
-    return new Blob([byteArray], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
 }
 function settings() {
     const form = byID();
