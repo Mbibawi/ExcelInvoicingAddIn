@@ -1079,7 +1079,7 @@ class XML {
             tableCaption: 'tblCaption',
         };
         this.schema = () => 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
-        this.Pr = (tag) => `${tag}Pr`;
+        this.Pr = (tag) => `${tag.replace('w:', '')}Pr`; //!we need to remove the "w:" prefix from the tag
         this.doc = doc;
         this.lang = lang;
     }

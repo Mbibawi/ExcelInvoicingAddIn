@@ -1181,7 +1181,7 @@ class XML {
 
   schema = () => 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 
-  Pr = (tag: string) => `${tag}Pr`;
+  Pr = (tag: string) => `${tag.replace('w:', '')}Pr`;//!we need to remove the "w:" prefix from the tag
 
   /**
    * Returns all the XML ContentConrol ("sdt") elements of the parent XML Element passed as argument
