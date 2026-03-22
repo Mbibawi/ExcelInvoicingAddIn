@@ -669,26 +669,25 @@ async function issueLeaseLetter(create: boolean = false) {
 
 
     const Ctrls: LeaseCtrls = {
-        owner: { tag: 'RTBailleur', col: 0, label: 'Nom du Bailleur', type: 'select', value: '' },
-        adress: { tag: 'RTAdresseDestinataire', label: 'Adresse du bien loué', col: 1, type: 'select', value: '' },
-        tenant: { tag: 'RTLocataire', label: 'Nom du Locataire', col: 2, type: 'select', value: '' },
-        leaseDate: { tag: 'RTDateBail', label: 'Date du Bail', col: 3, type: 'date', value: '' },
-        leaseType: { tag: 'RTNature', label: 'Nature du Bail', col: 4, type: 'text', value: '' },
-        initialIndex: { tag: 'RTIndiceInitial', label: 'Indice initial', col: 5, type: 'text', value: '' },
-        indexQuarter: { tag: 'RTTrimestre', label: 'Trimestre de l\'indice', col: 6, type: 'text', value: '' },
-        initialIndexDate: { tag: 'RTIndiceInitialDate', label: 'Date de l\'indice initial', col: 7, type: 'date', value: '' },
-        baseIndex: { tag: 'RTIndiceBase', label: `Indice de référence`, col: 8, type: 'text', value: '' },
-        baseIndexDate: { tag: 'RTDateIndiceBase', label: `Date de l'indice de référence`, col: 9, type: 'date', value: '' },
-        index: { tag: 'RTIndice', label: 'Indice de révision', col: 10, type: 'text', value: '' },
-        indexDate: { tag: 'RTDateIndice', label: 'Date de l\'indice de révision', col: 11, type: 'date', value: '' },
-        currentLease: { tag: 'RTLoyerActuel', label: 'Loyer Actuel (ou révisé)', col: 12, type: 'text', value: '' },
-        revisionDate: { tag: 'RTDate', label: 'Date de la dernière Révision', col: 13, type: 'date', value: '' },
-        initialYear: { tag: 'RTIndiceInitialAnnée',  type: 'text', value: '' },
-        revisionYear: { tag: 'RTYear',  type: 'text', value: '' },
-        baseYear: { tag: 'RTPreviousYear',  type: 'text', value: '' },
-        newLease: { tag: 'RTLoyerNouveau',  type: 'text', value: '' },
-        previousYear: { tag: 'RTPreviousYear',  type: 'text', value: '' },
-        nextRevision: { tag: 'RTNextRevision',  type: 'text', value: '' },
+        owner: { title: 'RTBailleur', col: 0, label: 'Nom du Bailleur', type: 'select', value: '' },
+        adress: { title: 'RTAdresseDestinataire', label: 'Adresse du bien loué', col: 1, type: 'select', value: '' },
+        tenant: { title: 'RTLocataire', label: 'Nom du Locataire', col: 2, type: 'select', value: '' },
+        leaseDate: { title: 'RTDateBail', label: 'Date du Bail', col: 3, type: 'date', value: '' },
+        leaseType: { title: 'RTNature', label: 'Nature du Bail', col: 4, type: 'text', value: '' },
+        initialIndex: { title: 'RTIndiceInitial', label: 'Indice initial', col: 5, type: 'text', value: '' },
+        indexQuarter: { title: 'RTTrimestre', label: 'Trimestre de l\'indice', col: 6, type: 'text', value: '' },
+        initialIndexDate: { title: 'RTIndiceInitialDate', label: 'Date de l\'indice initial', col: 7, type: 'date', value: '' },
+        baseIndex: { title: 'RTIndiceBase', label: `Indice de référence`, col: 8, type: 'text', value: '' },
+        baseIndexDate: { title: 'RTDateIndiceBase', label: `Date de l'indice de référence`, col: 9, type: 'date', value: '' },
+        index: { title: 'RTIndice', label: 'Indice de révision', col: 10, type: 'text', value: '' },
+        indexDate: { title: 'RTDateIndice', label: 'Date de l\'indice de révision', col: 11, type: 'date', value: '' },
+        currentLease: { title: 'RTLoyerActuel', label: 'Loyer Actuel (ou révisé)', col: 12, type: 'text', value: '' },
+        revisionDate: { title: 'RTDate', label: 'Date de la dernière Révision', col: 13, type: 'date', value: '' },
+        initialYear: { title: 'RTIndiceInitialAnnée', type: 'text', value: '' },
+        revisionYear: { title: 'RTYear', type: 'text', value: '' },
+        baseYear: { title: 'RTPreviousYear', type: 'text', value: '' },
+        newLease: { title: 'RTLoyerNouveau', type: 'text', value: '' },
+        nextRevision: { title: 'RTNextRevision', type: 'text', value: '' },
     };
 
     /**
@@ -700,14 +699,14 @@ async function issueLeaseLetter(create: boolean = false) {
 
     const ctrls = Object.values(Ctrls);
 
-    const findRT = (id: string) => ctrls.find(RT => RT.tag === id);
+    const findRT = (id: string) => ctrls.find(RT => RT.title === id);
 
 
     let row: any[] = [], rowIndex: number | null = null;
     (async function showForm() {
         if (create) return;
         const inputs: InputCol[] = [];
-        const findInput = (id: string) => inputs.find(([input, col]) => input.id === id)?.[0];
+        const findInput = (id: string, inputs:InputCol[]) => inputs.find(([input, col]) => input.id === id)?.[0];
         const tableRows = await graph.fetchExcelTable(tableName, false, false) as any[][];//We are calling the "rows" endpoint which returns the table rows without the headers.
         if (!tableRows) return;
         document.querySelector('table')?.remove();
@@ -718,14 +717,18 @@ async function issueLeaseLetter(create: boolean = false) {
 
         (function insertInputs() {
             const unvalid = (values: (string | undefined)[]) => values.find(value => !value || isNaN(Number(value)));
-            const owner = createInput(Ctrls.owner);
-            populateSelectElement(owner, getUniqueValues(column(Ctrls.owner), tableRows), false);
-            [Ctrls.adress, Ctrls.tenant, Ctrls.leaseDate, Ctrls.leaseType, Ctrls.initialIndex, Ctrls.initialIndexDate, Ctrls.baseIndex, Ctrls.baseIndexDate, Ctrls.index, Ctrls.indexDate, Ctrls.currentLease, Ctrls.revisionDate].forEach(ctrl => createInput(ctrl));
+            const inputs: InputCol[] =
+                ctrls
+                    .filter(RT => !isNaN(column(RT)))
+                    .map(RT => [createInput(RT), column(RT)] as const);
+            const owner = findInput(Ctrls.owner.title, inputs);
+            if(owner) populateSelectElement(owner, getUniqueValues(column(Ctrls.owner), tableRows), false);
 
             (function inputsOnChange() {
                 const filled = inputs.filter(([input, col]) => col <= column(Ctrls.tenant));
                 filled.forEach(([input, col]) => input.onchange = () => inputOnChange(col, inputs, tableRows, false));
-                const index = findInput(Ctrls.index.tag);
+
+                const index = findInput(Ctrls.index.title, inputs);
                 if (index) index.onchange = () => {
                     const filtered = filterTableByInputsValues(filled, tableRows);
                     if (!filtered?.length) {
@@ -736,14 +739,14 @@ async function issueLeaseLetter(create: boolean = false) {
                     row = filtered[0];
                     rowIndex = tableRows.indexOf(row);
                     const base = row[column(Ctrls.baseIndex)] || row[column(Ctrls.initialIndex)];
-                    const latest = index.value;
-                    const current = row[column(Ctrls.currentLease)];
-                    if (unvalid([base, latest, current])) return alert('Please make sure that the values of the current lease, the base indice and the new indice are all provided and valid numbers');
-                    const currentLease = findInput(Ctrls.currentLease.tag);
-                    if (!currentLease) return alert('Current lease input not found');
-                    const newLease = (Number(current) * (Number(latest) / Number(base))).toFixed(2).toString();
-                    currentLease.value = newLease;//This will show the value of the new lease after applying the calculation
-                    Ctrls.baseIndex.value = latest;
+                    const latestIndex = index.value;
+                    const currentLease = row[column(Ctrls.currentLease)];
+                    if (unvalid([base, latestIndex, currentLease])) return alert('Please make sure that the values of the current lease, the base indice and the new indice are all provided and valid numbers');
+                    const currentLeaseInput = findInput(Ctrls.currentLease.title, inputs);
+                    if (!currentLeaseInput) return alert('Current lease input not found');
+                    const newLease = (Number(currentLease) * (Number(latestIndex) / Number(base))).toFixed(2).toString();
+                    currentLeaseInput.value = newLease;//This will show the value of the new lease after applying the calculation
+                    Ctrls.baseIndex.value = latestIndex;
                     Ctrls.newLease.value = newLease;//We update the new lease RT
                 };
             })();
@@ -785,7 +788,7 @@ async function issueLeaseLetter(create: boolean = false) {
         spinner(false);
 
         function createInput(RT: RT, className: string = 'field') {
-            const id = RT.tag;
+            const id = RT.title;
             const div = document.createElement('div');
             form?.appendChild(div);
             const append = (el: HTMLElement) => div.appendChild(el);
@@ -803,15 +806,11 @@ async function issueLeaseLetter(create: boolean = false) {
                 input.type = RT.type || 'text';
                 input.id = id;
                 input.classList.add(className);
-                const col = column(RT);
-                if (!isNaN(col)) {
-                    const index = col.toString();
-                    input.dataset.index = index;
-                    div.dataset.index = index;
-                    divs.push(div);
-                    inputs.push([input, col] as const);
-                };
+                const col = column(RT).toString();
+                input.dataset.index = col;
+                div.dataset.index = col;
                 append(input);
+                divs.push(div);
                 return input as HTMLInputElement
             };
         };
@@ -821,26 +820,26 @@ async function issueLeaseLetter(create: boolean = false) {
         if (!inputs.length) return;
         const findInput = (id: string) => inputs.find(([input, col]) => input.id === id)?.[0];
         const templatePath = "Legal/Mon Cabinet d'Avocat/Administratif/Modèles Actes/Template_Révision de loyer [DO NOT MODIFY].docx";
+        const date = new Date();
         const fileName = prompt('Provide the file name without special characthers');
         if (!fileName) return;
-        const savePath = `${prompt('Provide the destination folder', "Legal/Mon Cabinet d'Avocat/Clients")}/${fileName}.docx`;
+        const savePath = `${prompt('Provide the destination folder', "Legal/Mon Cabinet d'Avocat/Clients")}/${fileName}_${date.getFullYear()}${date.getMonth() + 1}${date.getDate()}@${date.getHours()}-${date.getMinutes()}.docx`;
         if (!savePath) return;
 
         inputs.map(([input, col]) => {
             const id = input.id
-            if (id === Ctrls.currentLease.tag) return;//!We don't update the value of current lease from the input because the value of the input is the new lease not the old one
+            if (id === Ctrls.currentLease.title) return;//!We don't update the value of current lease from the input because the value of the input is the new lease not the old one
             const RT = findRT(id);
             if (!RT) return;
             if ([Ctrls.leaseDate, Ctrls.indexDate, Ctrls.baseIndexDate, Ctrls.initialIndexDate].includes(RT)) RT.value = getDateString(input.valueAsDate as Date);
             else RT.value = input.value
         });
-        const date = new Date();
         const year = date.getFullYear();
         Ctrls.revisionDate.value = getDateString(date);
         Ctrls.revisionYear.value = year.toString();
-        Ctrls.previousYear.value = (year - 1).toString();
+        Ctrls.baseYear.value = (year - 1).toString();
         Ctrls.nextRevision.value = (year + 1).toString();
-        const contentControls = ctrls.map(RT => [RT.tag, RT.value]);
+        const contentControls = ctrls.map(RT => [RT.title, RT.value]);
 
 
         graph.createAndUploadWordDocument(templatePath, savePath, 'FR', undefined, undefined, contentControls);
@@ -852,7 +851,7 @@ async function issueLeaseLetter(create: boolean = false) {
                 const col = Ctrls.revisionDate.col as number;
                 const revisionDate = Ctrls.initialIndexDate.value.replace(Ctrls.initialYear.value, Ctrls.revisionYear.value);
                 row[col] = new Date(revisionDate);
-                const input = findInput(Ctrls.revisionDate.tag)
+                const input = findInput(Ctrls.revisionDate.title)
                 if (input) input.value = revisionDate;
                 await graph.updateExcelTableRow(tableName, rowIndex, row)
             })();

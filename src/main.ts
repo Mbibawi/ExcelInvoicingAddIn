@@ -608,55 +608,55 @@ function getRowsData(tableRows: any[][], discount: number = 0, lang: string, inv
 function getContentControlsValues(invoice: { number: string, clientName: string, matters: string[], adress: string[], lang: string }, date: Date): [string, string][] {
   const fields: InvoiceCtrls = {
     dateLabel: {
-      tag: 'LabelParisLe',
+      title: 'LabelParisLe',
       value: { FR: 'Paris le ', EN: 'Paris on ' }[invoice.lang] || '',
     },
     date: {
-      tag: 'RTInvoiceDate',
+      title: 'RTInvoiceDate',
       value: getDateString(date),
     },
     numberLabel: {
-      tag: 'LabelInvoiceNumber',
+      title: 'LabelInvoiceNumber',
       value: { FR: 'Facture n°\u00A0:', EN: 'Invoice No.:' }[invoice.lang] || '',
     },
     number: {
-      tag: 'RTInvoiceNumber',
+      title: 'RTInvoiceNumber',
       value: invoice.number,
     },
     subjectLable: {
-      tag: 'LabelSubject',
+      title: 'LabelSubject',
       value: { FR: 'Affaires\u00A0: ', EN: 'Matters: ' }[invoice.lang] || '',
     },
     subject: {
-      tag: 'RTMatter',
+      title: 'RTMatter',
       value: invoice.matters.join(' & '),
     },
     fee: {
-      tag: 'LabelTableHeadingHonoraire',
+      title: 'LabelTableHeadingHonoraire',
       value: { FR: 'Honoraire/Débours', EN: 'Fees/Expenses' }[invoice.lang] || '',
     },
     amount: {
-      tag: 'LabelTableHeadingMontantTTC',
+      title: 'LabelTableHeadingMontantTTC',
       value: { FR: 'Montant TTC', EN: 'Amount VAT Included' }[invoice.lang] || '',
     },
     vat: {
-      tag: 'LabelTableHeadingTVA',
+      title: 'LabelTableHeadingTVA',
       value: { FR: 'TVA', EN: 'VAT' }[invoice.lang] || '',
     },
     disclaimer: {
-      tag: 'LabelDisclamer' + ['French', 'English'].find(el => !el.toUpperCase().startsWith(invoice.lang)) || 'English',
+      title: 'LabelDisclamer' + ['French', 'English'].find(el => !el.toUpperCase().startsWith(invoice.lang)) || 'English',
       value: 'DELETECONTENTECONTROL',//!by setting text = "DELETECONTENTECONTROL", the contentControl will be deleted
     },
     clientName: {
-      tag: 'RTClient',
+      title: 'RTClient',
       value: invoice.clientName,
     },
     adress: {
-      tag: 'RTClientAdresse',
+      title: 'RTClientAdresse',
       value: invoice.adress.join(' & '),
     },
   };
-  return Object.values(fields).map(RT => [RT.tag, RT.value]);
+  return Object.values(fields).map(RT => [RT.title, RT.value]);
 }
 
 function getUniqueValues(index: number, array: any[][]): any[] {
@@ -764,7 +764,7 @@ class GraphAPI {
       }
     }
     const response = await this.sendRequest(endPoint, this.methods.post, body, sessionId, undefined, 'Error while applying filter to the Excel table');
-   
+
     if (response) console.log(`Filter successfully applied to column ${columnName}!`);
 
   };
@@ -785,7 +785,7 @@ class GraphAPI {
     const response = await this.sendRequest(endPoint, this.methods.get, undefined, sessionId, undefined, "Error applying filter");
     const data = await response?.json();
     return data.values as any[][];
- 
+
   };
 
   /**
@@ -918,7 +918,7 @@ class GraphAPI {
         const cells = xml.getRowCells(tableRow) || values.map(v => tableRow.appendChild(xml.createTableCell()));//getting all the cells in the row element
 
         cells.forEach((cell, index) => {
-          const textElement = xml.getTextElement(cell, 0)|| xml.appendParagraph(cell);
+          const textElement = xml.getTextElement(cell, 0) || xml.appendParagraph(cell);
           if (!textElement) return console.log('No text element was found !');
           const pPr = xml.setTextLanguage(cell);//We call this here in order to set the language for all the cells. It returns the pPr element if any.
           textElement.textContent = values[index];
@@ -927,14 +927,14 @@ class GraphAPI {
             if (!isLast && !isTotal) return;
             (function cellBackgroundColor() {
               const tcPr = xml.getPropElement(cell, 0) || cell.prepend(xml.createPropElement(cell));
-              const shadow = xml.getShadowElement(tcPr, 0)|| tcPr.appendChild(xml.createShadowElement());//Adding background color to cell
+              const shadow = xml.getShadowElement(tcPr, 0) || tcPr.appendChild(xml.createShadowElement());//Adding background color to cell
               shadow.setAttributeNS(schema, 'val', "clear");
               shadow.setAttributeNS(schema, 'fill', 'D9D9D9');
             })();
 
             (function paragraphStyle() {
               if (!pPr) return console.log('No "w:pPr" or "w:rPr" property element was found !');
-              const style = xml.getParagraphStyle(pPr, 0)|| pPr.appendChild(xml.createParagraphStyle());
+              const style = xml.getParagraphStyle(pPr, 0) || pPr.appendChild(xml.createParagraphStyle());
               style.setAttributeNS(schema, 'val', xml.getStyle(index, isTotal && !isLast));
             })();
           })();
@@ -948,10 +948,9 @@ class GraphAPI {
       const ctrls = xml.getContentControls(doc);
       contentControls
         .forEach(([title, text]) => {
-          const control = xml.findContentControlByTitle(ctrls, title);
-          if (!control) return;
-          xml.editContentControlText(control, text);
-        });
+          const controls = xml.findContentControlByTitle(ctrls, title) as Element[];//!we omitt the index in order to retrieve all then XML ContentControls having the same title
+          controls?.forEach(control => xml.editContentControlText(control, text))
+    });
     })();
 
     await this.convertXMLToBlobAndUpload(doc, zip, savePath);
@@ -963,23 +962,23 @@ class GraphAPI {
  * @param blob - the blob of the file to be converted
  * @returns {[XMLDocument, JSZip]} - The xml document, and the zip containing all the xml files
  */
-//@ts-expect-error
-private async convertBlobIntoXML(blob: Blob): Promise<[XMLDocument, JSZip]> {
-  //@ts-ignore
-  const zip = new JSZip();
+  //@ts-expect-error
+  private async convertBlobIntoXML(blob: Blob): Promise<[XMLDocument, JSZip]> {
+    //@ts-ignore
+    const zip = new JSZip();
 
-  const arrayBuffer = await blob.arrayBuffer();
+    const arrayBuffer = await blob.arrayBuffer();
 
-  await zip.loadAsync(arrayBuffer);
+    await zip.loadAsync(arrayBuffer);
 
-  const documentXml = await zip.file("word/document.xml").async("string");
+    const documentXml = await zip.file("word/document.xml").async("string");
 
-  const parser = new DOMParser();
+    const parser = new DOMParser();
 
-  const xmlDoc = parser.parseFromString(documentXml, "application/xml");
+    const xmlDoc = parser.parseFromString(documentXml, "application/xml");
 
-  return [xmlDoc, zip]
-}
+    return [xmlDoc, zip]
+  }
 
   /**
  * Filters an Excel table column based on the values
@@ -1022,7 +1021,7 @@ private async convertBlobIntoXML(blob: Blob): Promise<[XMLDocument, JSZip]> {
  * @param {string} filePath 
  * @returns {Blob} - A blob of the fetched file, if successful
  */
-  private async fetchFileFromOneDrive(filePath = this.filePath): Promise<Blob|undefined> {
+  private async fetchFileFromOneDrive(filePath = this.filePath): Promise<Blob | undefined> {
     const endPoint = `${this.GRAPH_API_BASE_URL}${filePath}:/content`;
     const response = await this.sendRequest(endPoint, this.methods.get, undefined, undefined, undefined, "Failed to fetch Word template");
     return await response?.blob(); // Returns the Word template as a Blob
@@ -1073,7 +1072,7 @@ private async convertBlobIntoXML(blob: Blob): Promise<[XMLDocument, JSZip]> {
       return await zip.generateAsync({ type: "blob" });
     }
   };
- 
+
   private async sendRequest(endPoint: string, method: string, body?: object, sessionId?: string, contentType?: string, message = "") {
     if (!this.accessToken) return;
     const request: RequestInit = {
@@ -1085,8 +1084,8 @@ private async convertBlobIntoXML(blob: Blob): Promise<[XMLDocument, JSZip]> {
     const response = await fetch(endPoint, request);
 
     if (response?.ok) return response;
-    
-    message = `${message || `Error while sending ${method} request` }:\n ${await response?.text()}`;
+
+    message = `${message || `Error while sending ${method} request`}:\n ${await response?.text()}`;
     alert(message);
     if (sessionId) await this.closeFileSession(sessionId)
     throw new Error(message)
@@ -1144,7 +1143,7 @@ class XML {
     tableCaption: 'tblCaption',
   };
 
-  constructor(doc: XMLDocument, lang:string) {
+  constructor(doc: XMLDocument, lang: string) {
     this.doc = doc;
     this.lang = lang;
   }
@@ -1168,7 +1167,7 @@ class XML {
    * @param {number} index - the index of the XML ContentControl element we want to retrieve
    * @returns {Element}
    */
-  getControlContent(parent: Element, index:number) {
+  getControlContent(parent: Element, index: number) {
     return this.getXMLElements(parent, this.tags.ctrlContent, index) as Element
   }
 
@@ -1191,16 +1190,16 @@ class XML {
     return this.getXMLElements(table, this.tags.row, index) as Element
   }
 
-    /**
-   * Returns the XML '[tag]Pr' element child of any element
-   * @param {Element} parent - the parent XML Element for which we are trying to retrieve the "[tag]Pr" element
-   * @param {number} index - the index of the "[tag]Pr" element
-   * @returns {Element}
-   */
-    getPropElement(parent: Element, index:number=0) {
-      const tag = this.Pr(parent.tagName.toLowerCase())
-      return this.getXMLElements(parent, tag, index) as Element;
-    }
+  /**
+ * Returns the XML '[tag]Pr' element child of any element
+ * @param {Element} parent - the parent XML Element for which we are trying to retrieve the "[tag]Pr" element
+ * @param {number} index - the index of the "[tag]Pr" element
+ * @returns {Element}
+ */
+  getPropElement(parent: Element, index: number = 0) {
+    const tag = this.Pr(parent.tagName.toLowerCase())
+    return this.getXMLElements(parent, tag, index) as Element;
+  }
 
   /**
    * Creates and returns a table row ("tr") XML element
@@ -1223,11 +1222,11 @@ class XML {
    * @param {Element} parent - the parent XML Element from which we will retrieve the tag of XML "[tag]Pr" element that we will create
    * @returns {Element}
    */
-  createPropElement(parent:Element) {
+  createPropElement(parent: Element) {
     const tag = this.Pr(parent.tagName.toLowerCase())
     return this.createXMLElement(tag)
   }
-  
+
   /**
    * Returns the XML cell elements of row in the table
    * @param {Element} tableRow - the XML row element that we want to retrieve its XML cell children elements
@@ -1243,7 +1242,7 @@ class XML {
    * @param {number} index - the index of the text ("t") XML element we want to retrieve
    * @returns {Element}
    */
-  getTextElement(parent: Element, index:number) {
+  getTextElement(parent: Element, index: number) {
     return this.getXMLElements(parent, this.tags.text, index) as Element
   }
 
@@ -1273,12 +1272,12 @@ class XML {
     return this.createXMLElement(this.tags.shadow) as Element
   }
 
-   /**
-     * Looks for a child "w:p" (paragraph) element, if it doesn't find any, it looks for a "w:r" (run) element.
-     * @param {Element} parent - the parent XML of the paragraph or run element we want to retrieve. 
-     * @returns {Element | undefined} - an XML element representing a "w:p" (paragraph) or, if not found, a "w:r" (run), or undefined
-     */
-   getParagraphOrRun(parent: Element) {
+  /**
+    * Looks for a child "w:p" (paragraph) element, if it doesn't find any, it looks for a "w:r" (run) element.
+    * @param {Element} parent - the parent XML of the paragraph or run element we want to retrieve. 
+    * @returns {Element | undefined} - an XML element representing a "w:p" (paragraph) or, if not found, a "w:r" (run), or undefined
+    */
+  getParagraphOrRun(parent: Element) {
     return this.getXMLElements(parent, this.tags.paragraph, 0) as Element || this.getXMLElements(parent, this.tags.run, 0) as Element;
   }
 
@@ -1286,11 +1285,11 @@ class XML {
    * Returns the cells of row in the table
    * @param {Element} tableRow
    */
-  getParagraphStyle(parent:Element, index:number) {
+  getParagraphStyle(parent: Element, index: number) {
     return this.getXMLElements(parent, this.tags.style, index) as Element;
   }
-  
-  insertRowAfterFirst(table:Element, firstRow:Element, after: number = -1, clone: boolean = false) {
+
+  insertRowAfterFirst(table: Element, firstRow: Element, after: number = -1, clone: boolean = false) {
     const self = this;
     if (clone) return cloneFirstRow();
     else return create();
@@ -1327,12 +1326,12 @@ class XML {
    * 
    * @param {Element[]} ctrls - the XML ContentControls array from which we will retrieve an XML ContentControl by its title
    * @param {string} title - the title of the XML ContentControl we want to retrieve
-   * @returns {Element | undefined}
+   * @param {number} index - if omitted, the function will return a collection of all the XML ContentControl elements having the same title. Otherwise it will return a ContentControl by its index
+   * @returns {Element | Element[] | undefined}
    */
-  findContentControlByTitle(ctrls: Element[], title: string) {
+  findContentControlByTitle(ctrls: Element[], title: string, index?:number):Element | Element[] | undefined {
     if (!title) return;
-    return this.findElementByTitle(ctrls, this.tags.alias, title)
-
+    return this.findElementByPropertyValue(ctrls, this.tags.alias, title, index)
   }
 
   /**
@@ -1343,11 +1342,18 @@ class XML {
    */
   findTableByTitle(tables: Element[], title?: string) {
     if (!title) return;
-    return this.findElementByTitle(tables, this.tags.tableCaption, title)
+    return this.findElementByPropertyValue(tables, this.tags.tableCaption, title)
   }
-
-  private findElementByTitle(elements: Element[], prop:string, title: string) {
-    const hasProp = (parent: Element) => this.getXMLElements(parent, prop, 0) as Element;
+/**
+ * 
+ * @param {Element[]} elements - the XML Elements collection in which we will search for specific XML elemnt(s) by the value of a given property
+ * @param {string} prop - the name of property in which the title of the XML Element title is stored
+ * @param {string} title - the value of the property we are looking for
+ * @param {number} index - if omitted, the function will return all the ContentControls having the same title
+ * @returns 
+ */
+  private findElementByPropertyValue(elements: Element[], prop: string, title: string, index?:number) {
+    const hasProp = (parent: Element) => this.getXMLElements(parent, prop, index) as Element;
     return elements.find(element => hasProp(element)?.getAttributeNS(this.schema(), 'val') === title);
   }
 
@@ -1394,7 +1400,7 @@ class XML {
   editContentControlText(control: Element, text: string | null) {
     if (text === "DELETECONTENTECONTROL") return control.remove();
     if (!text) text = 'NO VALUE WAS PROVIDED';
-    
+
     const sdtContent = this.getControlContent(control, 0);
     if (!sdtContent) return;
     const paragTemplate = this.getParagraphOrRun(sdtContent);//This will set the language for the paragraph or the run
@@ -1403,8 +1409,8 @@ class XML {
     const self = this;
     text?.split('\n')
       .forEach((parag, index) => editParagraph(parag, index));
-    
-    function editParagraph (parag: string, index: number){
+
+    function editParagraph(parag: string, index: number) {
       let textElement: Element;
       if (index < 1)
         textElement = self.getXMLElements(paragTemplate, self.tags.text, index) as Element;
@@ -1416,20 +1422,20 @@ class XML {
     }
   }
 
-      /**
-     * Finds a "w:pPr" XML element (property element) which is a child of the XML parent element passed as argument. If does not find it, it looks for a "w:rPr" XML element. When it finds either a "w:pPr" or a "w:rPr" element, it appends a "w:lang" element to it, and sets its "w:val" attribute to the language passed as "lang"
-     * @param {Element} parent - the XML element containing the paragraph or the run for which we want to set the language.
-     * @returns {Element | undefined} - the "w:pPr" or "w:rPr" property XML element child of the parent element passed as argument
-     */
-      setTextLanguage(parent: Element) {
-        const pPr = this.getXMLElements(parent, this.Pr(this.tags.paragraph), 0) as Element ||
-          this.getXMLElements(parent, this.Pr(this.tags.run), 0) as Element;
-        if (!pPr) return;
-        pPr
-          .appendChild(this.createXMLElement(this.tags.lang))//appending a "w:lang" element
-          .setAttributeNS(this.schema(), 'val', `${this.lang.toLowerCase()}-${this.lang.toUpperCase()}`);//setting the "w:val" attribute of "w:lang" to the appropriate language like "fr-FR"
-        return pPr as Element
-      }
+  /**
+ * Finds a "w:pPr" XML element (property element) which is a child of the XML parent element passed as argument. If does not find it, it looks for a "w:rPr" XML element. When it finds either a "w:pPr" or a "w:rPr" element, it appends a "w:lang" element to it, and sets its "w:val" attribute to the language passed as "lang"
+ * @param {Element} parent - the XML element containing the paragraph or the run for which we want to set the language.
+ * @returns {Element | undefined} - the "w:pPr" or "w:rPr" property XML element child of the parent element passed as argument
+ */
+  setTextLanguage(parent: Element) {
+    const pPr = this.getXMLElements(parent, this.Pr(this.tags.paragraph), 0) as Element ||
+      this.getXMLElements(parent, this.Pr(this.tags.run), 0) as Element;
+    if (!pPr) return;
+    pPr
+      .appendChild(this.createXMLElement(this.tags.lang))//appending a "w:lang" element
+      .setAttributeNS(this.schema(), 'val', `${this.lang.toLowerCase()}-${this.lang.toUpperCase()}`);//setting the "w:val" attribute of "w:lang" to the appropriate language like "fr-FR"
+    return pPr as Element
+  }
 
 }
 

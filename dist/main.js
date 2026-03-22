@@ -543,55 +543,55 @@ function getRowsData(tableRows, discount = 0, lang, invoiceNumber) {
 function getContentControlsValues(invoice, date) {
     const fields = {
         dateLabel: {
-            tag: 'LabelParisLe',
+            title: 'LabelParisLe',
             value: { FR: 'Paris le ', EN: 'Paris on ' }[invoice.lang] || '',
         },
         date: {
-            tag: 'RTInvoiceDate',
+            title: 'RTInvoiceDate',
             value: getDateString(date),
         },
         numberLabel: {
-            tag: 'LabelInvoiceNumber',
+            title: 'LabelInvoiceNumber',
             value: { FR: 'Facture n°\u00A0:', EN: 'Invoice No.:' }[invoice.lang] || '',
         },
         number: {
-            tag: 'RTInvoiceNumber',
+            title: 'RTInvoiceNumber',
             value: invoice.number,
         },
         subjectLable: {
-            tag: 'LabelSubject',
+            title: 'LabelSubject',
             value: { FR: 'Affaires\u00A0: ', EN: 'Matters: ' }[invoice.lang] || '',
         },
         subject: {
-            tag: 'RTMatter',
+            title: 'RTMatter',
             value: invoice.matters.join(' & '),
         },
         fee: {
-            tag: 'LabelTableHeadingHonoraire',
+            title: 'LabelTableHeadingHonoraire',
             value: { FR: 'Honoraire/Débours', EN: 'Fees/Expenses' }[invoice.lang] || '',
         },
         amount: {
-            tag: 'LabelTableHeadingMontantTTC',
+            title: 'LabelTableHeadingMontantTTC',
             value: { FR: 'Montant TTC', EN: 'Amount VAT Included' }[invoice.lang] || '',
         },
         vat: {
-            tag: 'LabelTableHeadingTVA',
+            title: 'LabelTableHeadingTVA',
             value: { FR: 'TVA', EN: 'VAT' }[invoice.lang] || '',
         },
         disclaimer: {
-            tag: 'LabelDisclamer' + ['French', 'English'].find(el => !el.toUpperCase().startsWith(invoice.lang)) || 'English',
+            title: 'LabelDisclamer' + ['French', 'English'].find(el => !el.toUpperCase().startsWith(invoice.lang)) || 'English',
             value: 'DELETECONTENTECONTROL', //!by setting text = "DELETECONTENTECONTROL", the contentControl will be deleted
         },
         clientName: {
-            tag: 'RTClient',
+            title: 'RTClient',
             value: invoice.clientName,
         },
         adress: {
-            tag: 'RTClientAdresse',
+            title: 'RTClientAdresse',
             value: invoice.adress.join(' & '),
         },
     };
-    return Object.values(fields).map(RT => [RT.tag, RT.value]);
+    return Object.values(fields).map(RT => [RT.title, RT.value]);
 }
 function getUniqueValues(index, array) {
     if (!array)
@@ -865,10 +865,8 @@ class GraphAPI {
             const ctrls = xml.getContentControls(doc);
             contentControls
                 .forEach(([title, text]) => {
-                const control = xml.findContentControlByTitle(ctrls, title);
-                if (!control)
-                    return;
-                xml.editContentControlText(control, text);
+                const controls = xml.findContentControlByTitle(ctrls, title); //!we omitt the index in order to retrieve all then XML ContentControls having the same title
+                controls?.forEach(control => xml.editContentControlText(control, text));
             });
         })();
         await this.convertXMLToBlobAndUpload(doc, zip, savePath);
@@ -1214,12 +1212,13 @@ class XML {
      *
      * @param {Element[]} ctrls - the XML ContentControls array from which we will retrieve an XML ContentControl by its title
      * @param {string} title - the title of the XML ContentControl we want to retrieve
-     * @returns {Element | undefined}
+     * @param {number} index - if omitted, the function will return a collection of all the XML ContentControl elements having the same title. Otherwise it will return a ContentControl by its index
+     * @returns {Element | Element[] | undefined}
      */
-    findContentControlByTitle(ctrls, title) {
+    findContentControlByTitle(ctrls, title, index) {
         if (!title)
             return;
-        return this.findElementByTitle(ctrls, this.tags.alias, title);
+        return this.findElementByPropertyValue(ctrls, this.tags.alias, title, index);
     }
     /**
      * Finds and returns a XML Table by its title ("tblCaption")
@@ -1230,10 +1229,18 @@ class XML {
     findTableByTitle(tables, title) {
         if (!title)
             return;
-        return this.findElementByTitle(tables, this.tags.tableCaption, title);
+        return this.findElementByPropertyValue(tables, this.tags.tableCaption, title);
     }
-    findElementByTitle(elements, prop, title) {
-        const hasProp = (parent) => this.getXMLElements(parent, prop, 0);
+    /**
+     *
+     * @param {Element[]} elements - the XML Elements collection in which we will search for specific XML elemnt(s) by the value of a given property
+     * @param {string} prop - the name of property in which the title of the XML Element title is stored
+     * @param {string} title - the value of the property we are looking for
+     * @param {number} index - if omitted, the function will return all the ContentControls having the same title
+     * @returns
+     */
+    findElementByPropertyValue(elements, prop, title, index) {
+        const hasProp = (parent) => this.getXMLElements(parent, prop, index);
         return elements.find(element => hasProp(element)?.getAttributeNS(this.schema(), 'val') === title);
     }
     /**

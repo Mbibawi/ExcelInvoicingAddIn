@@ -9,7 +9,7 @@ type lable = {
     EN: string;
 };
 type RT = {
-    tag: string;
+    title: string;
     value: string
     label?: string;
     col?: number;
@@ -35,7 +35,6 @@ type LeaseCtrls = {
     revisionYear: RT;
     baseYear: RT;
     newLease: RT;
-    previousYear: RT;
     nextRevision: RT;
 };
 
@@ -52,7 +51,7 @@ type InvoiceCtrls = {
     disclaimer: RT;
     clientName: RT;
     adress: RT;
-  };
+};
 
 type values = [number, number];
 type folderItem = { name: string; id: string; folder: any; createdDateTime: string; lastModifiedDateTime: string };
