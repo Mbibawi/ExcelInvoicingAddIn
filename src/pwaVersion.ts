@@ -668,7 +668,7 @@ async function issueLeaseLetter(create: boolean = false) {
     const graph = new GraphAPI(accessToken, workbookPath);
 
 
-    const Ctrls: { [index: string]: RT } = {
+    const Ctrls: LeaseCtrls = {
         owner: { tag: 'RTBailleur', col: 0, label: 'Nom du Bailleur', type: 'select', value: '' },
         adress: { tag: 'RTAdresseDestinataire', label: 'Adresse du bien loué', col: 1, type: 'select', value: '' },
         tenant: { tag: 'RTLocataire', label: 'Nom du Locataire', col: 2, type: 'select', value: '' },
@@ -683,12 +683,12 @@ async function issueLeaseLetter(create: boolean = false) {
         indexDate: { tag: 'RTDateIndice', label: 'Date de l\'indice de révision', col: 11, type: 'date', value: '' },
         currentLease: { tag: 'RTLoyerActuel', label: 'Loyer Actuel (ou révisé)', col: 12, type: 'text', value: '' },
         revisionDate: { tag: 'RTDate', label: 'Date de la dernière Révision', col: 13, type: 'date', value: '' },
-        initialYear: { tag: 'RTIndiceInitialAnnée', label: undefined, col: undefined, type: 'text', value: '' },
-        revisionYear: { tag: 'RTYear', label: undefined, col: undefined, type: 'text', value: '' },
-        baseYear: { tag: 'RTPreviousYear', label: undefined, col: undefined, type: 'text', value: '' },
-        newLease: { tag: 'RTLoyerNouveau', label: undefined, col: undefined, type: 'text', value: '' },
-        previousYear: { tag: 'RTPreviousYear', label: undefined, col: undefined, type: 'text', value: '' },
-        nextRevision: { tag: 'RTNextRevision', label: undefined, col: undefined, type: 'text', value: '' },
+        initialYear: { tag: 'RTIndiceInitialAnnée',  type: 'text', value: '' },
+        revisionYear: { tag: 'RTYear',  type: 'text', value: '' },
+        baseYear: { tag: 'RTPreviousYear',  type: 'text', value: '' },
+        newLease: { tag: 'RTLoyerNouveau',  type: 'text', value: '' },
+        previousYear: { tag: 'RTPreviousYear',  type: 'text', value: '' },
+        nextRevision: { tag: 'RTNextRevision',  type: 'text', value: '' },
     };
 
     /**
@@ -699,9 +699,9 @@ async function issueLeaseLetter(create: boolean = false) {
     const column = (RT: RT) => RT.col as number;
 
     const ctrls = Object.values(Ctrls);
-    
+
     const findRT = (id: string) => ctrls.find(RT => RT.tag === id);
-    
+
 
     let row: any[] = [], rowIndex: number | null = null;
     (async function showForm() {
@@ -817,7 +817,7 @@ async function issueLeaseLetter(create: boolean = false) {
         };
     })();
 
-    async function generate(inputs:InputCol[]) {
+    async function generate(inputs: InputCol[]) {
         if (!inputs.length) return;
         const findInput = (id: string) => inputs.find(([input, col]) => input.id === id)?.[0];
         const templatePath = "Legal/Mon Cabinet d'Avocat/Administratif/Modèles Actes/Template_Révision de loyer [DO NOT MODIFY].docx";
@@ -898,7 +898,7 @@ function inputOnChange(index: number, inputs: InputCol[], table: any[][] | undef
         populateSelectElement(input, list, combine);
     }
 
-    function fillBound(list: any[], input: HTMLInputElement): boolean|void {
+    function fillBound(list: any[], input: HTMLInputElement): boolean | void {
         if (list.length > 1) return false;
         const value = list[0], found = filtered.length < 2;
         if (!found) return setValue(input, value);//If the filtered array contains more than one row with the same unique value in the corresponding column, we will not fill the next inputs
@@ -907,7 +907,7 @@ function inputOnChange(index: number, inputs: InputCol[], table: any[][] | undef
         return found;
     }
 
-    function setValue (input: HTMLInputElement, value: any) {
+    function setValue(input: HTMLInputElement, value: any) {
         if (input.type === "date")
             input.valueAsDate = dateFromExcel(value);//!We must convert the dates from Excel
         else input.value = value?.toString() || '';

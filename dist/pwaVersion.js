@@ -637,12 +637,12 @@ async function issueLeaseLetter(create = false) {
         indexDate: { tag: 'RTDateIndice', label: 'Date de l\'indice de révision', col: 11, type: 'date', value: '' },
         currentLease: { tag: 'RTLoyerActuel', label: 'Loyer Actuel (ou révisé)', col: 12, type: 'text', value: '' },
         revisionDate: { tag: 'RTDate', label: 'Date de la dernière Révision', col: 13, type: 'date', value: '' },
-        initialYear: { tag: 'RTIndiceInitialAnnée', label: undefined, col: undefined, type: 'text', value: '' },
-        revisionYear: { tag: 'RTYear', label: undefined, col: undefined, type: 'text', value: '' },
-        baseYear: { tag: 'RTPreviousYear', label: undefined, col: undefined, type: 'text', value: '' },
-        newLease: { tag: 'RTLoyerNouveau', label: undefined, col: undefined, type: 'text', value: '' },
-        previousYear: { tag: 'RTPreviousYear', label: undefined, col: undefined, type: 'text', value: '' },
-        nextRevision: { tag: 'RTNextRevision', label: undefined, col: undefined, type: 'text', value: '' },
+        initialYear: { tag: 'RTIndiceInitialAnnée', type: 'text', value: '' },
+        revisionYear: { tag: 'RTYear', type: 'text', value: '' },
+        baseYear: { tag: 'RTPreviousYear', type: 'text', value: '' },
+        newLease: { tag: 'RTLoyerNouveau', type: 'text', value: '' },
+        previousYear: { tag: 'RTPreviousYear', type: 'text', value: '' },
+        nextRevision: { tag: 'RTNextRevision', type: 'text', value: '' },
     };
     /**
      * This function casts the "col" property as "number" beacause the col property of some RTs is "undefined". So this function will mainly cast the col property to a number in order to avoid casting each time we retrieve the col property

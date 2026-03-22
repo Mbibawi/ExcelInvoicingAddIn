@@ -543,55 +543,55 @@ function getRowsData(tableRows, discount = 0, lang, invoiceNumber) {
 function getContentControlsValues(invoice, date) {
     const fields = {
         dateLabel: {
-            title: 'LabelParisLe',
-            text: { FR: 'Paris le ', EN: 'Paris on ' }[invoice.lang] || '',
+            tag: 'LabelParisLe',
+            value: { FR: 'Paris le ', EN: 'Paris on ' }[invoice.lang] || '',
         },
         date: {
-            title: 'RTInvoiceDate',
-            text: getDateString(date),
+            tag: 'RTInvoiceDate',
+            value: getDateString(date),
         },
         numberLabel: {
-            title: 'LabelInvoiceNumber',
-            text: { FR: 'Facture n°\u00A0:', EN: 'Invoice No.:' }[invoice.lang] || '',
+            tag: 'LabelInvoiceNumber',
+            value: { FR: 'Facture n°\u00A0:', EN: 'Invoice No.:' }[invoice.lang] || '',
         },
         number: {
-            title: 'RTInvoiceNumber',
-            text: invoice.number,
+            tag: 'RTInvoiceNumber',
+            value: invoice.number,
         },
         subjectLable: {
-            title: 'LabelSubject',
-            text: { FR: 'Affaires\u00A0: ', EN: 'Matters: ' }[invoice.lang] || '',
+            tag: 'LabelSubject',
+            value: { FR: 'Affaires\u00A0: ', EN: 'Matters: ' }[invoice.lang] || '',
         },
         subject: {
-            title: 'RTMatter',
-            text: invoice.matters.join(' & '),
+            tag: 'RTMatter',
+            value: invoice.matters.join(' & '),
         },
         fee: {
-            title: 'LabelTableHeadingHonoraire',
-            text: { FR: 'Honoraire/Débours', EN: 'Fees/Expenses' }[invoice.lang] || '',
+            tag: 'LabelTableHeadingHonoraire',
+            value: { FR: 'Honoraire/Débours', EN: 'Fees/Expenses' }[invoice.lang] || '',
         },
         amount: {
-            title: 'LabelTableHeadingMontantTTC',
-            text: { FR: 'Montant TTC', EN: 'Amount VAT Included' }[invoice.lang] || '',
+            tag: 'LabelTableHeadingMontantTTC',
+            value: { FR: 'Montant TTC', EN: 'Amount VAT Included' }[invoice.lang] || '',
         },
         vat: {
-            title: 'LabelTableHeadingTVA',
-            text: { FR: 'TVA', EN: 'VAT' }[invoice.lang] || '',
+            tag: 'LabelTableHeadingTVA',
+            value: { FR: 'TVA', EN: 'VAT' }[invoice.lang] || '',
         },
         disclaimer: {
-            title: 'LabelDisclamer' + ['French', 'English'].find(el => !el.toUpperCase().startsWith(invoice.lang)) || 'English',
-            text: 'DELETECONTENTECONTROL', //!by setting text = "DELETECONTENTECONTROL", the contentControl will be deleted
+            tag: 'LabelDisclamer' + ['French', 'English'].find(el => !el.toUpperCase().startsWith(invoice.lang)) || 'English',
+            value: 'DELETECONTENTECONTROL', //!by setting text = "DELETECONTENTECONTROL", the contentControl will be deleted
         },
         clientName: {
-            title: 'RTClient',
-            text: invoice.clientName,
+            tag: 'RTClient',
+            value: invoice.clientName,
         },
         adress: {
-            title: 'RTClientAdresse',
-            text: invoice.adress.join(' & '),
+            tag: 'RTClientAdresse',
+            value: invoice.adress.join(' & '),
         },
     };
-    return Object.keys(fields).map(key => [fields[key].title, fields[key].text]);
+    return Object.values(fields).map(RT => [RT.tag, RT.value]);
 }
 function getUniqueValues(index, array) {
     if (!array)
