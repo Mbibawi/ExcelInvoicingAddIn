@@ -882,7 +882,7 @@ class GraphAPI {
  * @param {string[]} totalsLabels - The labels of the rows that will be formatted as totals
  * @returns 
  */
-  async createAndUploadWordDocument(templatePath: string, savePath: string = this.filePath, lang: string, tableTitle?: string, rows?: string[][] | undefined, contentControls?: string[][] | undefined, totalsLabels?: string[]) {
+  async createAndUploadWordDocument(templatePath: string, savePath: string = this.filePath, lang: string, tableTitle?: string, rows?: string[][] | undefined, contentControls?: [string, string][] | undefined, totalsLabels?: string[]) {
 
     if (!this.accessToken || !templatePath || !this.filePath) return;
 
@@ -944,12 +944,12 @@ class GraphAPI {
     })();
 
     (function editContentControls() {
-      if (!contentControls) return;
+      if (!contentControls?.length) return;
       const ctrls = xml.getContentControls(doc);
       contentControls
         .forEach(([title, text]) => {
-          const controls = xml.findContentControlsByTitle(ctrls, title) as Element[];//!we omitt the index in order to retrieve all then XML ContentControls having the same title
-          controls?.forEach(control => xml.editContentControlText(control, text))
+          const sameTitle = xml.findContentControlsByTitle(ctrls, title) as Element[];//!we  retrieve all then XML ContentControls having the same title
+          sameTitle.forEach(control => xml.editContentControlText(control, text))
     });
     })();
 
@@ -1329,7 +1329,7 @@ class XML {
    * @param {number} index - if omitted, the function will return a collection of all the XML ContentControl elements having the same title. Otherwise it will return a ContentControl by its index
    * @returns {Element | Element[] | undefined}
    */
-  findContentControlsByTitle(ctrls: Element[], title: string):Element | Element[] | void {
+  findContentControlsByTitle(ctrls: Element[], title: string):Element[] {
     return this.findElementsByPropertyValue(ctrls, this.tags.alias, title)
   }
 
@@ -1350,15 +1350,10 @@ class XML {
  * @param {number} index - if omitted, the function will return all the ContentControls having the same title
  * @returns 
  */
-  private findElementsByPropertyValue(elements: Element[], tag: string, value: string):Element[] | void {
-    if (!tag || !value) return;
-    const hasProp = (parent: Element) => this.getXMLElements(parent, tag) as Element[];
-    const sameTitle = elements
-      .filter(element => hasProp(element)?.length)
-      .filter(element => element.getAttributeNS(this.schema(), 'val') === value);
-  
-    if (!sameTitle?.length) return;
-    return sameTitle
+  private findElementsByPropertyValue(elements: Element[], tag: string, value: string):Element[] {
+    if (!tag || !value) return [];
+    const children = (parent: Element) => this.getXMLElements(parent, tag) as Element[];//This returns the child elements of the parent (if any) having the specified tag
+    return elements.filter(element => children(element)?.find(child => child.getAttributeNS(this.schema(), 'val') === value));
   }
 
   /**
@@ -1394,10 +1389,9 @@ class XML {
    * @param {number} index - if provided, the function will only return the element having the specified index
    * @returns {Element[] | Element | undefined}
    */
-  private getXMLElements(parent: XMLDocument | Element, tag: string, index: number = NaN): Element[] | Element | undefined {
+  private getXMLElements(parent: XMLDocument | Element, tag: string, index: number = NaN): Element[] | Element {
     const elements = parent?.getElementsByTagNameNS(this.schema(), tag);
-    if (!elements?.length) return;
-    if (!isNaN(index)) return elements[index];
+    if (!isNaN(index) && elements.length) return elements[index];
     return Array.from(elements)
   }
 

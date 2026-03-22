@@ -652,7 +652,7 @@ async function issueLetter(create: boolean = false) {
         const filePath = `${prompt('Provide the destination folder', "Legal/Mon Cabinet d'Avocat/Clients")}/${fileName}.docx`;
         if (!filePath) return;
 
-        const contentControls = [['RTCoreText', input.value], ['RTReference', 'Référence'], ['RTClientName', 'Nom du Client'], ['RTEmail', 'Email du client']];
+        const contentControls:[string, string][] = [['RTCoreText', input.value], ['RTReference', 'Référence'], ['RTClientName', 'Nom du Client'], ['RTEmail', 'Email du client']];
 
         new GraphAPI('', filePath).createAndUploadWordDocument(templatePath, filePath, 'FR', undefined, undefined, contentControls);
     })();
@@ -838,8 +838,7 @@ async function issueLeaseLetter(create: boolean = false) {
         Ctrls.revisionYear.value = year.toString();
         Ctrls.baseYear.value = (year - 1).toString();
         Ctrls.nextRevision.value = (year + 1).toString();
-        const contentControls = ctrls.map(RT => [RT.title, RT.value]);
-
+        const contentControls:[string, string][] = ctrls.map(RT => [RT.title, RT.value]);
 
         graph.createAndUploadWordDocument(templatePath, savePath, 'FR', undefined, undefined, contentControls);
 

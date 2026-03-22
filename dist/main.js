@@ -860,13 +860,13 @@ class GraphAPI {
             }
         })();
         (function editContentControls() {
-            if (!contentControls)
+            if (!contentControls?.length)
                 return;
             const ctrls = xml.getContentControls(doc);
             contentControls
                 .forEach(([title, text]) => {
-                const controls = xml.findContentControlsByTitle(ctrls, title); //!we omitt the index in order to retrieve all then XML ContentControls having the same title
-                controls?.forEach(control => xml.editContentControlText(control, text));
+                const sameTitle = xml.findContentControlsByTitle(ctrls, title); //!we  retrieve all then XML ContentControls having the same title
+                sameTitle.forEach(control => xml.editContentControlText(control, text));
             });
         })();
         await this.convertXMLToBlobAndUpload(doc, zip, savePath);
@@ -1237,14 +1237,9 @@ class XML {
      */
     findElementsByPropertyValue(elements, tag, value) {
         if (!tag || !value)
-            return;
-        const hasProp = (parent) => this.getXMLElements(parent, tag);
-        const sameTitle = elements
-            .filter(element => hasProp(element)?.length)
-            .filter(element => element.getAttributeNS(this.schema(), 'val') === value);
-        if (!sameTitle?.length)
-            return;
-        return sameTitle;
+            return [];
+        const children = (parent) => this.getXMLElements(parent, tag); //This returns the child elements of the parent (if any) having the specified tag
+        return elements.filter(element => children(element)?.find(child => child.getAttributeNS(this.schema(), 'val') === value));
     }
     /**
   * Adds a new paragraph XML element or appends a cloned paragraph, and in both cases, it returns the textElement of the paragraph
@@ -1282,9 +1277,7 @@ class XML {
      */
     getXMLElements(parent, tag, index = NaN) {
         const elements = parent?.getElementsByTagNameNS(this.schema(), tag);
-        if (!elements?.length)
-            return;
-        if (!isNaN(index))
+        if (!isNaN(index) && elements.length)
             return elements[index];
         return Array.from(elements);
     }
