@@ -687,6 +687,7 @@ async function issueLeaseLetter(create: boolean = false) {
         revisionYear: { tag: 'RTYear', label: undefined, col: undefined, type: 'text', value: '' },
         baseYear: { tag: 'RTPreviousYear', label: undefined, col: undefined, type: 'text', value: '' },
         newLease: { tag: 'RTLoyerNouveau', label: undefined, col: undefined, type: 'text', value: '' },
+        previousYear: { tag: 'RTPreviousYear', label: undefined, col: undefined, type: 'text', value: '' },
         nextRevision: { tag: 'RTNextRevision', label: undefined, col: undefined, type: 'text', value: '' },
     };
 
