@@ -948,7 +948,7 @@ class GraphAPI {
       const ctrls = xml.getContentControls(doc);
       contentControls
         .forEach(([title, text]) => {
-          const controls = xml.findContentControlByTitle(ctrls, title) as Element[];//!we omitt the index in order to retrieve all then XML ContentControls having the same title
+          const controls = xml.findContentControlsByTitle(ctrls, title) as Element[];//!we omitt the index in order to retrieve all then XML ContentControls having the same title
           controls?.forEach(control => xml.editContentControlText(control, text))
     });
     })();
@@ -1329,9 +1329,8 @@ class XML {
    * @param {number} index - if omitted, the function will return a collection of all the XML ContentControl elements having the same title. Otherwise it will return a ContentControl by its index
    * @returns {Element | Element[] | undefined}
    */
-  findContentControlByTitle(ctrls: Element[], title: string, index?:number):Element | Element[] | undefined {
-    if (!title) return;
-    return this.findElementByPropertyValue(ctrls, this.tags.alias, title, index)
+  findContentControlsByTitle(ctrls: Element[], title: string):Element | Element[] | void {
+    return this.findElementsByPropertyValue(ctrls, this.tags.alias, title)
   }
 
   /**
@@ -1340,21 +1339,26 @@ class XML {
    * @param {string} title - the title of the table
    * @returns {Element | undefined}
    */
-  findTableByTitle(tables: Element[], title?: string) {
-    if (!title) return;
-    return this.findElementByPropertyValue(tables, this.tags.tableCaption, title)
+  findTableByTitle(tables: Element[], title: string) {
+    return this.findElementsByPropertyValue(tables, this.tags.tableCaption, title)?.[0]
   }
 /**
  * 
  * @param {Element[]} elements - the XML Elements collection in which we will search for specific XML elemnt(s) by the value of a given property
- * @param {string} prop - the name of property in which the title of the XML Element title is stored
- * @param {string} title - the value of the property we are looking for
+ * @param {string} tag - the name of property in which the title of the XML Element title is stored
+ * @param {string} value - the value of the property we are looking for
  * @param {number} index - if omitted, the function will return all the ContentControls having the same title
  * @returns 
  */
-  private findElementByPropertyValue(elements: Element[], prop: string, title: string, index?:number) {
-    const hasProp = (parent: Element) => this.getXMLElements(parent, prop, index) as Element;
-    return elements.find(element => hasProp(element)?.getAttributeNS(this.schema(), 'val') === title);
+  private findElementsByPropertyValue(elements: Element[], tag: string, value: string):Element[] | void {
+    if (!tag || !value) return;
+    const hasProp = (parent: Element) => this.getXMLElements(parent, tag) as Element[];
+    const sameTitle = elements
+      .filter(element => hasProp(element)?.length)
+      .filter(element => element.getAttributeNS(this.schema(), 'val') === value);
+  
+    if (!sameTitle?.length) return;
+    return sameTitle
   }
 
   /**
