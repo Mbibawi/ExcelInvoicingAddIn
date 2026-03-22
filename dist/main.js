@@ -1232,13 +1232,12 @@ class XML {
      * @param {Element[]} elements - the XML Elements collection in which we will search for specific XML elemnt(s) by the value of a given property
      * @param {string} tag - the name of property in which the title of the XML Element title is stored
      * @param {string} value - the value of the property we are looking for
-     * @param {number} index - if omitted, the function will return all the ContentControls having the same title
-     * @returns
+     * @returns {Element []}
      */
     findElementsByPropertyValue(elements, tag, value) {
         if (!tag || !value)
             return [];
-        const children = (parent) => this.getXMLElements(parent, tag); //This returns the child elements of the parent (if any) having the specified tag
+        const children = (parent) => this.getXMLElements(parent, tag); //This returns the child elements of the parent (if any) having the specified tag. The children hold a property of the element
         return elements.filter(element => children(element)?.find(child => child.getAttributeNS(this.schema(), 'val') === value));
     }
     /**
@@ -1277,7 +1276,9 @@ class XML {
      */
     getXMLElements(parent, tag, index = NaN) {
         const elements = parent?.getElementsByTagNameNS(this.schema(), tag);
-        if (!isNaN(index) && elements.length)
+        if (!elements.length)
+            return;
+        if (!isNaN(index))
             return elements[index];
         return Array.from(elements);
     }

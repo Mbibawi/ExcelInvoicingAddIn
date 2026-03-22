@@ -1347,12 +1347,11 @@ class XML {
  * @param {Element[]} elements - the XML Elements collection in which we will search for specific XML elemnt(s) by the value of a given property
  * @param {string} tag - the name of property in which the title of the XML Element title is stored
  * @param {string} value - the value of the property we are looking for
- * @param {number} index - if omitted, the function will return all the ContentControls having the same title
- * @returns 
+ * @returns {Element []}
  */
   private findElementsByPropertyValue(elements: Element[], tag: string, value: string):Element[] {
     if (!tag || !value) return [];
-    const children = (parent: Element) => this.getXMLElements(parent, tag) as Element[];//This returns the child elements of the parent (if any) having the specified tag
+    const children = (parent: Element) => this.getXMLElements(parent, tag) as Element[];//This returns the child elements of the parent (if any) having the specified tag. The children hold a property of the element
     return elements.filter(element => children(element)?.find(child => child.getAttributeNS(this.schema(), 'val') === value));
   }
 
@@ -1389,9 +1388,10 @@ class XML {
    * @param {number} index - if provided, the function will only return the element having the specified index
    * @returns {Element[] | Element | undefined}
    */
-  private getXMLElements(parent: XMLDocument | Element, tag: string, index: number = NaN): Element[] | Element {
+  private getXMLElements(parent: XMLDocument | Element, tag: string, index: number = NaN): Element[] | Element | void {
     const elements = parent?.getElementsByTagNameNS(this.schema(), tag);
-    if (!isNaN(index) && elements.length) return elements[index];
+    if (!elements.length) return;
+    if (!isNaN(index)) return elements[index];
     return Array.from(elements)
   }
 
