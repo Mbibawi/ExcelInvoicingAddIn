@@ -671,6 +671,11 @@ class GraphAPI {
   private accessToken: string;
   private sessionId: string;
   private filePath: string;
+  private methods = {
+    post: "POST",
+    get: "GET",
+    patch: "PATCH",
+  }
 
   constructor(accessToken: string, filePath?: string, sessionId?: string, presist: Boolean = false) {
     this.accessToken = accessToken;
@@ -685,16 +690,10 @@ class GraphAPI {
   async createFileSession(persist: Boolean = false) {
     const endPoint = `${this.GRAPH_API_BASE_URL}${this.filePath}:/workbook/createSession`;
     const body = { persistChanges: persist };
-    const response = await this.sendRequest(endPoint, 'POST', body)
-    if (!response?.ok) {
-      alert(await response?.text());
-      throw new Error("Failed to create workbook session");
-    }
+
+    const response = await this.sendRequest(endPoint, this.methods.post, body, undefined, undefined, "Erro: Failed to create workbook session");
+
     const session = await response?.json();
-    if (!session) {
-      alert('Failed to create workbook session');
-      throw new Error('Failed to create workbook session');
-    }
     return session.id as string;
   }
 
@@ -704,9 +703,8 @@ class GraphAPI {
   async closeFileSession(sessionId: string) {
     if (!this.filePath) return;
     const endPoint = `${this.GRAPH_API_BASE_URL}${this.filePath}:/workbook/closeSession`;
-    const resp = await this.POSTRequest(endPoint, undefined, 'Error closing the session', sessionId);
+    const resp = await this.sendRequest(endPoint, this.methods.post, undefined, sessionId, undefined, 'Error closing the session');
     if (resp) console.log(`The session was closed successfully! ${await resp.text()}`)
-
   }
 
   /**
@@ -725,12 +723,7 @@ class GraphAPI {
     if (headers) endPoint += 'range';//The "range" endpoint returns all the table including the headers row
     if (!headers) endPoint += 'rows';//The "rows" endpoint returns only  the body of the table without the headers
     else if (columns) endPoint += 'columns';
-    const response = await this.sendRequest(endPoint, 'GET');
-
-    if (!response?.ok) {
-      alert(`Error fetching row count: ${await response?.text()}`);
-      throw new Error(`Error fetching row count: ${await response?.text()}`);
-    };
+    const response = await this.sendRequest(endPoint, this.methods.get, undefined, undefined, undefined, `Error fetching row count`);
 
     const data = await response?.json();
     if (headers)
@@ -752,7 +745,7 @@ class GraphAPI {
     if (!columnName || !values?.length || !this.filePath) return;
 
     // Step 3: Apply filter using the column name
-    const filterUrl = `${this.GRAPH_API_BASE_URL}${this.filePath}:/workbook/tables/${tableName}/columns/${columnName}/filter/apply`;
+    const endPoint = `${this.GRAPH_API_BASE_URL}${this.filePath}:/workbook/tables/${tableName}/columns/${columnName}/filter/apply`;
 
     let body;
     if (onValues)
@@ -770,9 +763,9 @@ class GraphAPI {
         "operator": "And",
       }
     }
-
-    const resp = await this.POSTRequest(filterUrl, body, 'Error applying filter', sessionId);
-    if (resp) console.log(`Filter successfully applied to column ${columnName}!`);
+    const response = await this.sendRequest(endPoint, this.methods.post, body, sessionId, undefined, 'Error while applying filter to the Excel table');
+   
+    if (response) console.log(`Filter successfully applied to column ${columnName}!`);
 
   };
 
@@ -789,14 +782,10 @@ class GraphAPI {
 
     // Step 3: Apply filter using the column name
     const endPoint = `${this.GRAPH_API_BASE_URL}${this.filePath}:/workbook/tables/${tableName}/range/visibleView`;
-    const response = await this.sendRequest(endPoint, 'GET', undefined, sessionId);
-    if (response?.ok) {
-      const data = await response?.json();
-      return data.values as any[][];
-    } else {
-      const message = `Error applying filter: ${await response?.text()}`;
-      alert(message);
-    }
+    const response = await this.sendRequest(endPoint, this.methods.get, undefined, sessionId, undefined, "Error applying filter");
+    const data = await response?.json();
+    return data.values as any[][];
+ 
   };
 
   /**
@@ -808,7 +797,7 @@ class GraphAPI {
    */
   async clearFilterExcelTable(tableName: string, sessionId?: string) {
     const endPoint = `${this.GRAPH_API_BASE_URL}${this.filePath}:/workbook/tables/${tableName}/clearFilters`
-    this.sendRequest(endPoint, 'POST', undefined, sessionId)
+    await this.sendRequest(endPoint, this.methods.post, undefined, sessionId, undefined, "Erro: Failed to clear the Excel table filter");
   };
 
   /**
@@ -823,9 +812,9 @@ class GraphAPI {
  */
   async addRowToExcelTable(row: any[], index: number | null, tableName: string, filter: boolean = false) {
     if (!this.filePath || !tableName || !row?.length) return alert('The filePath or the tableName argument is missing or not valid');
-    const sessionId = await this.createFileSession(true);
-    if (sessionId) return alert('There was an issue with the creation of the file cession. Check the console.log for more details');
-    const url = `${this.GRAPH_API_BASE_URL}${this.filePath}:/workbook/tables/${tableName}/rows`;//The url to add a row to the table
+    const sessionId = this.sessionId || await this.createFileSession(true);
+    if (!sessionId) return alert('The sessionId is missing Check the console.log for more details');
+    const endPoint = `${this.GRAPH_API_BASE_URL}${this.filePath}:/workbook/tables/${tableName}/rows`;//The url to add a row to the table
 
     const body = {
       index: index,
@@ -834,7 +823,7 @@ class GraphAPI {
 
     await this.clearFilterExcelTable(tableName, sessionId);//We clear the filtering of the table
 
-    const resp = await this.POSTRequest(url, body, "Error adding row", sessionId);
+    const resp = await this.sendRequest(endPoint, this.methods.post, body, sessionId, undefined, "Error adding row to the Excel Table");
 
     if (resp) console.log("Row added successfully!");
 
@@ -871,12 +860,7 @@ class GraphAPI {
     };
 
     try {
-      const response = await this.sendRequest(url, 'PATCH', body, sessionId);
-      if (!response?.ok) {
-        const error = await response?.json();
-        throw new Error(`Graph API Error: ${error.error.message}`);
-      }
-
+      const response = await this.sendRequest(url, this.methods.patch, body, sessionId, undefined, "Error while updating the Excel Table row's values");
       const data = await response?.json();
       console.log('Update Successful:', data);
       return data;
@@ -921,7 +905,7 @@ class GraphAPI {
       const firstRow = xml.getTableRow(table, 1);
 
       rows.forEach((row, index) => {
-        const newXmlRow = xml.insertRowToXMLTable(table, firstRow, NaN, true) || table.appendChild(xml.createTableRow());
+        const newXmlRow = xml.insertRowAfterFirst(table, firstRow, NaN, true) || table.appendChild(xml.createTableRow());
         if (!newXmlRow) return;
         const isTotal = totalsLabels?.includes(row[0]);
         const isLast = index === rows.length - 1;
@@ -1010,7 +994,7 @@ private async convertBlobIntoXML(blob: Blob): Promise<[XMLDocument, JSZip]> {
     if (!this.filePath) return;
 
     // Step 3: Apply filter using the column name
-    const filterUrl = `${this.GRAPH_API_BASE_URL}${this.filePath}:/workbook/tables/${tableName}/sort/apply`;
+    const endPoint = `${this.GRAPH_API_BASE_URL}${this.filePath}:/workbook/tables/${tableName}/sort/apply`;
 
     const fields = columns.map(([index, ascending]) => {
       return {
@@ -1025,7 +1009,7 @@ private async convertBlobIntoXML(blob: Blob): Promise<[XMLDocument, JSZip]> {
       "matchCase": matchCase
     }
 
-    const resp = await this.POSTRequest(filterUrl, body, "Error sorting table", sessionId)
+    const resp = await this.sendRequest(endPoint, this.methods.post, body, sessionId, undefined, "Error sorting table");
 
     if (resp)
       console.log(`Table successfully sorted according to columns criteria: ${columns.map(([col, asc]) => col).join(' & ')}!`);
@@ -1038,12 +1022,10 @@ private async convertBlobIntoXML(blob: Blob): Promise<[XMLDocument, JSZip]> {
  * @param {string} filePath 
  * @returns {Blob} - A blob of the fetched file, if successful
  */
-  private async fetchFileFromOneDrive(filePath = this.filePath): Promise<Blob> {
+  private async fetchFileFromOneDrive(filePath = this.filePath): Promise<Blob|undefined> {
     const endPoint = `${this.GRAPH_API_BASE_URL}${filePath}:/content`;
-    const response = await this.sendRequest(endPoint, 'GET')
-     if (!response?.ok) throw new Error("Failed to fetch Word template");
-
-    return await response.blob(); // Returns the Word template as a Blob
+    const response = await this.sendRequest(endPoint, this.methods.get, undefined, undefined, undefined, "Failed to fetch Word template");
+    return await response?.blob(); // Returns the Word template as a Blob
   };
 
   /**
@@ -1091,35 +1073,23 @@ private async convertBlobIntoXML(blob: Blob): Promise<[XMLDocument, JSZip]> {
       return await zip.generateAsync({ type: "blob" });
     }
   };
-  /**
-   * Sends a POST request to edit a file using graph API
-   * @param {string} endPoint - The url of the file to be edited
-   * @param {string} body - the body of the request
-   * @param {string} message - The alert that will be displayed if the request fails
-   * @param {string} sessionId - the session ID
-   * @returns {string | void} - The response from the server, if successful or an alert message in case of an error
-   */
-  private async POSTRequest(endPoint: string, body: object | undefined, message: string, sessionId?: string) {
-    if (!endPoint || !this.accessToken) return;
-    const response = await this.sendRequest(endPoint, 'POST', body, sessionId);
-    if (response?.ok) {
-      return response
-    } else {
-      message = `${message}:\n ${await response?.text()}`;
-      alert(message);
-      if (sessionId) await this.closeFileSession(sessionId)
-      throw new Error(message)
-    }
-  }
-
-  private async sendRequest(endPoint: string, method: string, body?: object, sessionId?: string, contentType?: string) {
+ 
+  private async sendRequest(endPoint: string, method: string, body?: object, sessionId?: string, contentType?: string, message = "") {
     if (!this.accessToken) return;
     const request: RequestInit = {
       method: method,
       headers: this.graphHeaders(sessionId, contentType)
     }
-    if (body) request.body = JSON.stringify(body)
-    return await fetch(endPoint, request);
+    if (body) request.body = JSON.stringify(body);
+
+    const response = await fetch(endPoint, request);
+
+    if (response?.ok) return response;
+    
+    message = `${message || `Error while sending ${method} request` }:\n ${await response?.text()}`;
+    alert(message);
+    if (sessionId) await this.closeFileSession(sessionId)
+    throw new Error(message)
   };
 
   /**
@@ -1320,7 +1290,7 @@ class XML {
     return this.getXMLElements(parent, this.tags.style, index) as Element;
   }
   
-  insertRowToXMLTable(table:Element, firstRow:Element, after: number = -1, clone: boolean = false) {
+  insertRowAfterFirst(table:Element, firstRow:Element, after: number = -1, clone: boolean = false) {
     const self = this;
     if (clone) return cloneFirstRow();
     else return create();
@@ -1328,7 +1298,7 @@ class XML {
     function create() {
       if (!table) return;
       const row = self.createTableRow();
-      after >= 0 ? (self.getXMLElements(table, 'tr', after) as Element)?.insertAdjacentElement('afterend', row) :
+      after >= 0 ? (self.getXMLElements(table, self.tags.row, after) as Element)?.insertAdjacentElement('afterend', row) :
         table.appendChild(row);
       return row;
     }
@@ -1408,11 +1378,11 @@ class XML {
     return this.doc.createElementNS(this.schema(), tag);
   }
   /**
-   * 
+   * Returns the XML element(s) nested under the XML parent element by its/their tag; 
    * @param {XMLDocument | Element} parent - the parent XML Document or XML Element nesting the XML Element(s) we want to retrieve
    * @param {string} tag - the tag of the XML Element(s) we want to retrieve
-   * @param {number} index - if provided, it will only return the element having the specified index
-   * @returns {Element[] | Element}
+   * @param {number} index - if provided, the function will only return the element having the specified index
+   * @returns {Element[] | Element | undefined}
    */
   private getXMLElements(parent: XMLDocument | Element, tag: string, index: number = NaN): Element[] | Element | undefined {
     const elements = parent?.getElementsByTagNameNS(this.schema(), tag);
