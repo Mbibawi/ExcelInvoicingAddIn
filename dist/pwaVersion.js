@@ -650,13 +650,13 @@ async function issueLeaseLetter(create = false) {
      */
     const column = (RT) => RT.col;
     const ctrls = Object.values(Ctrls);
-    const inputs = [];
     const findRT = (id) => ctrls.find(RT => RT.tag === id);
-    const findInput = (id) => inputs.find(([input, col]) => input.id === id)?.[0];
     let row = [], rowIndex = null;
     (async function showForm() {
         if (create)
             return;
+        const inputs = [];
+        const findInput = (id) => inputs.find(([input, col]) => input.id === id)?.[0];
         const tableRows = await graph.fetchExcelTable(tableName, false, false); //We are calling the "rows" endpoint which returns the table rows without the headers.
         if (!tableRows)
             return;
@@ -725,7 +725,7 @@ async function issueLeaseLetter(create = false) {
             form?.appendChild(btn);
             btn.classList.add('button');
             btn.innerText = 'Créer lettre';
-            btn.onclick = () => issueLeaseLetter(true);
+            btn.onclick = () => generate(inputs);
         })();
         (function homeBtn() {
             showMainUI(true);
@@ -766,11 +766,10 @@ async function issueLeaseLetter(create = false) {
         }
         ;
     })();
-    (async function generate() {
-        if (!create)
-            return;
+    async function generate(inputs) {
         if (!inputs.length)
             return;
+        const findInput = (id) => inputs.find(([input, col]) => input.id === id)?.[0];
         const templatePath = "Legal/Mon Cabinet d'Avocat/Administratif/Modèles Actes/Template_Révision de loyer [DO NOT MODIFY].docx";
         const fileName = prompt('Provide the file name without special characthers');
         if (!fileName)
@@ -819,7 +818,7 @@ async function issueLeaseLetter(create = false) {
             });
         })();
         spinner(false);
-    })();
+    }
 }
 /**
  * Updates the data list or the value of bound inputs according to the value of the input that has been changed
@@ -831,7 +830,6 @@ async function issueLeaseLetter(create = false) {
 function inputOnChange(index, inputs, table, invoice) {
     if (!table?.length)
         return;
-    const setValue = (input, value) => input.value = value?.toString() || '';
     const filledInputs = inputs
         .filter(([input, col]) => input.value && col <= index); //Those are all the inputs that the user filled with data
     const filtered = filterTableByInputsValues(filledInputs, table); //We filter the table based on the filled inputs
@@ -856,6 +854,13 @@ function inputOnChange(index, inputs, table, invoice) {
         boundInputs.forEach(([input, col]) => setValue(input, row[col]));
         return found;
     }
+    function setValue(input, value) {
+        if (input.type === "date")
+            input.valueAsDate = dateFromExcel(value); //!We must convert the dates from Excel
+        else
+            input.value = value?.toString() || '';
+    }
+    ;
 }
 ;
 /**

@@ -698,15 +698,15 @@ async function issueLeaseLetter(create: boolean = false) {
     const column = (RT: RT) => RT.col as number;
 
     const ctrls = Object.values(Ctrls);
-    const inputs: InputCol[] = [];
-
+    
     const findRT = (id: string) => ctrls.find(RT => RT.tag === id);
-    const findInput = (id: string) => inputs.find(([input, col]) => input.id === id)?.[0];
-
+    
 
     let row: any[] = [], rowIndex: number | null = null;
     (async function showForm() {
         if (create) return;
+        const inputs: InputCol[] = [];
+        const findInput = (id: string) => inputs.find(([input, col]) => input.id === id)?.[0];
         const tableRows = await graph.fetchExcelTable(tableName, false, false) as any[][];//We are calling the "rows" endpoint which returns the table rows without the headers.
         if (!tableRows) return;
         document.querySelector('table')?.remove();
@@ -775,7 +775,7 @@ async function issueLeaseLetter(create: boolean = false) {
             form?.appendChild(btn);
             btn.classList.add('button');
             btn.innerText = 'Créer lettre'
-            btn.onclick = () => issueLeaseLetter(true);
+            btn.onclick = () => generate(inputs);
         })();
 
         (function homeBtn() {
@@ -816,9 +816,9 @@ async function issueLeaseLetter(create: boolean = false) {
         };
     })();
 
-    (async function generate() {
-        if (!create) return;
+    async function generate(inputs:InputCol[]) {
         if (!inputs.length) return;
+        const findInput = (id: string) => inputs.find(([input, col]) => input.id === id)?.[0];
         const templatePath = "Legal/Mon Cabinet d'Avocat/Administratif/Modèles Actes/Template_Révision de loyer [DO NOT MODIFY].docx";
         const fileName = prompt('Provide the file name without special characthers');
         if (!fileName) return;
@@ -863,7 +863,7 @@ async function issueLeaseLetter(create: boolean = false) {
             });
         })();
         spinner(false);
-    })();
+    }
 
 }
 
@@ -877,7 +877,6 @@ async function issueLeaseLetter(create: boolean = false) {
  */
 function inputOnChange(index: number, inputs: InputCol[], table: any[][] | undefined, invoice: boolean) {
     if (!table?.length) return;
-    const setValue = (input: HTMLInputElement, value: any) => input.value = value?.toString() || '';
 
     const filledInputs =
         inputs
@@ -898,8 +897,7 @@ function inputOnChange(index: number, inputs: InputCol[], table: any[][] | undef
         populateSelectElement(input, list, combine);
     }
 
-
-    function fillBound(list: any[], input: HTMLInputElement): boolean {
+    function fillBound(list: any[], input: HTMLInputElement): boolean|void {
         if (list.length > 1) return false;
         const value = list[0], found = filtered.length < 2;
         if (!found) return setValue(input, value);//If the filtered array contains more than one row with the same unique value in the corresponding column, we will not fill the next inputs
@@ -907,6 +905,12 @@ function inputOnChange(index: number, inputs: InputCol[], table: any[][] | undef
         boundInputs.forEach(([input, col]) => setValue(input, row[col]));
         return found;
     }
+
+    function setValue (input: HTMLInputElement, value: any) {
+        if (input.type === "date")
+            input.valueAsDate = dateFromExcel(value);//!We must convert the dates from Excel
+        else input.value = value?.toString() || '';
+    };
 };
 /**
  * Filters the table according to the values of the inputs. The value of each input is compared to the value of the cell in the corresponding column in the table. If the value of the input is included in the cell value, it means that this row matches the criteria of this input. For a row to be included in the resulting filtered table, it must match the criteria of all the inputs.
