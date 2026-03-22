@@ -656,7 +656,7 @@ async function issueLeaseLetter(create = false) {
         if (create)
             return;
         const inputs = [];
-        const findInput = (id, inputs) => inputs.find(([input, col]) => input.id === id)?.[0];
+        const findInput = (id) => inputs.find(([input, col]) => input.id === id)?.[0];
         const tableRows = await graph.fetchExcelTable(tableName, false, false); //We are calling the "rows" endpoint which returns the table rows without the headers.
         if (!tableRows)
             return;
@@ -668,16 +668,16 @@ async function issueLeaseLetter(create = false) {
         const divs = [];
         (function insertInputs() {
             const unvalid = (values) => values.find(value => !value || isNaN(Number(value)));
-            const inputs = ctrls
+            ctrls
                 .filter(RT => !isNaN(column(RT)))
-                .map(RT => [createInput(RT), column(RT)]);
-            const owner = findInput(Ctrls.owner.title, inputs);
+                .map(RT => inputs.push([createInput(RT), column(RT)]));
+            const owner = findInput(Ctrls.owner.title);
             if (owner)
                 populateSelectElement(owner, getUniqueValues(column(Ctrls.owner), tableRows), false);
             (function inputsOnChange() {
                 const filled = inputs.filter(([input, col]) => col <= column(Ctrls.tenant));
                 filled.forEach(([input, col]) => input.onchange = () => inputOnChange(col, inputs, tableRows, false));
-                const index = findInput(Ctrls.index.title, inputs);
+                const index = findInput(Ctrls.index.title);
                 if (index)
                     index.onchange = () => {
                         const filtered = filterTableByInputsValues(filled, tableRows);
@@ -694,7 +694,7 @@ async function issueLeaseLetter(create = false) {
                         const currentLease = row[column(Ctrls.currentLease)];
                         if (unvalid([base, latestIndex, currentLease]))
                             return alert('Please make sure that the values of the current lease, the base indice and the new indice are all provided and valid numbers');
-                        const currentLeaseInput = findInput(Ctrls.currentLease.title, inputs);
+                        const currentLeaseInput = findInput(Ctrls.currentLease.title);
                         if (!currentLeaseInput)
                             return alert('Current lease input not found');
                         const newLease = (Number(currentLease) * (Number(latestIndex) / Number(base))).toFixed(2).toString();

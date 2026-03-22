@@ -701,12 +701,11 @@ async function issueLeaseLetter(create: boolean = false) {
 
     const findRT = (id: string) => ctrls.find(RT => RT.title === id);
 
-
     let row: any[] = [], rowIndex: number | null = null;
     (async function showForm() {
         if (create) return;
         const inputs: InputCol[] = [];
-        const findInput = (id: string, inputs:InputCol[]) => inputs.find(([input, col]) => input.id === id)?.[0];
+        const findInput = (id: string) => inputs.find(([input, col]) => input.id === id)?.[0];
         const tableRows = await graph.fetchExcelTable(tableName, false, false) as any[][];//We are calling the "rows" endpoint which returns the table rows without the headers.
         if (!tableRows) return;
         document.querySelector('table')?.remove();
@@ -717,18 +716,18 @@ async function issueLeaseLetter(create: boolean = false) {
 
         (function insertInputs() {
             const unvalid = (values: (string | undefined)[]) => values.find(value => !value || isNaN(Number(value)));
-            const inputs: InputCol[] =
-                ctrls
-                    .filter(RT => !isNaN(column(RT)))
-                    .map(RT => [createInput(RT), column(RT)] as const);
-            const owner = findInput(Ctrls.owner.title, inputs);
+             ctrls
+                .filter(RT => !isNaN(column(RT)))
+                .map(RT => inputs.push([createInput(RT), column(RT)] as const));
+            
+            const owner = findInput(Ctrls.owner.title);
             if(owner) populateSelectElement(owner, getUniqueValues(column(Ctrls.owner), tableRows), false);
 
             (function inputsOnChange() {
                 const filled = inputs.filter(([input, col]) => col <= column(Ctrls.tenant));
                 filled.forEach(([input, col]) => input.onchange = () => inputOnChange(col, inputs, tableRows, false));
 
-                const index = findInput(Ctrls.index.title, inputs);
+                const index = findInput(Ctrls.index.title);
                 if (index) index.onchange = () => {
                     const filtered = filterTableByInputsValues(filled, tableRows);
                     if (!filtered?.length) {
@@ -742,7 +741,7 @@ async function issueLeaseLetter(create: boolean = false) {
                     const latestIndex = index.value;
                     const currentLease = row[column(Ctrls.currentLease)];
                     if (unvalid([base, latestIndex, currentLease])) return alert('Please make sure that the values of the current lease, the base indice and the new indice are all provided and valid numbers');
-                    const currentLeaseInput = findInput(Ctrls.currentLease.title, inputs);
+                    const currentLeaseInput = findInput(Ctrls.currentLease.title);
                     if (!currentLeaseInput) return alert('Current lease input not found');
                     const newLease = (Number(currentLease) * (Number(latestIndex) / Number(base))).toFixed(2).toString();
                     currentLeaseInput.value = newLease;//This will show the value of the new lease after applying the calculation
