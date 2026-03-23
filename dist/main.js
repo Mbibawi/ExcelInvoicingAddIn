@@ -1276,8 +1276,6 @@ class XML {
      */
     getXMLElements(parent, tag, index = NaN) {
         const elements = parent?.getElementsByTagNameNS(this.schema(), tag);
-        if (!elements.length)
-            return;
         if (!isNaN(index))
             return elements[index];
         return Array.from(elements);

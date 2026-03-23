@@ -1390,7 +1390,6 @@ class XML {
    */
   private getXMLElements(parent: XMLDocument | Element, tag: string, index: number = NaN): Element[] | Element | void {
     const elements = parent?.getElementsByTagNameNS(this.schema(), tag);
-    if (!elements.length) return;
     if (!isNaN(index)) return elements[index];
     return Array.from(elements)
   }

@@ -34,6 +34,7 @@ type LeaseCtrls = {
     initialYear: RT;
     revisionYear: RT;
     baseYear: RT;
+    anniversaryDate: RT;
     newLease: RT;
     nextRevision: RT;
 };

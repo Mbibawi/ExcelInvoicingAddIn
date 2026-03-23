@@ -637,11 +637,12 @@ async function issueLeaseLetter(create = false) {
         indexDate: { title: 'RTDateIndice', label: 'Date de l\'indice de révision', col: 11, type: 'date', value: '' },
         currentLease: { title: 'RTLoyerActuel', label: 'Loyer Actuel (ou révisé)', col: 12, type: 'text', value: '' },
         revisionDate: { title: 'RTDate', label: 'Date de la dernière Révision', col: 13, type: 'date', value: '' },
-        initialYear: { title: 'RTIndiceInitialAnnée', type: 'text', value: '' },
-        revisionYear: { title: 'RTYear', type: 'text', value: '' },
-        baseYear: { title: 'RTPreviousYear', type: 'text', value: '' },
-        newLease: { title: 'RTLoyerNouveau', type: 'text', value: '' },
-        nextRevision: { title: 'RTNextRevision', type: 'text', value: '' },
+        anniversaryDate: { title: 'RTDateAnniversaire', value: '' },
+        initialYear: { title: 'RTIndiceInitialAnnée', value: '' },
+        baseYear: { title: 'RTIndiceBaseAnnée', value: '' },
+        revisionYear: { title: 'RTIndiceAnnée', value: '' },
+        newLease: { title: 'RTLoyerNouveau', value: '' },
+        nextRevision: { title: 'RTProchaineRevision', value: '' },
     };
     /**
      * This function casts the "col" property as "number" beacause the col property of some RTs is "undefined". So this function will mainly cast the col property to a number in order to avoid casting each time we retrieve the col property
@@ -689,17 +690,16 @@ async function issueLeaseLetter(create = false) {
                         }
                         row = filtered[0];
                         rowIndex = tableRows.indexOf(row);
-                        const base = row[column(Ctrls.baseIndex)] || row[column(Ctrls.initialIndex)];
-                        const latestIndex = index.value;
-                        const currentLease = row[column(Ctrls.currentLease)];
+                        const initial = row[column(Ctrls.initialIndex)]; //This is the value of the inital index
+                        const base = row[column(Ctrls.baseIndex)] || initial; //This is the value of the base index
+                        const latestIndex = index.value; //this is the latest index
+                        const currentLease = row[column(Ctrls.currentLease)]; //This is the value of the current lease
                         if (unvalid([base, latestIndex, currentLease]))
                             return alert('Please make sure that the values of the current lease, the base indice and the new indice are all provided and valid numbers');
-                        const currentLeaseInput = findInput(Ctrls.currentLease.title);
-                        if (!currentLeaseInput)
-                            return alert('Current lease input not found');
                         const newLease = (Number(currentLease) * (Number(latestIndex) / Number(base))).toFixed(2).toString();
+                        const currentLeaseInput = findInput(Ctrls.currentLease.title);
                         currentLeaseInput.value = newLease; //This will show the value of the new lease after applying the calculation
-                        Ctrls.baseIndex.value = latestIndex;
+                        Ctrls.baseIndex.value = latestIndex; //We replace the value of the base index with the latest index
                         Ctrls.newLease.value = newLease; //We update the new lease RT
                     };
             })();
@@ -788,11 +788,18 @@ async function issueLeaseLetter(create = false) {
             else
                 RT.value = input.value;
         });
-        const year = date.getFullYear();
-        Ctrls.revisionDate.value = getDateString(date);
-        Ctrls.revisionYear.value = year.toString();
-        Ctrls.baseYear.value = (year - 1).toString();
-        Ctrls.nextRevision.value = (year + 1).toString();
+        (function setMissingValues() {
+            const leaseDate = dateFromExcel(row[column(Ctrls.leaseDate)]);
+            const getYear = (date) => dateFromExcel(date).getFullYear().toString();
+            const anniversary = (year) => [leaseDate.getDate(), leaseDate.getMonth() + 1, year].join('/');
+            const year = date.getFullYear();
+            Ctrls.initialYear.value = getYear(row[column(Ctrls.initialIndexDate)]);
+            Ctrls.baseYear.value = getYear(row[column(Ctrls.baseIndexDate)]);
+            Ctrls.anniversaryDate.value = anniversary(year);
+            Ctrls.revisionDate.value = getDateString(date);
+            Ctrls.revisionYear.value = year.toString();
+            Ctrls.nextRevision.value = anniversary(year + 1);
+        })();
         const contentControls = ctrls.map(RT => [RT.title, RT.value]);
         graph.createAndUploadWordDocument(templatePath, savePath, 'FR', undefined, undefined, contentControls);
         (function updateLeasesTable() {
