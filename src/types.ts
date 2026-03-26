@@ -71,7 +71,7 @@ type settings = {
     issueInvoice: setting,
     leases?: setting,
     Letter?: setting,
-    reports?:setting
+    reports?: setting
 }
 
 
@@ -80,6 +80,7 @@ type values = [number, number];
 type folderItem = { name: string; id: string; folder: any; createdDateTime: string; lastModifiedDateTime: string };
 type fileItem = { name: string; id: string; file: any; createdDateTime: string; lastModifiedDateTime: string; "@microsoft.graph.downloadUrl": string };
 type InputCol = [HTMLInputElement, number];
+type onClick = (ev: MouseEvent) => any;
 declare class JSZip {
     constructor();
     loadAsync(data: any): Promise<JSZip>;
