@@ -40,8 +40,8 @@ const settingsNames = {
         },
         {
             name: settingsNames.invoices.saveTo,
-            value: `${root}`,
-            label: 'Please provide the OneDrive defalut folder path wher the generated invoices will be saved'
+            value: `${root}Comptabilité/Factures/Clients}`,
+            label: 'Please provide the OneDrive defalut folder path where the generated invoices will be saved'
         },
         {
             name: settingsNames.letter.template,
@@ -1083,8 +1083,14 @@ class GraphAPI {
             method: method,
             headers: this.graphHeaders(sessionId, contentType)
         };
-        if (body)
-            request.body = JSON.stringify(body);
+        if (body) {
+            if (body instanceof Blob || body instanceof ArrayBuffer) {
+                request.body = body; // Send raw binary
+            }
+            else {
+                request.body = JSON.stringify(body); // Send JSON
+            }
+        }
         const response = await fetch(endPoint, request);
         if (response?.ok)
             return response;
