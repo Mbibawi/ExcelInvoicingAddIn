@@ -1674,20 +1674,20 @@ function showMainUI(homeBtn) {
         return;
     container.innerHTML = "";
     if (homeBtn)
-        return appendBtn('home', 'Back to Main', showMainUI);
+        return appendBtn('home', 'Back to Main', () => showMainUI);
     const lf = new LawFirm();
     appendBtn('entry', 'Add Entry', () => lf.addNewEntry);
     appendBtn('invoice', 'Invoice', () => lf.issueInvoice);
     appendBtn('letter', 'Letter', () => lf.issueLetter);
     appendBtn('lease', 'Leases', () => lf.issueLeaseLetter);
     appendBtn('search', 'Search Files', () => lf.searchFiles);
-    appendBtn('settings', 'Settings', saveSettings);
+    appendBtn('settings', 'Settings', () => saveSettings);
     function appendBtn(id, text, onClick) {
         const btn = document.createElement('button');
         btn.id = id;
         btn.classList.add("ms-Button");
         btn.innerText = text;
-        btn.onclick = () => onClick();
+        btn.onclick = onClick;
         container?.appendChild(btn);
         return btn;
     }
