@@ -1662,7 +1662,7 @@ function showMainUI(homeBtn) {
         return;
     container.innerHTML = "";
     if (homeBtn)
-        return appendBtn('home', 'Back to Main', () => showMainUI);
+        return appendBtn('home', 'Back to Main', () => showMainUI());
     const lf = new LawFirm();
     appendBtn('entry', 'Add Entry', () => lf.addNewEntry());
     appendBtn('invoice', 'Invoice', () => lf.issueInvoice());

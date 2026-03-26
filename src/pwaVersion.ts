@@ -1805,7 +1805,7 @@ function showMainUI(homeBtn?: boolean) {
     const container = byID('btns');
     if (!container) return;
     container.innerHTML = "";
-    if (homeBtn) return appendBtn('home', 'Back to Main', () => showMainUI);
+    if (homeBtn) return appendBtn('home', 'Back to Main', ()=>showMainUI());
     const lf = new LawFirm();
     appendBtn('entry', 'Add Entry', () => lf.addNewEntry());
     appendBtn('invoice', 'Invoice', () => lf.issueInvoice());
