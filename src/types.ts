@@ -54,7 +54,35 @@ type InvoiceCtrls = {
     adress: RT;
 };
 
+type settingInput = {
+    label: string;//The lable of the input that will be created in the settings pannel
+    name: string; //the name of the setting that will be saved in the local storage
+    value: string;//The value of the setting
+};
+
+type setting = {
+    workBook?: settingInput;
+    wordTemplate?: settingInput;
+    saveTo?: settingInput;
+    tableName?: settingInput
+}
+
+type settings = {
+    issueInvoice: setting,
+    leases: setting,
+    Letter: setting,
+}
+
+
+
 type values = [number, number];
 type folderItem = { name: string; id: string; folder: any; createdDateTime: string; lastModifiedDateTime: string };
 type fileItem = { name: string; id: string; file: any; createdDateTime: string; lastModifiedDateTime: string; "@microsoft.graph.downloadUrl": string };
 type InputCol = [HTMLInputElement, number];
+declare class JSZip {
+    constructor();
+    loadAsync(data: any): Promise<JSZip>;
+    file(path: string, doc?: string): any; // or create a more detailed interface for the file
+    generateAsync(options: { type: string }): Promise<any>;
+    files: { [key: string]: any };
+}

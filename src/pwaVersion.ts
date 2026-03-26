@@ -10,7 +10,7 @@ function showMainUI(homeBtn?: boolean) {
     appendBtn('letter', 'Letter', issueLetter);
     appendBtn('lease', 'Leases', issueLeaseLetter);
     appendBtn('search', 'Search Files', searchFiles);
-    appendBtn('settings', 'Settings', settings);
+    appendBtn('settings', 'Settings', saveSettings);
 
     function appendBtn(id: string, text: string, onClick: Function) {
         const btn = document.createElement('button');
@@ -24,31 +24,6 @@ function showMainUI(homeBtn?: boolean) {
 };
 
 
-async function getAccessToken() {
-    const clientId = "157dd297-447d-4592-b2d3-76b643b97132";
-    const redirectUri = "https://mbibawi.github.io/ExcelInvoicingAddIn"; //!must be the same domain as the app
-    const msalConfig: Object = {
-        auth: {
-            clientId: clientId,
-            authority: "https://login.microsoftonline.com/common",
-            redirectUri: redirectUri,
-        },
-        cache: {
-            cacheLocation: "localStorage",
-            storeAuthStateInCookie: true
-        }
-    };
-    return await new MSAL(clientId, redirectUri, msalConfig).getTokenWithMSAL()
-}
-
-async function setLocalStorageTitles(graph: GraphAPI) {
-    TableRows = await graph.fetchExcelTable(tableName, true) as string[][];//!We fetch the entire table inlcuding the headers row (we call the "/range" endpoint not the "/rows" endpoint)
-
-    tableTitles = TableRows?.[0];
-    if (!tableTitles) return [];
-    localStorage.tableTitles = JSON.stringify(tableTitles);
-    return tableTitles;
-}
 /**
  * 
  * @param {boolean} add - If false, the function will only show a form containing input fields for the user to provide the data for the new row to be added to the Excel Table. If true, the function will parse the values from the input fields in the form, and will add them as a new row to the Excel Table. Its default value is false.
@@ -56,12 +31,19 @@ async function setLocalStorageTitles(graph: GraphAPI) {
  * @param {any[]} row - If provided, the function will add the row directly to the Excel Table without needing to retrieve the data from the inputs.
  */
 async function addNewEntry(add: boolean = false, row?: any[]) {
-    const workbookPath = getAccountsWorkBookPath();
+    const findSetting = (name: string, settings: settingInput[]) => settings?.find(setting => setting.name === name);
+    const stored = getSavedSettings() || undefined;
+    if (!stored) return;
+    const workbookPath = findSetting(settingsNames.invoices.workBook, stored)?.value;
     if (!workbookPath) return alert('Could not get a valid workbook path from the localStorage');
-    accessToken = await getAccessToken() || '';
-    if (!accessToken) return alert('The access token is missing. Check the console.log for more details');
-    const graph = new GraphAPI(accessToken, workbookPath);
+    const tableName = findSetting(settingsNames.invoices.tableName, stored)?.value;
+    if (!tableName) return alert('Could not get the name of the Excel table from the localStorage');
     if (!workbookPath || !tableName) throw new Error('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
+    const graph = new GraphAPI('', workbookPath);
+
+    const TableRows = await graph.fetchExcelTable(tableName, true);
+    if(!TableRows?.length) return alert('Failed to retrieve the Excel table')
+    const tableTitles = TableRows[0];
 
     (async function showAddNewForm() {
         if (add) return;
@@ -77,8 +59,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
         async function createForm() {
             const sessionId = await graph.createFileSession();
             if (!sessionId) throw new Error('There was an issue with the creation of the file cession. Check the console.log for more details');
-            if (!tableTitles || !TableRows) tableTitles = await setLocalStorageTitles(graph);
-            const tableBody = TableRows.slice(1, -1);
+            const tableBody = TableRows!.slice(1, -1);
             const inputs: HTMLInputElement[] = [];
             const bound = (indexes: number[]) => inputs.filter(input => indexes.includes(getIndex(input))).map(input => [input, getIndex(input)]) as InputCol[];
 
@@ -290,7 +271,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
 
         async function addRow(row: any[] | undefined) {
             if (!row) throw new Error('The row is not valid');
-            const visibleCells = await graph.addRowToExcelTable(row, TableRows.length - 2, tableName, true);
+            const visibleCells = await graph.addRowToExcelTable(row, TableRows!.length - 2, tableName!, tableTitles);
 
             if (!visibleCells?.length)
                 return alert('There was an issue with the adding or the filtering, check the console.log for more details');
@@ -370,11 +351,23 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
 
 // Update Word Document
 async function invoice(issue: boolean = false) {
-    const workbookPath = getAccountsWorkBookPath();
-    if (!workbookPath) return alert('Could not get a valid workbook path from the localStorage');
-    accessToken = await getAccessToken() || '';
-    if (!accessToken) return alert('The access token is missing. Check the console.log for more details');
-    const graph = new GraphAPI(accessToken, workbookPath);
+    const findSetting = (name: string, settings: settingInput[]) => settings?.find(setting => setting.name === name);
+    const stored = getSavedSettings() || undefined;
+    if (!stored) return;
+    const workbookPath = findSetting(settingsNames.invoices.workBook, stored)?.value || prompt('Provide the Excel workbook path');
+    if (!workbookPath) return alert('Could not retrieve the path of the Excel workbook from the localStorage');
+    const tableName = findSetting(settingsNames.invoices.tableName, stored)?.value;
+    if (!tableName) return alert('Could not get the name of the Excel table from the localStorage');
+    const templatePath = findSetting(settingsNames.invoices.template, stored)?.value || prompt('Provide the path for the Word invoice template');
+    if (!templatePath) return alert('Could not get a valid Word tempalte path  from the localStorage');
+    const saveTo = findSetting(settingsNames.invoices.saveTo, stored)?.value || prompt('Provide teh path for the folder where the invoice should be saved') || 'MISSING PATH';
+
+    const graph = new GraphAPI('', workbookPath);
+
+    const TableRows = await graph.fetchExcelTable(tableName, true);
+    if (!TableRows?.length) return alert('Failed to retrieve the Excel table');
+    const tableTitles = TableRows[0];
+
     (async function showInvoiceForm() {
         if (issue) return;
         if (!workbookPath || !tableName) return alert('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
@@ -391,7 +384,6 @@ async function invoice(issue: boolean = false) {
         async function createForm() {
             const sessionId = await graph.createFileSession() || '';
             if (!sessionId) throw new Error('There was an issue with the creation of the file cession. Check the console.log for more details');
-            if (!tableTitles || !TableRows) tableTitles = await setLocalStorageTitles(graph);
 
             insertInvoiceForm(tableTitles);
             await graph.closeFileSession(sessionId);
@@ -399,7 +391,7 @@ async function invoice(issue: boolean = false) {
         }
 
         function insertInvoiceForm(tableTitles: string[]) {
-            if (!tableTitles) throw new Error('The table titles are missing. Check the console.log for more details');
+            if (!tableTitles || !TableRows) throw new Error('The table titles or the table rows are missing. Check the console.log for more details');
             const form = byID();
             if (!form) throw new Error('The form element was not found');
             form.innerHTML = '';
@@ -499,9 +491,7 @@ async function invoice(issue: boolean = false) {
 
     (async function issueInvoice() {
         if (!issue) return;
-        if (!templatePath || !destinationFolder) return alert('The full path of the Word Invoice Template and/or the destination folder where the new invoice will be saved, are either missing or not valid');
         spinner(true);//We show the spinner
-
         try {
             await editInvoice();
         } catch (error) {
@@ -542,14 +532,14 @@ async function invoice(issue: boolean = false) {
         const contentControls = getContentControlsValues(invoice, date);
 
         const fileName = getInvoiceFileName(clientName, matters, invoiceNumber);
-        let savePath = `${destinationFolder}/${fileName}`;
+        let savePath = `${saveTo}/${fileName}`;
 
-        savePath = prompt(`The file will be saved in ${destinationFolder}, and will be named : ${fileName}.\nIf you want to change the path or the name, provide the full file path and name of your choice without any sepcial characters`, savePath) || savePath;
+        savePath = prompt(`The file will be saved in ${saveTo}, and will be named : ${fileName}.\nIf you want to change the path or the name, provide the full file path and name of your choice without any sepcial characters`, savePath) || savePath;
 
         (async function editInvoiceFilterExcelClose() {
-            await graph.createAndUploadWordDocument(templatePath, savePath, lang, 'Invoice', wordRows, contentControls, totalsLabels);
+            await graph.createAndUploadDocumentFromTemplate(templatePath!, savePath, lang, [['Invoice', wordRows, 1]], contentControls, totalsLabels);
 
-            await graph.filterExcelTable(tableName, matter, matters, sessionId);//We filter the table by the matters that were invoiced
+            await graph.filterExcelTable(tableName!, matter, matters, sessionId);//We filter the table by the matters that were invoiced
 
             await graph.closeFileSession(sessionId);
             spinner(false);//We hide the spinner
@@ -570,12 +560,12 @@ async function invoice(issue: boolean = false) {
 
             if (!clientName || !matters?.length) throw new Error('could not retrieve the client name or the matter/matters list from the inputs');
 
-            await graph.clearFilterExcelTable(tableName, sessionId);//We unfilter the table;
+            await graph.clearFilterExcelTable(tableName!, sessionId);//We unfilter the table;
 
             //Filtering by Client (criteria[0])
-            await graph.filterExcelTable(tableName, client, [clientName], sessionId);
+            await graph.filterExcelTable(tableName!, client, [clientName], sessionId);
 
-            let visible = await graph.getVisibleCells(tableName, sessionId) as any[][];
+            let visible = await graph.getVisibleCells(tableName!, sessionId) as any[][];
 
             if (!visible) {
                 return alert('Could not retrieve the visible cells of the Excel table');
@@ -615,7 +605,6 @@ async function invoice(issue: boolean = false) {
 }
 
 async function issueLetter(create: boolean = false) {
-    accessToken = await getAccessToken() || '';
     (function showForm() {
         if (create) return;
         document.querySelector('table')?.remove();
@@ -646,27 +635,32 @@ async function issueLetter(create: boolean = false) {
         if (!create) return;
         const input = byID('textInput') as HTMLTextAreaElement;
         if (!input) return;
-        const templatePath = "Legal/Mon Cabinet d'Avocat/Administratif/Modèles Actes/Template_Lettre With Letter Head [DO NOT MODIFY].docx";
+        const stored = getSavedSettings();
+        const templatePath = stored?.find(setting => setting.name === settingsNames.letter.template)!.value;
+        if (!templatePath) return;
         const fileName = prompt('Provide the file name without special characthers');
         if (!fileName) return;
-        const filePath = `${prompt('Provide the destination folder', "Legal/Mon Cabinet d'Avocat/Clients")}/${fileName}.docx`;
-        if (!filePath) return;
+        const saveTo = stored?.find(setting => setting.name === settingsNames.letter.saveTo)!.value ||'NO STORED DEFAULT FOLDER PATH FOUND';
+        const saveToPath = `${prompt('Provide the destination folder', saveTo)}/${fileName}.docx`;
+        if (!saveToPath) return;
 
         const contentControls: [string, string][] = [['RTCoreText', input.value], ['RTReference', 'Référence'], ['RTClientName', 'Nom du Client'], ['RTEmail', 'Email du client']];
 
-        new GraphAPI('', filePath).createAndUploadWordDocument(templatePath, filePath, 'FR', undefined, undefined, contentControls);
+        new GraphAPI('', saveToPath).createAndUploadDocumentFromTemplate(templatePath, saveToPath, 'FR', undefined, contentControls);
     })();
 
 }
 async function issueLeaseLetter(create: boolean = false) {
     spinner(true);
-    accessToken = await getAccessToken() || '';
-    if (!localStorage.leasesPath)
-        localStorage.leasesPath = prompt('Please provide the OneDrive full path (including the file name and extension) for the Excel Workbook', "Legal/Mon Cabinet d'Avocat/Clients/LeasesDataBase.xlsm");
-    const workbookPath = localStorage.leasesPath || alert('The excel Workbook path is not valid');
-    const tableName: string = 'LEASES';
-    const graph = new GraphAPI(accessToken, workbookPath);
-
+    const findSetting = (name: string, settings: settingInput[]) => settings?.find(setting => setting.name === name);
+    const stored = getSavedSettings() || undefined;
+    if (!stored) return;
+    const workbookPath = findSetting(settingsNames.leases.workBook, stored)?.value || prompt('Provide the Excel workbook path');
+    if (!workbookPath) return alert('Could not retrieve the path of the Excel workbook from the localStorage');
+    const tableName = findSetting(settingsNames.leases.tableName, stored)?.value;
+    if (!tableName) return alert('Could not get the name of the Excel table from the localStorage');
+    const graph = new GraphAPI('', workbookPath);
+    const tableRows = await graph.fetchExcelTable(tableName, false);//We are calling the "/rows" endPoint, so we will get the tableBody without the headers
 
     const Ctrls: LeaseCtrls = {
         owner: { title: 'RTBailleur', col: 0, label: 'Nom du Bailleur', type: 'select', value: '' },
@@ -674,15 +668,15 @@ async function issueLeaseLetter(create: boolean = false) {
         tenant: { title: 'RTLocataire', label: 'Nom du Locataire', col: 2, type: 'select', value: '' },
         leaseDate: { title: 'RTDateBail', label: 'Date du Bail', col: 3, type: 'date', value: '' },
         leaseType: { title: 'RTNature', label: 'Nature du Bail', col: 4, type: 'text', value: '' },
-        initialIndex: { title: 'RTIndiceInitial', label: 'Indice initial', col: 5, type: 'text', value: '' },
-        indexQuarter: { title: 'RTTrimestre', label: 'Trimestre de l\'indice', col: 6, type: 'text', value: '' },
+        initialIndex: { title: 'RTIndiceInitial', label: 'Indice initial', col: 5, type: 'number', value: '' },
+        indexQuarter: { title: 'RTTrimestre', label: 'Trimestre de l\'indice', col: 6, type: 'number', value: '' },
         initialIndexDate: { title: 'RTIndiceInitialDate', label: 'Date de l\'indice initial', col: 7, type: 'date', value: '' },
-        baseIndex: { title: 'RTIndiceBase', label: `Indice de référence`, col: 8, type: 'text', value: '' },
-        baseIndexDate: { title: 'RTDateIndiceBase', label: `Date de l'indice de référence`, col: 9, type: 'date', value: '' },
-        index: { title: 'RTIndice', label: 'Indice de révision', col: 10, type: 'text', value: '' },
+        baseIndex: { title: 'RTIndiceBase', label: 'Indice de référence', col: 8, type: 'number', value: '' },
+        baseIndexDate: { title: 'RTDateIndiceBase', label: 'Date de l\'indice de référence', col: 9, type: 'date', value: '' },
+        index: { title: 'RTIndice', label: 'Indice de révision', col: 10, type: 'number', value: '' },
         indexDate: { title: 'RTDateIndice', label: 'Date de l\'indice de révision', col: 11, type: 'date', value: '' },
-        currentLease: { title: 'RTLoyerActuel', label: 'Loyer Actuel (ou révisé)', col: 12, type: 'text', value: '' },
-        revisionDate: { title: 'RTDate', label: 'Date de la dernière Révision', col: 13, type: 'date', value: '' },
+        currentLease: { title: 'RTLoyerActuel', label: 'Loyer Actuel (ou révisé)', col: 12, type: 'number', value: '' },
+        revisionDate: { title: 'RTDateRévision', label: 'Date de la dernière Révision', col: 13, type: 'date', value: '' },
         anniversaryDate: { title: 'RTDateAnniversaire', value: '' },
         initialYear: { title: 'RTIndiceInitialAnnée', value: '' },
         baseYear: { title: 'RTIndiceBaseAnnée', value: '' },
@@ -702,12 +696,11 @@ async function issueLeaseLetter(create: boolean = false) {
 
     const findRT = (id: string) => ctrls.find(RT => RT.title === id);
 
-    let row: any[] = [], rowIndex: number | null = null;
+    let row: any[] | void, rowIndex: number | null = null;
     (async function showForm() {
         if (create) return;
         const inputs: InputCol[] = [];
         const findInput = (id: string) => inputs.find(([input, col]) => input.id === id)?.[0];
-        const tableRows = await graph.fetchExcelTable(tableName, false, false) as any[][];//We are calling the "rows" endpoint which returns the table rows without the headers.
         if (!tableRows) return;
         document.querySelector('table')?.remove();
         const form = byID();
@@ -726,18 +719,13 @@ async function issueLeaseLetter(create: boolean = false) {
 
             (function inputsOnChange() {
                 const filled = inputs.filter(([input, col]) => col <= column(Ctrls.tenant));
-                filled.forEach(([input, col]) => input.onchange = () => inputOnChange(col, inputs, tableRows, false));
+                filled.forEach(([input, col]) => input.onchange = () => row = inputOnChange(col, inputs, tableRows, false));
 
                 const index = findInput(Ctrls.index.title);
 
                 if (index) index.onchange = () => {
-                    const filtered = filterTableByInputsValues(filled, tableRows);
-                    if (!filtered?.length) {
-                        return prompt('No lease having owner name, property adress and tenant name as in the inputs was found')
-                    } else if (filtered.length > 1) {
-                        return prompt('Multiple leases having owner name, property adress and tenant name as in the inputs were found. Please provide the number of the lease you want to select :\n' + filtered.map((row, index) => `${index + 1} : ${row.join(', ')}`).join('\n'))
-                    }
-                    row = filtered[0];
+                    if (!row?.length)
+                        return alert('No lease having owner name, property adress and tenant name as in the inputs was found');
                     rowIndex = tableRows.indexOf(row);
                     const initial = row[column(Ctrls.initialIndex)];//This is the value of the inital index
                     const base = row[column(Ctrls.baseIndex)] || initial;//This is the value of the base index
@@ -780,7 +768,7 @@ async function issueLeaseLetter(create: boolean = false) {
             form?.appendChild(btn);
             btn.classList.add('button');
             btn.innerText = 'Créer lettre'
-            btn.onclick = () => generate(inputs);
+            btn.onclick = () => generate(inputs, row);
         })();
 
         (function homeBtn() {
@@ -817,9 +805,9 @@ async function issueLeaseLetter(create: boolean = false) {
         };
     })();
 
-    async function generate(inputs: InputCol[]) {
-        if (!inputs.length) return;
-        const findInput = (id: string) => inputs.find(([input, col]) => input.id === id)?.[0];
+    async function generate(inputs: InputCol[], row: any[] | void) {
+        if (!inputs.length) return alert('Either the inputs collection or the lease or the lease index are missing');
+        const findInputById = (RT: RT) => inputs.find(([input, col]) => input.id === RT.title)?.[0];
         const templatePath = "Legal/Mon Cabinet d'Avocat/Administratif/Modèles Actes/Template_Révision de loyer [DO NOT MODIFY].docx";
         const date = new Date();
         const fileName = prompt('Provide the file name without special characthers');
@@ -832,44 +820,58 @@ async function issueLeaseLetter(create: boolean = false) {
             if (id === Ctrls.currentLease.title) return;//!We don't update the value of current lease from the input because the value of the input is the new lease not the old one
             const RT = findRT(id);
             if (!RT) return;
-            if ([Ctrls.leaseDate, Ctrls.indexDate, Ctrls.baseIndexDate, Ctrls.initialIndexDate].includes(RT)) RT.value = getDateString(input.valueAsDate as Date);
+            if (RT.type === 'date') RT.value = getDateString(input.valueAsDate)
             else RT.value = input.value
         });
-        
-        (function setMissingValues() { 
+
+        (function setMissingValues() {
+            if (!row) return alert('The values in the input did not identifiy a unique lease in the Excel table');
             const leaseDate = dateFromExcel(row[column(Ctrls.leaseDate)]);
             const getYear = (date: number) => dateFromExcel(date).getFullYear().toString();
-            const anniversary = (year:number)=>[leaseDate.getDate(), leaseDate.getMonth()+1, year].join('/')
+            const anniversary = (year: number) => [leaseDate.getDate(), leaseDate.getMonth() + 1, year].join('/')
             const year = date.getFullYear();
             Ctrls.initialYear.value = getYear(row[column(Ctrls.initialIndexDate)]);
             Ctrls.baseYear.value = getYear(row[column(Ctrls.baseIndexDate)]);
-            Ctrls.anniversaryDate.value =anniversary(year);
+            Ctrls.anniversaryDate.value = anniversary(year);
             Ctrls.revisionDate.value = getDateString(date);
             Ctrls.revisionYear.value = year.toString();
-            Ctrls.nextRevision.value = anniversary(year+1);
+            Ctrls.nextRevision.value = anniversary(year + 1);
         })();
 
         const contentControls: [string, string][] = ctrls.map(RT => [RT.title, RT.value]);
 
-        graph.createAndUploadWordDocument(templatePath, savePath, 'FR', undefined, undefined, contentControls);
-
-        (function updateLeasesTable() {
+        graph.createAndUploadDocumentFromTemplate(templatePath, savePath, 'FR', undefined, contentControls);
+        
+        (async function updateExcelTable() {
+            if (!tableName) return;
+            const TableRows = await graph.fetchExcelTable(tableName, true);
+            if (!TableRows?.length) return alert('Failed to retrieve the Excel table');
+            const tableTitles = TableRows[0];
 
             (async function updateRow() {
-                if (!rowIndex) return;
-                const col = Ctrls.revisionDate.col as number;
-                const revisionDate = Ctrls.initialIndexDate.value.replace(Ctrls.initialYear.value, Ctrls.revisionYear.value);
-                row[col] = new Date(revisionDate);
-                const input = findInput(Ctrls.revisionDate.title)
-                if (input) input.value = revisionDate;
-                await graph.updateExcelTableRow(tableName, rowIndex, row)
+                if (!row || !rowIndex) return;
+                inputs.forEach(input => update(row!, input));
+                await graph.updateExcelTableRow(tableName, rowIndex, row);
+                return;
+                const col = column(Ctrls.revisionDate);
+                const revisionDate = findInputById(Ctrls.revisionDate)?.valueAsDate || undefined;
+                row![col] = getISODate(revisionDate);
             })();
+
             (async function newRow() {
-                if (rowIndex) return;
-                row = [];
-                inputs.forEach(([input, col]) => row[col] = input.value);
+                if (row || rowIndex) return;//This a scenario where no row has ever been found for the specified lease
+                row = Array(inputs.length);
+                inputs.forEach(input => update(row!, input));
                 await graph.addRowToExcelTable(row, rowIndex, tableName)
-            });
+            })();
+
+            function update(row: any[], [input, col]: InputCol) {
+                if (input.type === 'date')
+                    row[col] = getISODate(input.valueAsDate || undefined);
+                else if (input.type === 'number')
+                    row[col] = input.valueAsNumber;
+                else row[col] = input.value
+            }
         })();
         spinner(false);
     }
@@ -884,7 +886,7 @@ async function issueLeaseLetter(create: boolean = false) {
  * @param {boolean} invoice - If true, it means that we called the function in order to generate an invoice. If false, we called it in order to add a new entry in the table
  * @returns 
  */
-function inputOnChange(index: number, inputs: InputCol[], table: any[][] | undefined, invoice: boolean) {
+function inputOnChange(index: number, inputs: InputCol[], table: any[][] | undefined, invoice: boolean): any[] | void {
     if (!table?.length) return;
 
     const filledInputs =
@@ -900,19 +902,21 @@ function inputOnChange(index: number, inputs: InputCol[], table: any[][] | undef
     for (const [input, col] of boundInputs) {
         input.value = ''; //We reset the value of all bound inputs.
         const list = getUniqueValues(col, filtered);
-        if (fillBound(list, input)) break;//!If the function returns true, it means that we filled the value of all the bound inputs, so we break the loop. If it returns false, it means that there is more than one value in the list, so we need to create or update the data list of the input.
+        const row = fillBound(list, input);
+        if (row) return row;//!If the function returns true, it means that we filled the value of all the bound inputs, so we break the loop. If it returns false, it means that there is more than one value in the list, so we need to create or update the data list of the input.
+        //if (fillBound(list, input)) break;//!If the function returns true, it means that we filled the value of all the bound inputs, so we break the loop. If it returns false, it means that there is more than one value in the list, so we need to create or update the data list of the input.
         const combine = (invoice && [1, 2].includes(col))//For the "Matter" and "Nature" lists, we add a new element combining all the values separated by ","
 
         populateSelectElement(input, list, combine);
     }
 
-    function fillBound(list: any[], input: HTMLInputElement): boolean | void {
-        if (list.length > 1) return false;
+    function fillBound(list: any[], input: HTMLInputElement): void | any[] {
+        if (list.length > 1) return;
         const value = list[0], found = filtered.length < 2;
         if (!found) return setValue(input, value);//If the filtered array contains more than one row with the same unique value in the corresponding column, we will not fill the next inputs
         const row = filtered[0];//This is the unique row in the filtered list, we will use it to fill all the other inputs
         boundInputs.forEach(([input, col]) => setValue(input, row[col]));
-        return found;
+        return row;
     }
 
     function setValue(input: HTMLInputElement, value: any) {
@@ -961,6 +965,7 @@ function getNewExcelRow(inputs: HTMLInputElement[]) {
 
 
 function searchFiles() {
+    const graph = new GraphAPI('');
     (function showForm() {
         const form = byID('form') as HTMLDivElement;
         if (!form) return;
@@ -1024,9 +1029,6 @@ function searchFiles() {
 
     async function fetchAllDriveFiles(form: HTMLDivElement, record?: string) {
         if (record) return manageFilesDatabase([], record, true);//We delete the record for the folder path
-        if (!accessToken)
-            accessToken = await getAccessToken() || '';
-        if (!accessToken) return alert('The access token is missing. Check the console.log for more details');
         spinner(true);//We show the spinner
 
         try {
@@ -1143,19 +1145,10 @@ function searchFiles() {
                 }
 
                 async function fetchRequests(requests: any[]) {
-                    const response = await fetch(batchUrl, {
-                        method: "POST",
-                        headers: {
-                            Authorization: `Bearer ${accessToken}`,
-                            "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify({ requests: requests }),
-                    });
-
-                    if (!response.ok) throw new Error(`Error fetching subfolders: ${await response.text()}`);
-
-                    return await response.json();
-
+                    const body = { requests: requests };
+                    const response = await graph.sendRequest(batchUrl, 'POST', body, undefined, "application/json", "Error fetching subfolders") 
+                    if (!response?.ok) return;
+                    return await response?.json();
                 }
 
                 async function processItems(data: any) {
@@ -1181,13 +1174,11 @@ function searchFiles() {
             return items.filter(item => (item as fileItem)?.file) as fileItem[];
         }
         async function JSONFromGETRequest(url: string) {
-            const response = await fetch(url, {
-                method: "GET",
-                headers: { Authorization: `Bearer ${accessToken}` },
-            });
-            if (!response.ok) throw new Error(`Error fetching items from endpoint ${url}: \n${await response.text()}`);
+            const response = await graph.sendRequest(url, 'GET', undefined, undefined, undefined, 'Error fetching items from endpoint');
+            if (!response?.ok) return;
             return await response.json();
-        }
+        };
+        
         function filterFiles(files: fileItem[], search: string) {
             const byName = files.filter((item: any) => RegExp(search, 'i').test(item.name));
             const created = (file: fileItem) => new Date(file.createdDateTime);

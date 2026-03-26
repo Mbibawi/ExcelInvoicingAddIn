@@ -1,22 +1,88 @@
 "use strict";
-if (!localStorage.templatePath)
-    localStorage.templatePath = prompt('Please provide the OneDrive full path (including the file name and extension) for the Word template', "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/FactureTEMPLATE [NE PAS MODIFIDER].docx");
-const templatePath = localStorage.templatePath || alert('The template path is not valid or is missing');
-if (!localStorage.tableName)
-    localStorage.tableName = prompt('Please provide the name of the Excel Table where the invoicing data is stored', 'LivreJournal');
-const tableName = localStorage.tableName || alert('The table name is not valid or is issing');
-if (!localStorage.destinationFolder)
-    localStorage.destinationFolder = prompt('Please provide the OneDrive path where the issued invoices will be stored', "Legal/Mon Cabinet d'Avocat/Comptabilité/Factures/Clients");
-const destinationFolder = localStorage.destinationFolder || alert('the destination folder path is missing or not valid');
-var TableRows, accessToken, tableTitles = JSON.parse(localStorage.tableTitles);
+const settingsNames = {
+    invoices: {
+        workBook: 'invoicesWorkbook',
+        tableName: 'invoicesTable',
+        template: 'invoicesTemplate',
+        saveTo: 'invoicesSaveTo',
+    },
+    letter: {
+        workBook: 'letterWorkbook',
+        template: 'letterTemplate',
+        saveTo: 'letterSaveTo',
+    },
+    leases: {
+        workBook: 'leasesWorkbook',
+        tableName: 'leasesTable',
+        template: 'leasesTemplate',
+        saveTo: 'leasesSaveTo',
+    },
+};
+(function savedSettings() {
+    if (localStorage.InvoicingPWA)
+        return;
+    const root = 'Legal/Mon Cabinet d\'Avocat/';
+    const settings = [
+        {
+            name: settingsNames.invoices.workBook,
+            value: `${root}Comptabilité/Comptabilité de Mon Cabinet_04 07 2024.xlsm`,
+            label: 'Please provide the OneDrive full path (including the file name and extension) for the Word template'
+        },
+        {
+            name: settingsNames.invoices.tableName,
+            value: "LivreJournal",
+            label: 'Provide the name of the accounts table'
+        },
+        {
+            name: settingsNames.invoices.template,
+            value: `${root}Comptabilité/Factures/FactureTEMPLATE [NE PAS MODIFIDER].docx`,
+            label: 'Please provide the OneDrive full path (including the file name and extension) for the Word template for the invoices'
+        },
+        {
+            name: settingsNames.invoices.saveTo,
+            value: `${root}`,
+            label: 'Please provide the OneDrive defalut folder path wher the generated invoices will be saved'
+        },
+        {
+            name: settingsNames.letter.template,
+            value: `${root}Administratif/Modèles Actes/Template_Lettre With Letter Head [DO NOT MODIFY].docx`,
+            label: 'Please provide the OneDrive full path (including the file name and extension) for the Word template for the letter heads'
+        },
+        {
+            name: settingsNames.letter.saveTo,
+            value: `${root}Clients`,
+            label: 'Please provide the path of the OneDrive folder where the created letter will be saved'
+        },
+        {
+            name: settingsNames.leases.workBook,
+            value: `${root}Clients/LeasesDataBase.xlsm`,
+            label: 'Please provide the OneDrive full path (including the file name and extension) for the Leases Excel Workbook'
+        },
+        {
+            name: settingsNames.leases.tableName,
+            value: "LEASES",
+            label: 'Please provide the Leases Excel Table'
+        },
+        {
+            name: settingsNames.leases.template,
+            value: `${root}Administratif/Modèles Actes/Template_Révision de loyer [DO NOT MODIFY].docx`,
+            label: 'Please provide the OneDrive full path (including the file name and extension) for the Leases Word template'
+        },
+        {
+            name: settingsNames.leases.saveTo,
+            value: `${root}Clients`,
+            label: 'Please provide the path of the OneDrive folder where the created letter will be saved'
+        },
+    ];
+    const values = settings.map(({ name, value, label }) => {
+        const setting = prompt(label, value) || '';
+        return [name, setting];
+    });
+    saveSettings(values);
+})();
 const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
 const byID = (id = "form") => document.getElementById(id);
 const splitter = "; OR "; //This is the splitter that will be used to separate multiple values in the input fields. We need to use a splitter that is not likely to be included in the values themselves.
-function getAccountsWorkBookPath() {
-    if (!localStorage.accountsPath)
-        localStorage.accountsPath = prompt('Please provide the OneDrive full path (including the file name and extension) for the Excel Workbook', "Legal/Mon Cabinet d'Avocat/Comptabilité/Comptabilité de Mon Cabinet_15 10 2023.xlsm");
-    return localStorage.accountsPath || alert('The excel Workbook path is not valid');
-}
 (function RegisterServiceWorker() {
     // Check if the browser supports service workers
     if ("serviceWorker" in navigator) {
@@ -77,6 +143,10 @@ async function showForm(id) {
     let table;
     await Excel.run(async (context) => {
         const sheet = context.workbook.worksheets.getActiveWorksheet();
+        const stored = getSavedSettings();
+        const tableName = stored?.find(setting => setting.name === settingsNames.invoices.tableName)?.value;
+        if (!tableName)
+            return alert('The table name was not found');
         table = sheet.tables.getItem(tableName);
         const header = table.getHeaderRowRange();
         header.load('text');
@@ -87,11 +157,11 @@ async function showForm(id) {
         const headers = header.text[0];
         const clientUniqueValues = getUniqueValues(0, body.text);
         if (id === 'entry')
-            await addingEntry(headers, clientUniqueValues);
+            await addingEntry(tableName, headers, clientUniqueValues);
         else if (id === 'invoice')
-            invoice(headers, clientUniqueValues);
+            invoice(tableName, headers, clientUniqueValues);
     });
-    function invoice(title, clientUniqueValues) {
+    function invoice(tableName, title, clientUniqueValues) {
         const inputs = insertInputsAndLables([0, 1, 2, 3]); //Inserting the fields inputs (Client, Matter, Nature, Date)
         inputs.forEach(input => input?.addEventListener('focusout', async () => await _inputOnChange(input), { passive: true }));
         insertInputsAndLables(['Français', 'English'], true); //Inserting langauges checkboxes
@@ -156,7 +226,7 @@ async function showForm(id) {
         }
         ;
     }
-    async function addingEntry(title, uniqueValues) {
+    async function addingEntry(tableName, title, uniqueValues) {
         await filterTable(tableName, undefined, true);
         for (const t of title) { //!We could not use for(let i=0; i<title.length; i++) because the await does not work properly inside this loop
             const i = title.indexOf(t);
@@ -311,7 +381,7 @@ function getArray(value) {
         .split(',');
     return array.filter((el) => el);
 }
-async function _generateInvoice() {
+async function _generateInvoice(tableName, templatePath, saveTo) {
     const inputs = Array.from(document.getElementsByName('input'));
     if (!inputs)
         return;
@@ -326,10 +396,10 @@ async function _generateInvoice() {
         adress: (getUniqueValues(15, visible)).map(el => String(el)),
         lang: lang
     };
-    const savePath = `${destinationFolder}/${getInvoiceFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`;
+    const savePath = `${saveTo}/${getInvoiceFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`;
     const [rows, totalsLabels] = getRowsData(visible, discount, lang, getInvoiceNumber(date));
-    const accessToken = await getAccessToken() || '';
-    await new GraphAPI(accessToken, '').createAndUploadWordDocument(templatePath, savePath, lang, 'Invoice', rows, getContentControlsValues(invoiceDetails, new Date()));
+    const graph = new GraphAPI('');
+    await graph.createAndUploadDocumentFromTemplate(templatePath, savePath, lang, [['Invoice', rows, 1]], getContentControlsValues(invoiceDetails, new Date()));
 }
 /**
  * Returns a string[][] representing the rows to be inserted in the Word table containing the invoice details
@@ -472,9 +542,9 @@ function getRowsData(tableRows, discount = 0, lang, invoiceNumber) {
                 [colNature, 'Remise'],
                 [colAmount, amount],
                 [colVAT, vat],
+                [colDescr, descr],
                 [colDate, date],
                 [colDate + 1, date],
-                [colDescr, descr]
             ];
             cells.forEach(([col, value]) => newRow[col] = value);
             addNewEntry(true, newRow);
@@ -601,16 +671,33 @@ function getUniqueValues(index, array) {
 }
 ;
 class GraphAPI {
-    constructor(accessToken, filePath, sessionId, presist = false) {
+    constructor(accessToken = '', filePath, sessionId, presist = false) {
         this.GRAPH_API_BASE_URL = "https://graph.microsoft.com/v1.0/me/drive/root:/";
         this.methods = {
             post: "POST",
+            put: "PUT",
             get: "GET",
             patch: "PATCH",
         };
         this.accessToken = accessToken;
         this.filePath = filePath || '';
         this.sessionId = sessionId || '';
+    }
+    async getAccessToken() {
+        const clientId = "157dd297-447d-4592-b2d3-76b643b97132";
+        const redirectUri = "https://mbibawi.github.io/ExcelInvoicingAddIn"; //!must be the same domain as the app
+        const msalConfig = {
+            auth: {
+                clientId: clientId,
+                authority: "https://login.microsoftonline.com/common",
+                redirectUri: redirectUri,
+            },
+            cache: {
+                cacheLocation: "localStorage",
+                storeAuthStateInCookie: true
+            }
+        };
+        return await new MSAL(clientId, redirectUri, msalConfig).getTokenWithMSAL();
     }
     /**
    * Creates a new Graph API File session and returns its id
@@ -642,8 +729,6 @@ class GraphAPI {
      * @returns {any[][] | number | void} - All the rows (including the title) of the Excel table
      */
     async fetchExcelTable(tableName, headers = true, columns) {
-        if (!this.accessToken)
-            this.accessToken = await getAccessToken() || '';
         let endPoint = `${this.GRAPH_API_BASE_URL}${this.filePath}:/workbook/tables/${tableName}/`;
         if (headers)
             endPoint += 'range'; //The "range" endpoint returns all the table including the headers row
@@ -666,7 +751,6 @@ class GraphAPI {
      * @param {string} columnName - the name of the column that will be filtered
      * @param {string[]|number[]|boolean[]} values - the values based on which the column will be filtered
      * @param {string} sessionId - the id of the current Excel file session
-     * @param {string} accessToken - the access token
      * @returns {string}
      */
     async filterExcelTable(tableName, columnName, values, sessionId = this.sessionId, onValues = true) {
@@ -698,10 +782,8 @@ class GraphAPI {
     ;
     /**
      * Returns the visible cells of a filtered Excel table using Graph API
-     * @param {string} filePath - the full path and file name of the Excel workbook
      * @param {string} tableName - the name of the table that will be filtered
      * @param {string} sessionId - the id of the current Excel file session
-     * @param {string} accessToken - the access token
      * @returns {any[][]} - the visible cells of the filtered table
      */
     async getVisibleCells(tableName, sessionId) {
@@ -716,10 +798,8 @@ class GraphAPI {
     ;
     /**
      * Clears the filters on an Excel table using the Graph API
-     * @param {string} filePath - the full path and file name of the Excel workbook
      * @param {string} tableName - the name of the table that will be filtered
      * @param {string} sessionId - the id of the current Excel file session
-     * @param {string} accessToken - the access token
      */
     async clearFilterExcelTable(tableName, sessionId) {
         const endPoint = `${this.GRAPH_API_BASE_URL}${this.filePath}:/workbook/tables/${tableName}/clearFilters`;
@@ -730,13 +810,11 @@ class GraphAPI {
    * Adds a new row to the Excel table using the Grap API
    * @param {string} row - The row that will be added to the Excel table
    * @param {number} index - The index at which the row will be added
-   * @param {string} workbookPath - The full path of the Excel file
    * @param {string} tableName - The name of the Excel table
-   * @param {string} accessToken - The Graph API access token
-   * @param {boolean} filter - If true, the table will be filtered after the row is added
+   * @param {string[]} tableTitles - The titles row of the Excel table. If provided, the table will be filtered after adding the new row is added
    * @returns
    */
-    async addRowToExcelTable(row, index, tableName, filter = false) {
+    async addRowToExcelTable(row, index, tableName, tableTitles) {
         if (!this.filePath || !tableName || !row?.length)
             return alert('The filePath or the tableName argument is missing or not valid');
         const sessionId = this.sessionId || await this.createFileSession(true);
@@ -752,7 +830,7 @@ class GraphAPI {
         if (resp)
             console.log("Row added successfully!");
         for (const index of [0, 1]) {
-            if (!filter)
+            if (!tableTitles?.length)
                 break;
             await this.filterExcelTable(tableName, tableTitles[index], [row[index].toString()], sessionId); //!We use "for of" loop because forEach doesn't await
         }
@@ -764,7 +842,6 @@ class GraphAPI {
     ;
     /**
      * Updates a specific row in an Excel table using the file path.
-     * @param {string} accessToken - OAuth2 token.
      * @param {string} workbookPath -
      * @param {string} tableName - The name of the table.
      * @param {number} rowIndex - 0-based index of the row.
@@ -782,6 +859,8 @@ class GraphAPI {
         };
         try {
             const response = await this.sendRequest(url, this.methods.patch, body, sessionId, undefined, "Error while updating the Excel Table row's values");
+            if (response?.ok)
+                alert('Successfully updated the Excel table');
             const data = await response?.json();
             console.log('Update Successful:', data);
             return data;
@@ -794,44 +873,54 @@ class GraphAPI {
     ;
     /**
    * Creates an invoice Word document from the invoice Word template, then uploads it to the destination folder
-   * @param {string} accessToken - The access token that will be used to authenticate the user
    * @param {string} templatePath - The full path of the Word invoice template
    * @param {string} savePath - The full path of the destination folder where the new invoice will be saved
    * @param {string} lang - The language in which the invoice will be issued
-   * @param {string} tableTitle - The title of the table in the Word document that will be updated
-   * @param {string[][]} rows - The rows that will be added to the table in the Word document
-   * @param {string[][]} contentControls - The titles and text of each of the content controls that will be updated in the Word document
+   * @param {[string, string[][], number][]} tables - An array containing for each table: the title of the Word table, the data for the new Word table rows that will be added to the table, and the index of the row after which we will insert the new rows.
+   * @param {[string, string][]} contentControls - The titles and text of each of the content controls that will be updated in the Word document. Each element of the array contains the title of the contentControl, and the text with which it will be filled.
    * @param {string[]} totalsLabels - The labels of the rows that will be formatted as totals
    * @returns
    */
-    async createAndUploadWordDocument(templatePath, savePath = this.filePath, lang, tableTitle, rows, contentControls, totalsLabels) {
-        if (!this.accessToken || !templatePath || !this.filePath)
+    async createAndUploadDocumentFromTemplate(templatePath, savePath = this.filePath, lang, tables, contentControls, totalsLabels) {
+        if (!templatePath || !this.filePath)
             return;
         const blob = await this.fetchFileFromOneDrive(templatePath); //!We must provide the Word templatePath not the Excel workbook path stored in the this.filePath variable
         if (!blob)
             return;
-        const [doc, zip] = await this.convertBlobIntoXML(blob);
-        if (!doc)
+        const [xmlDocs, zip] = await this.convertBlobIntoXML(blob);
+        if (!xmlDocs.length)
             return;
-        const xml = new XML(doc, lang);
-        const schema = xml.schema();
-        (function editTable() {
-            if (!rows || !tableTitle)
+        xmlDocs.forEach(doc => editXML(doc));
+        const newblob = await this.convertXMLIntoBlob(xmlDocs, zip);
+        if (!newblob)
+            return;
+        await this.uploadFileToOneDrive(newblob, savePath);
+        function editXML([doc, fileName]) {
+            const xml = new XML(doc, lang), schema = xml.schema();
+            editTables(xml, doc, schema);
+            editContentControls(xml, doc, schema);
+        }
+        ;
+        function editTables(xml, doc, schema) {
+            if (!tables)
                 return;
-            const tables = xml.getTables(doc);
-            const table = xml.findTableByTitle(tables, tableTitle);
-            if (!table)
-                return;
-            const firstRow = xml.getTableRow(table, 1);
-            rows.forEach((row, index) => {
-                const newXmlRow = xml.insertRowAfterFirst(table, firstRow, NaN, true) || table.appendChild(xml.createTableRow());
-                if (!newXmlRow)
+            const allTables = xml.getTables(doc);
+            tables.forEach(table => editTable(table));
+            function editTable([tableTitle, rows, index]) {
+                const table = xml.findTableByTitle(allTables, tableTitle);
+                if (!table)
                     return;
-                const isTotal = totalsLabels?.includes(row[0]);
-                const isLast = index === rows.length - 1;
-                return editCells(newXmlRow, row, isLast, isTotal);
-            });
-            firstRow.remove(); //We remove the first row when we finish
+                const afterRow = xml.getTableRow(table, index); //We retrieve the table row below which we will insert the new rows
+                rows.forEach((row, index) => {
+                    const newXmlRow = xml.insertRowAfter(table, afterRow, NaN, true) || table.appendChild(xml.createTableRow());
+                    if (!newXmlRow)
+                        return;
+                    const isTotal = totalsLabels?.includes(row[0]);
+                    const isLast = index === rows.length - 1;
+                    return editCells(newXmlRow, row, isLast, isTotal);
+                });
+                afterRow.remove(); //We remove the first row when we finish
+            }
             function editCells(tableRow, values, isLast = false, isTotal = false) {
                 const cells = xml.getRowCells(tableRow) || values.map(v => tableRow.appendChild(xml.createTableCell())); //getting all the cells in the row element
                 cells.forEach((cell, index) => {
@@ -858,8 +947,9 @@ class GraphAPI {
                     })();
                 });
             }
-        })();
-        (function editContentControls() {
+        }
+        ;
+        function editContentControls(xml, doc, schema) {
             if (!contentControls?.length)
                 return;
             const ctrls = xml.getContentControls(doc);
@@ -868,33 +958,46 @@ class GraphAPI {
                 const sameTitle = xml.findContentControlsByTitle(ctrls, title); //!we  retrieve all then XML ContentControls having the same title
                 sameTitle.forEach(control => xml.editContentControlText(control, text));
             });
-        })();
-        await this.convertXMLToBlobAndUpload(doc, zip, savePath);
+        }
+        ;
     }
     ;
     /**
-   * Converts the blob of a Word document into an XML
+   * Converts the blob of a Word document into XML files: the XML for the document and the XMLs for the header and footer
    * @param blob - the blob of the file to be converted
    * @returns {[XMLDocument, JSZip]} - The xml document, and the zip containing all the xml files
    */
-    //@ts-expect-error
     async convertBlobIntoXML(blob) {
-        //@ts-ignore
-        const zip = new JSZip();
         const arrayBuffer = await blob.arrayBuffer();
+        const zip = new JSZip();
         await zip.loadAsync(arrayBuffer);
-        const documentXml = await zip.file("word/document.xml").async("string");
+        const zipFiles = Object.keys(zip.files);
         const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(documentXml, "application/xml");
-        return [xmlDoc, zip];
+        const xmlFiles = [];
+        const Patterns = [
+            /^word\/document\.xml$/,
+            /^word\/header\d+\.xml$/,
+            /^word\/footer\d+\.xml$/
+        ];
+        const fileNames = zipFiles.filter(file => Patterns.find(pattern => pattern.test(file)));
+        for (const fileName of fileNames) {
+            const file = await getXmlFromZip(fileName);
+            if (file)
+                xmlFiles.push([file, fileName.replace(/^word\//, '')]);
+        }
+        return [xmlFiles, zip];
+        async function getXmlFromZip(fileName) {
+            const content = await zip.file(fileName)?.async("string");
+            if (!content)
+                return null;
+            return parser.parseFromString(content, "application/xml");
+        }
     }
     /**
    * Filters an Excel table column based on the values
-   * @param {string} filePath - the full path and file name of the Excel workbook
    * @param {string} tableName - the name of the table that will be filtered
    * @param {[string, boolean][]} columns - each element contains the name of the column and whether it will be sorted ascending or descending
    * @param {string} sessionId - the id of the current Excel file session
-   * @param {string} accessToken - the access token
    * @returns {string}
    */
     async sortExcelTable(tableName, columns, matchCase, sessionId) {
@@ -920,7 +1023,6 @@ class GraphAPI {
     ;
     /**
    * Returns a blob from a file stored on OneDrive, using the Graph API and the file path
-   * @param {string} accessToken
    * @param {string} filePath
    * @returns {Blob} - A blob of the fetched file, if successful
    */
@@ -934,47 +1036,49 @@ class GraphAPI {
    * Uploads a file blob to OneDrive using the Graph API
    * @param {Blob } blob
    * @param {string} filePath
-   * @param {string} accessToken
    */
     async uploadFileToOneDrive(blob, filePath) {
-        if (!filePath || !this.accessToken)
+        if (!filePath)
             return;
         const endpoint = `${this.GRAPH_API_BASE_URL}${filePath}:/content`;
-        const response = await fetch(endpoint, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${this.accessToken}`,
-                'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // Correct MIME type for Word docs
-            },
-            body: blob, // Use the template's content as the new document's content
-        });
-        response.ok ? alert('succefully uploaded the new file') : console.log('failed to upload the file to onedrive error = ', await response.json());
+        const contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        const response = await this.sendRequest(endpoint, this.methods.put, blob, undefined, contentType, 'Failed to upload the Word file to OneDrive');
+        if (response?.ok)
+            alert('succefully uploaded the new file');
+        else
+            console.log('failed to upload the file to onedrive error = ', await response?.json());
     }
     ;
     /**
-   * Converts an XML Word document into a Blob, and uploads it to OneDrive using the Graph API
-   * @param {XMLDocument} doc
-   * @param {JSZip} zip
-   * @param {string} filePath - the full OneDrive file path (including file name and extension) of the file that will be uploaded
-   * @param {string} accessToken - the Graph API accessToken
-   */
-    //@ts-expect-error
-    async convertXMLToBlobAndUpload(doc, zip, filePath = this.filePath) {
-        const blob = await convertXMLIntoBlob();
-        if (!blob)
-            return;
-        await this.uploadFileToOneDrive(blob, filePath);
-        async function convertXMLIntoBlob() {
-            const serializer = new XMLSerializer();
-            let modifiedDocumentXml = serializer.serializeToString(doc);
-            zip.file("word/document.xml", modifiedDocumentXml);
-            return await zip.generateAsync({ type: "blob" });
+     * Adds files (or replaces the existing files if the fileName is the same) in the zip folder
+     * @param {XMLDocument, string} docs - the XMLDocument we want to add to the zip folder, and its fileName
+     * @param {JSZip} zip -the zip folder into which we want to add the XMLDocuments
+     * @returns {blob} a blob of the zip folder (which is in our case a Word document)
+     */
+    async convertXMLIntoBlob(docs, zip) {
+        const serializer = new XMLSerializer();
+        docs.forEach(doc => serialize(doc));
+        return await zip.generateAsync({ type: "blob" });
+        function serialize([doc, fileName]) {
+            const serialized = serializer.serializeToString(doc);
+            zip.file(`word/${fileName}`, serialized);
         }
     }
-    ;
+    /**
+     *
+     * @param {string} endPoint
+     * @param {string} method
+     * @param {object} body
+     * @param {string} sessionId
+     * @param {string} contentType
+     * @param {string} message
+     * @returns {Promise<Response | undefined>}
+     */
     async sendRequest(endPoint, method, body, sessionId, contentType, message = "") {
         if (!this.accessToken)
-            return;
+            this.accessToken = await this.getAccessToken() || '';
+        if (!this.accessToken)
+            return alert('Could not get an accessToken');
         const request = {
             method: method,
             headers: this.graphHeaders(sessionId, contentType)
@@ -1003,21 +1107,16 @@ class GraphAPI {
             headers["workbook-session-id"] = sessionId;
         return headers;
     }
-    async getExcelTableRowsCount(filePath, tableName, accessToken) {
-        const url = `${this.GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/rows/$count`;
-        const response = await fetch(url, {
-            method: "GET",
-            headers: {
-                "Authorization": `Bearer ${accessToken}`
-            }
-        });
-        if (response.ok) {
-            const rowCount = await response.text(); // The API returns a number as plain text
+    async getExcelTableRowsCount(filePath, tableName) {
+        const endPoint = `${this.GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/rows/$count`;
+        const response = await this.sendRequest(endPoint, 'GET');
+        if (response?.ok) {
+            const rowCount = await response?.text(); // The API returns a number as plain text
             console.log(`Row count: ${rowCount}`);
             return parseInt(rowCount, 10); // Convert to number
         }
         else {
-            console.error("Error fetching row count:", await response.text());
+            console.error("Error fetching row count:", await response?.text());
             return null;
         }
     }
@@ -1167,10 +1266,10 @@ class XML {
     getParagraphStyle(parent, index) {
         return this.getXMLElements(parent, this.tags.style, index);
     }
-    insertRowAfterFirst(table, firstRow, after = -1, clone = false) {
+    insertRowAfter(table, rowTemplate, after = -1, clone = false) {
         const self = this;
         if (clone)
-            return cloneFirstRow();
+            return cloneAndAppend();
         else
             return create();
         function create() {
@@ -1181,10 +1280,10 @@ class XML {
                 table.appendChild(row);
             return row;
         }
-        function cloneFirstRow() {
-            if (!firstRow)
+        function cloneAndAppend() {
+            if (!rowTemplate)
                 return;
-            const row = firstRow.cloneNode(true);
+            const row = rowTemplate.cloneNode(true);
             table?.appendChild(row);
             return row;
         }
@@ -1326,21 +1425,19 @@ class officeJS {
     constructor() {
         this.GRAPH_API_BASE_URL = "https://graph.microsoft.com/v1.0/me/drive/root:/";
     }
-    async editDocumentWordJSAPI(id, accessToken, data, controlsData) {
-        if (!id || !accessToken || !data)
+    async editDocumentWordJSAPI(id, accessToken = '', data, controlsData) {
+        if (!id || !data)
             return;
         const graph = new GraphAPI(accessToken);
         await Word.run(async (context) => {
             // Open the document by downloading its content
-            const fileResponse = await fetch(`${this.GRAPH_API_BASE_URL}/items/${id}/content`, {
-                method: "GET",
-                headers: {
-                    "Authorization": `Bearer ${accessToken}`
-                }
-            });
-            if (!fileResponse.ok)
+            const graph = new GraphAPI('');
+            const endPoint = `${this.GRAPH_API_BASE_URL}/items/${id}/content`;
+            //@ts-ignore
+            const fileResponse = await graph.fetchExcelTable('', true);
+            if (!fileResponse?.ok)
                 throw new Error("Failed to retrieve document");
-            const blob = await fileResponse.blob();
+            const blob = await fileResponse?.blob();
             const base64File = await convertBlobToBase64(blob);
             const doc = context.application.createDocument(base64File);
             console.log("Word document opened for editing:", document);
@@ -1404,7 +1501,6 @@ class officeJS {
                 if (input.type === 'number')
                     value = parseFloat(value);
                 else if (input.type === 'date' && input.valueAsDate)
-                    //@ts-ignore
                     value = getDateString(input.valueAsDate);
                 else if (input.type === 'time' && input.valueAsDate)
                     value = [input.valueAsDate?.getHours().toString().padStart(2, '0'), input.valueAsDate?.getMinutes().toString().padStart(2, '0'), '00'].join(':');
@@ -1470,14 +1566,17 @@ function getInvoiceNumber(date) {
  * @returns {string} - The date in ISO format
  */
 function getISODate(date) {
-    //@ts-ignore
-    return [date?.getFullYear(), date?.getMonth() + 1, date?.getDate()].map(el => el.toString().padStart(2, '0')).join('-');
+    if (!date)
+        return '';
+    return [date.getFullYear(), date.getMonth() + 1, date.getDate()].map(el => el.toString().padStart(2, '0')).join('-');
 }
 ;
 /**
  * Returns the date in a string formated like: "DD/MM/YYYY"
  */
 function getDateString(date) {
+    if (!date)
+        return '';
     return [date.getDate(), date.getMonth() + 1, date.getFullYear()]
         .map(el => el.toString().padStart(2, '0'))
         .join('/');
@@ -1738,54 +1837,116 @@ function getInputByIndex(inputs, index) {
 function getIndex(element) {
     return Number(element?.dataset.index);
 }
-function settings() {
+function getSavedSettings() {
+    return saveSettings(undefined, true);
+}
+function saveSettings(values, get = false) {
+    const settings = {
+        issueInvoice: {
+            workBook: {
+                label: 'Invoices workbook path :',
+                name: settingsNames.invoices.workBook,
+                value: ''
+            },
+            wordTemplate: {
+                label: 'Invoices\'Word template path: ',
+                name: settingsNames.invoices.template,
+                value: ''
+            },
+            saveTo: {
+                label: 'Invoices\' save to path: ',
+                name: settingsNames.invoices.saveTo,
+                value: ''
+            },
+            tableName: {
+                label: 'Invoices\' Excel Table name: ',
+                name: settingsNames.invoices.tableName,
+                value: ''
+            },
+        },
+        Letter: {
+            wordTemplate: {
+                label: 'Letter Word template path: ',
+                name: settingsNames.letter.template,
+                value: ''
+            },
+            saveTo: {
+                label: 'Letter save to path: ',
+                name: settingsNames.letter.saveTo,
+                value: ''
+            },
+        },
+        leases: {
+            workBook: {
+                label: 'Leases Excel workbook path :',
+                name: settingsNames.leases.workBook,
+                value: ''
+            },
+            tableName: {
+                label: 'Leas\'s Excel Table name: ',
+                name: settingsNames.leases.tableName,
+                value: ''
+            },
+            wordTemplate: {
+                label: 'Leases Word Template path :',
+                name: settingsNames.leases.template,
+                value: ''
+            },
+            saveTo: {
+                label: 'Leases\' save to path: ',
+                name: settingsNames.leases.saveTo,
+                value: ''
+            },
+        },
+    };
+    const groups = Object.values(settings);
+    const inputs = groups.map(group => Object.values(group)).flat();
+    let stored;
+    localStorage.InvoicingPWA ? stored = JSON.parse(localStorage.InvoicingPWA) : stored = inputs;
+    if (get)
+        return stored;
+    const findSetting = (name, settings) => settings?.find(setting => setting.name === name);
+    if (values?.length)
+        return save(values); //If the values of some settings have been passed as argument, we save the changes to the localStorage directly withouth showing inputs;
     const form = byID();
     if (!form)
         return;
     form.innerHTML = '';
-    const inputs = [
-        {
-            label: 'Accounts Workbook Path: ',
-            name: 'excelPath'
-        },
-        {
-            label: 'Leases Workbook Path: ',
-            name: 'leasesPath'
-        },
-        {
-            label: 'Word Template Path: ',
-            name: 'templatePath'
-        },
-        {
-            label: 'Destination Folder: ',
-            name: 'destinationFolder'
-        },
-        {
-            label: 'Table Name: ',
-            name: 'tableName'
-        },
-    ];
-    inputs.forEach((el, index) => {
-        const label = document.createElement('label');
-        label.innerText = el.label;
-        form.appendChild(label);
-        const input = document.createElement('input');
-        input.classList.add('field');
-        input.value = localStorage.getItem(el.name) || 'not found';
-        input.dataset.index = index.toString();
-        input.onchange = () => set(input, el.label, el.name);
-        form.appendChild(input);
-        function set(input, label, name) {
-            if (!confirm(`Are you sure you want to change the ${label} localStorage value to + ${input.value}?`))
-                return;
-            localStorage.setItem(name, input.value);
-            alert(`${label} has been updated`);
-        }
-    });
+    groups.forEach(group => showInputs(group));
     (function homeBtn() {
         showMainUI(true);
     })();
+    function showInputs(group) {
+        const groupDiv = document.createElement('div');
+        form.appendChild(groupDiv);
+        Object.values(group)
+            .forEach(input => groupDiv.appendChild(createInput(input)));
+    }
+    ;
+    function createInput({ label, name, value }) {
+        const container = document.createElement('div');
+        const labelHtml = document.createElement('label');
+        labelHtml.innerText = label;
+        const input = document.createElement('input');
+        input.classList.add('field');
+        input.value = findSetting(name, stored).value || '';
+        input.onchange = () => confirmSaving(input.value, label, name);
+        container.appendChild(labelHtml);
+        container.appendChild(input);
+        return container;
+    }
+    ;
+    function confirmSaving(value, label, name) {
+        if (!confirm(`Are you sure you want to change the ${label} localStorage value to ${value}?`))
+            return;
+        save([[name, value]]);
+    }
+    function save(values) {
+        values.forEach(([name, value]) => findSetting(name, stored).value = value.replaceAll('\\', '/') || '');
+        localStorage.InvoicingPWA = JSON.stringify(stored);
+    }
 }
+;
 function spinner(show) {
     if (!show)
         return document.querySelector('.spinner')?.remove();
