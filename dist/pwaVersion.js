@@ -24,8 +24,9 @@ class LawFirm {
         const tableTitles = TableRows[0];
         if (add)
             return addEntry(TableRows, tableTitles);
-        await showAddNewForm(this);
-        async function showAddNewForm(this$) {
+        const _inputOnChange = this.inputOnChange.bind(this);
+        await showAddNewForm;
+        async function showAddNewForm() {
             try {
                 await createForm();
                 spinner(false); //We hide the sinner
@@ -121,7 +122,7 @@ class LawFirm {
                             (function addDataLists() {
                                 const updateNext = [0, 1, 8, 15]; //Those are the indexes of the inputs (i.e; the columns numbers) that need to get an onChange event in order to update the dataLists of the next inputs when the current input is changed: "Client"(0), "Affaire"(1), "Taux Horaire"(8), "Adresses"(15)
                                 if (updateNext.includes(index))
-                                    input.onchange = () => this$.inputOnChange(index, bound(updateNext), tableBody, false);
+                                    input.onchange = () => _inputOnChange(index, bound(updateNext), tableBody, false);
                                 if (![0, 2, 11, 12, 13].includes(index))
                                     return; //We will initially populate the "Client"(0), Nature(2), "Payment Method"(11), "Bank Account"(12), "Third Party"(13) lists only, the other inputs will be populate when the onChange function will be called
                                 populateSelectElement(input, getUniqueValues(index, tableBody));
@@ -303,11 +304,12 @@ class LawFirm {
     }
     ;
     async issueInvoice() {
-        await showInvoiceForm(this);
-        async function showInvoiceForm(this$) {
+        const _getConsts = this.getConsts.bind(this), settingsNames = this.settingsNames.invoices, stored = this.stored, _inputOnChange = this.inputOnChange.bind(this), _getContentControlsValues = this.getContentControlsValues.bind(this), _filterTableByInputsValues = this.filterTableByInputsValues.bind(this), _getRowsData = this.getRowsData.bind(this);
+        await showInvoiceForm();
+        async function showInvoiceForm() {
             spinner(true); //We show the spinner
-            const { workbookPath, tableName, templatePath, saveTo } = this$.getConsts(this$.settingsNames.invoices);
-            if ([this$.stored, workbookPath, tableName, templatePath, saveTo].find(v => !v))
+            const { workbookPath, tableName, templatePath, saveTo } = _getConsts(settingsNames);
+            if ([stored, workbookPath, tableName, templatePath, saveTo].find(v => !v))
                 throwAndAlert('One of the  constant values is not valid');
             const graph = new GraphAPI('', workbookPath);
             const sessionId = await graph.createFileSession() || '';
@@ -351,7 +353,7 @@ class LawFirm {
                     const btnIssue = document.createElement('button');
                     btnIssue.innerText = 'Generate Invoice';
                     btnIssue.classList.add('button');
-                    btnIssue.onclick = () => issueInvoice(this$, tableName, tableTitles, templatePath, saveTo, graph);
+                    btnIssue.onclick = () => createInvoice(tableName, tableTitles, templatePath, saveTo, graph);
                     form.appendChild(btnIssue);
                 })();
                 (function homeBtns() {
@@ -388,7 +390,7 @@ class LawFirm {
                             if (index < 3)
                                 boundInputs.push([input, index]); //Fields "Client"(0), "Affaire"(1), "Nature"(2) are the inputs that will need to get their dataList created or updated each time the previous input is changed.
                             if (index < 2)
-                                input.onchange = () => this$.inputOnChange(index, boundInputs, tableBody, true); //We add onChange on "Client" (0) and "Affaire" (1) columns
+                                input.onchange = () => _inputOnChange(index, boundInputs, tableBody, true); //We add onChange on "Client" (0) and "Affaire" (1) columns
                             if (index < 1)
                                 populateSelectElement(input, getUniqueValues(0, tableBody)); //We create a unique values dataList for the "Client" (0) input
                         })();
@@ -421,10 +423,10 @@ class LawFirm {
             }
         }
         ;
-        async function issueInvoice(this$, tableName, tableTitles, templatePath, saveTo, graph) {
+        async function createInvoice(tableName, tableTitles, templatePath, saveTo, graph) {
             spinner(true); //We show the spinner
             try {
-                await editInvoice(this$, tableName, tableTitles, templatePath, saveTo, graph);
+                await editInvoice(tableName, tableTitles, templatePath, saveTo, graph);
                 spinner(false); //We hide the spinner
             }
             catch (error) {
@@ -433,7 +435,7 @@ class LawFirm {
             }
         }
         ;
-        async function editInvoice(this$, tableName, tableTitles, templatePath, saveTo, graph) {
+        async function editInvoice(tableName, tableTitles, templatePath, saveTo, graph) {
             const client = tableTitles[0], matter = tableTitles[1]; //Those are the 'Client' and 'Matter' columns of the Excel table
             const sessionId = await graph.createFileSession(true) || ''; //!persist must be = true. This means that if the session is closed, the changes made to the file will be saved.
             if (!sessionId)
@@ -455,7 +457,7 @@ class LawFirm {
                 adress: adresses,
                 lang: lang
             };
-            const contentControls = this$.getContentControlsValues(invoice, date);
+            const contentControls = _getContentControlsValues(invoice, date);
             const fileName = getInvoiceFileName(clientName, matters, invoiceNumber);
             let saveToPath = `${saveTo}/${fileName}`;
             saveToPath = prompt(`The file will be saved in ${saveTo}, and will be named : ${fileName}.\nIf you want to change the path or the name, provide the full file path and name of your choice without any sepcial characters`, saveTo) || saveTo;
@@ -485,10 +487,10 @@ class LawFirm {
                 let tableRows = excelTable?.slice(1, -1) || undefined; //We exclude the first and the last rows of the table. Since we are calling the "range" endpoint, we get the whole table including the headers. The first row is the header, and the last row is the total row.
                 if (!tableRows)
                     return throwAndAlert('We could not retrieve the tableRows whie trying to issue the invoice');
-                tableRows = this$.filterTableByInputsValues([[clientNameInput, clientCol], [matterInput, matterCol]], excelTable);
+                tableRows = _filterTableByInputsValues([[clientNameInput, clientCol], [matterInput, matterCol]], excelTable);
                 tableRows = filterByDate(tableRows, dateCol);
                 const adresses = getUniqueValues(addressCol, tableRows); //!We must retrieve the adresses at this stage before filtering by "Matter" or any other column
-                const { wordRows, totalsLabels } = this$.getRowsData(tableRows, discount, lang, invoiceNumber);
+                const { wordRows, totalsLabels } = _getRowsData(tableRows, discount, lang, invoiceNumber);
                 return { wordRows, totalsLabels, clientName, matters, adresses };
                 function filterByDate(visible, dateCol) {
                     const convert = (date) => dateFromExcel(Number(date)).getTime();
@@ -508,8 +510,9 @@ class LawFirm {
         }
     }
     async issueLetter() {
-        showForm(this);
-        function showForm(this$) {
+        const _getConsts = this.getConsts.bind(this);
+        showForm();
+        function showForm() {
             spinner(true); //We show the spinner
             document.querySelector('table')?.remove();
             const form = byID();
@@ -527,7 +530,7 @@ class LawFirm {
                 form?.appendChild(btn);
                 btn.classList.add('button');
                 btn.innerText = 'Créer lettre';
-                btn.onclick = () => generate(this$);
+                btn.onclick = () => generate();
             })();
             (function homeBtn() {
                 showMainUI(true);
@@ -535,7 +538,7 @@ class LawFirm {
             })();
         }
         ;
-        async function generate(this$) {
+        async function generate() {
             try {
                 await createLetter();
                 spinner(false); //We hide the spinner
@@ -549,7 +552,7 @@ class LawFirm {
                 const input = byID('textInput');
                 if (!input)
                     return;
-                const { templatePath, saveTo } = this$.getConsts(settingsNames.letter);
+                const { templatePath, saveTo } = _getConsts(settingsNames.letter);
                 const fileName = prompt('Provide the file name without special characthers');
                 if (!fileName)
                     return;
@@ -593,9 +596,10 @@ class LawFirm {
         };
         const ctrls = Object.values(Ctrls);
         const findRT = (id) => ctrls.find(RT => RT.title === id);
+        const _inputOnChange = this.inputOnChange.bind(this);
         let row, rowIndex = null;
-        await showForm(this);
-        async function showForm(this$) {
+        await showForm();
+        async function showForm() {
             const inputs = [];
             const findInput = (id) => inputs.find(([input, col]) => input.id === id)?.[0];
             if (!tableRows)
@@ -616,7 +620,7 @@ class LawFirm {
                     populateSelectElement(owner, getUniqueValues(Ctrls.owner.col, tableRows), false);
                 (function inputsOnChange() {
                     const filled = inputs.filter(([input, col]) => col <= Ctrls.tenant.col);
-                    filled.forEach(([input, col]) => input.onchange = () => row = this$.inputOnChange(col, inputs, tableRows, false));
+                    filled.forEach(([input, col]) => input.onchange = () => row = _inputOnChange(col, inputs, tableRows, false));
                     const index = findInput(Ctrls.index.title);
                     if (index)
                         index.onchange = () => {
@@ -1391,6 +1395,221 @@ class Marianne extends LawFirm {
         this.report = {};
     }
     super() {
+    }
+    async issueReports() {
+        await showReportsForm(this);
+        async function showReportsForm(this$) {
+            spinner(true); //We show the spinner
+            const { workbookPath, tableName, templatePath, saveTo } = this$.getConsts(this$.settingsNames.invoices);
+            if ([this$.stored, workbookPath, tableName, templatePath, saveTo].find(v => !v))
+                throwAndAlert('One of the  constant values is not valid');
+            const graph = new GraphAPI('', workbookPath);
+            const sessionId = await graph.createFileSession() || '';
+            if (!sessionId)
+                return throwAndAlert('There was an issue with the creation of the file cession. Check the console.log for more details');
+            const tableRows = await graph.fetchExcelTable(tableName, true);
+            if (!tableRows?.length)
+                return throwAndAlert('Failed to retrieve the Excel table');
+            const tableTitles = tableRows[0];
+            document.querySelector('table')?.remove();
+            try {
+                insertInvoiceForm(tableTitles);
+                await graph.closeFileSession(sessionId);
+                spinner(false); //We hide the spinner
+            }
+            catch (error) {
+                throwAndAlert(`Error while showing the invoice user form: ${error}`);
+                spinner(false); //We hide the spinner
+            }
+            function insertInvoiceForm(tableTitles) {
+                const form = byID();
+                if (!form)
+                    throw new Error('The form element was not found');
+                form.innerHTML = '';
+                const tableBody = tableRows.slice(1, -1);
+                const boundInputs = [];
+                (function insertInputs() {
+                    insertInputsAndLables([0, 1, 2, 3, 3], 'input'); //Inserting the fields inputs (Client, Matter, Nature, Date). We insert the date twice
+                    insertInputsAndLables(['Discount'], 'discount')[0].value = '0%'; //Inserting a discount percentage input and setting its default value to 0%
+                    insertInputsAndLables(['Français', 'English'], 'lang', true); //Inserting languages checkboxes
+                })();
+                (function customizeDateLabels() {
+                    const [from, to] = Array.from(document.getElementsByTagName('label'))
+                        ?.filter(label => label.htmlFor.endsWith('3'));
+                    if (from)
+                        from.innerText += ' From (included)';
+                    if (to)
+                        to.innerText += ' To/Before (included)';
+                })();
+                (function addIssueInvoiceBtn() {
+                    const btnIssue = document.createElement('button');
+                    btnIssue.innerText = 'Generate Invoice';
+                    btnIssue.classList.add('button');
+                    btnIssue.onclick = () => issueReport(this$, tableName, tableTitles, templatePath, saveTo, graph);
+                    form.appendChild(btnIssue);
+                })();
+                (function homeBtns() {
+                    showMainUI(true);
+                })();
+                function insertInputsAndLables(indexes, id, checkBox = false) {
+                    let css = 'field';
+                    if (checkBox)
+                        css = 'checkBox';
+                    return indexes.map((index) => {
+                        const div = newDiv(String(index));
+                        appendLable(index, div);
+                        return appendInput(index, div);
+                    });
+                    function appendInput(index, div) {
+                        const NaN = isNaN(Number(index));
+                        const input = document.createElement('input');
+                        input.classList.add(css);
+                        !NaN ? input.id = id + index.toString() : input.id = id;
+                        (function setType() {
+                            if (checkBox)
+                                input.type = 'checkbox';
+                            else if (NaN || index < 3)
+                                input.type = 'text';
+                            else
+                                input.type = 'date';
+                        })();
+                        (function notCheckBox() {
+                            if (NaN || checkBox)
+                                return; //If the index is not a number or the input is a checkBox, we return;
+                            index = Number(index);
+                            input.name = input.id;
+                            input.dataset.index = index.toString();
+                            if (index < 3)
+                                boundInputs.push([input, index]); //Fields "Client"(0), "Affaire"(1), "Nature"(2) are the inputs that will need to get their dataList created or updated each time the previous input is changed.
+                            if (index < 2)
+                                input.onchange = () => this$.inputOnChange(index, boundInputs, tableBody, true); //We add onChange on "Client" (0) and "Affaire" (1) columns
+                            if (index < 1)
+                                populateSelectElement(input, getUniqueValues(0, tableBody)); //We create a unique values dataList for the "Client" (0) input
+                        })();
+                        (function isCheckBox() {
+                            if (!checkBox)
+                                return;
+                            input.dataset.language = index.toString().slice(0, 2).toUpperCase();
+                            input.onchange = () => Array.from(document.getElementsByTagName('input'))
+                                .filter((checkBox) => checkBox.dataset.language && checkBox !== input)
+                                .forEach(checkBox => checkBox.checked = false);
+                        })();
+                        div.appendChild(input);
+                        return input;
+                    }
+                    function appendLable(index, div) {
+                        const label = document.createElement('label');
+                        isNaN(Number(index)) || checkBox ? label.innerText = index.toString() : label.innerText = tableTitles[Number(index)];
+                        !isNaN(Number(index)) ? label.htmlFor = id + index.toString() : label.htmlFor = id;
+                        div?.appendChild(label);
+                    }
+                    function newDiv(i, css = "block") {
+                        const div = document.createElement('div');
+                        div.dataset.block = i;
+                        form?.appendChild(div);
+                        div.classList.add(css);
+                        return div;
+                    }
+                }
+                ;
+            }
+        }
+        ;
+        function monthlyReport(this$) {
+            this$.issueReport();
+        }
+        function annualReport(this$) {
+        }
+        function returnedReport(this$) {
+        }
+        async function issueReport(this$, tableName, tableTitles, templatePath, saveTo, graph) {
+            spinner(true); //We show the spinner
+            try {
+                await editInvoice(this$, tableName, tableTitles, templatePath, saveTo, graph);
+                spinner(false); //We hide the spinner
+            }
+            catch (error) {
+                spinner(false); //We hide the sinner
+                alert(error);
+            }
+        }
+        ;
+        async function editInvoice(this$, tableName, tableTitles, templatePath, saveTo, graph) {
+            const client = tableTitles[0], matter = tableTitles[1]; //Those are the 'Client' and 'Matter' columns of the Excel table
+            const sessionId = await graph.createFileSession(true) || ''; //!persist must be = true. This means that if the session is closed, the changes made to the file will be saved.
+            if (!sessionId)
+                return throwAndAlert('There was an issue with the creation of the file cession. Check the console.log for more details');
+            const inputs = Array.from(document.getElementsByTagName('input'));
+            const criteria = inputs.filter(input => getIndex(input) >= 0);
+            const discount = parseInt(inputs.find(input => input.id === 'discount')?.value || '0%');
+            const lang = inputs.find(input => input.dataset.language && input.checked === true)?.dataset.language || 'FR';
+            const date = new Date(); //We need to generate the date at this level and pass it down to all the functions that need it
+            const invoiceNumber = getInvoiceNumber(date);
+            const data = await filterExcelData(criteria, discount, lang, invoiceNumber);
+            if (!data)
+                return throwAndAlert('Could not retrieve the filtered Excel table');
+            const { wordRows, totalsLabels } = data;
+            const report = {
+                number: invoiceNumber,
+                clientName: '',
+                matters: 'matters',
+                adress: '',
+                lang: lang
+            };
+            const contentControls = this$.getContentControlsValues(report, date);
+            const fileName = getInvoiceFileName('', [''], invoiceNumber);
+            let saveToPath = `${saveTo}/${fileName}`;
+            saveToPath = prompt(`The file will be saved in ${saveTo}, and will be named : ${fileName}.\nIf you want to change the path or the name, provide the full file path and name of your choice without any sepcial characters`, saveTo) || saveTo;
+            (async function editInvoiceFilterExcelClose() {
+                await graph.createAndUploadDocumentFromTemplate(templatePath, saveToPath, lang, [['Invoice', wordRows, 1]], contentControls, totalsLabels);
+                await graph.clearFilterExcelTable(tableName, sessionId); //We unfilter the table;
+                //await graph.filterExcelTable(tableName, client, [clientName], sessionId);//We filter the table by the matters that were invoiced
+                //await graph.filterExcelTable(tableName, matter, matters, sessionId);//We filter the table by the matters that were invoiced
+                await graph.closeFileSession(sessionId);
+            })();
+            /**
+             * Filters the Excel table according to the values of each inputs, then returns the values of the Word table rows that will be added to the Word table in the invoice template document
+             * @param {HTMLInputElement[]} inputs - the html inputs containing the values based on which the table will be filtered
+             * @param {number} discount  - The discount percentage that will be applied to the amount of each invoiced row if any. It is a number between 0 and 100. If it is equal to 0, it means that no discount will be applied.
+             * @param {string} lang - The language in which the invoice will be issued
+             * @returns {Promise<[string[][], string[], string[], string[]]>} - The values of the rows that will be added to the Word table in the invoice template
+             */
+            async function filterExcelData(inputs, discount, lang, invoiceNumber) {
+                const clientCol = 0, matterCol = 1, dateCol = 3, addressCol = 15; //Indexes of the 'Matter' and 'Date' columns in the Excel table
+                const clientNameInput = getInputByIndex(inputs, clientCol);
+                const matterInput = getInputByIndex(inputs, matterCol);
+                const clientName = clientNameInput.value || '';
+                const matters = getArray(matterInput.value) || []; //!The Matter input may include multiple entries separated by ', ' not only one entry.
+                if (!clientName || !matters?.length)
+                    throwAndAlert('could not retrieve the client name or the matter/matters list from the inputs');
+                let tableRows = this$.getExcelTable(tableName);
+                tableRows = this$.filterTableByInputsValues([[clientNameInput, clientCol], [matterInput, matterCol]], tableRows);
+                tableRows = filterByDate(tableRows, dateCol);
+                const { wordRows, totalsLabels } = this$.getRowsData(tableRows, discount, lang, invoiceNumber);
+                return { wordRows, totalsLabels };
+                function filterByDate(visible, dateCol) {
+                    const convert = (date) => dateFromExcel(Number(date)).getTime();
+                    const [from, to] = inputs
+                        .filter(input => getIndex(input) === dateCol)
+                        .map(input => input.valueAsDate?.getTime());
+                    if (from && to)
+                        return visible.filter(row => convert(row[dateCol]) >= from && convert(row[dateCol]) <= to); //we filter by the date
+                    else if (from)
+                        return visible.filter(row => convert(row[dateCol]) >= from); //we filter by the date
+                    else if (to)
+                        return visible.filter(row => convert(row[dateCol]) <= to); //we filter by the date
+                    else
+                        return visible.filter(row => convert(row[dateCol]) <= new Date().getTime()); //we filter by the date
+                }
+            }
+        }
+        async function getExcelTable(tableName, graph) {
+            const excelTable = await graph.fetchExcelTable(tableName, true);
+            let tableRows = excelTable?.slice(1, -1) || undefined; //We exclude the first and the last rows of the table. Since we are calling the "range" endpoint, we get the whole table including the headers. The first row is the header, and the last row is the total row.
+            if (!tableRows)
+                return throwAndAlert('We could not retrieve the tableRows whie trying to issue the invoice');
+            return tableRows;
+        }
     }
     test() {
         const m = this.report;

@@ -10,6 +10,7 @@ const settingsNames = {
         workBook: 'letterWorkbook',
         wordTemplate: 'letterTemplate',
         saveTo: 'letterSaveTo',
+        tableName: '',
     },
     leases: {
         workBook: 'leasesWorkbook',

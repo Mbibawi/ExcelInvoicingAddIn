@@ -9,6 +9,7 @@ const settingsNames = {
     workBook: 'letterWorkbook',
     wordTemplate: 'letterTemplate',
     saveTo: 'letterSaveTo',
+    tableName:'',
   },
   leases: {
     workBook: 'leasesWorkbook',
@@ -1088,7 +1089,7 @@ class XML {
 
   insertRowAfter(table: Element, rowTemplate: Element, after: number = -1, clone: boolean = false) {
     const this$ = this;
-    
+
     if (clone) return cloneAndAppend();
     else return create();
 
