@@ -2,18 +2,18 @@ const settingsNames = {
   invoices: {
     workBook: 'invoicesWorkbook',
     tableName: 'invoicesTable',
-    template: 'invoicesTemplate',
+    wordTemplate: 'invoicesTemplate',
     saveTo: 'invoicesSaveTo',
   },
   letter: {
     workBook: 'letterWorkbook',
-    template: 'letterTemplate',
+    wordTemplate: 'letterTemplate',
     saveTo: 'letterSaveTo',
   },
   leases: {
     workBook: 'leasesWorkbook',
     tableName: 'leasesTable',
-    template: 'leasesTemplate',
+    wordTemplate: 'leasesTemplate',
     saveTo: 'leasesSaveTo',
   },
 };
@@ -33,7 +33,7 @@ const settingsNames = {
       label: 'Provide the name of the accounts table'
     },
     {
-      name: settingsNames.invoices.template,
+      name: settingsNames.invoices.wordTemplate,
       value: `${root}Comptabilité/Factures/FactureTEMPLATE [NE PAS MODIFIDER].docx`,
       label: 'Please provide the OneDrive full path (including the file name and extension) for the Word template for the invoices'
     },
@@ -43,7 +43,7 @@ const settingsNames = {
       label: 'Please provide the OneDrive defalut folder path where the generated invoices will be saved'
     },
     {
-      name: settingsNames.letter.template,
+      name: settingsNames.letter.wordTemplate,
       value: `${root}Administratif/Modèles Actes/Template_Lettre With Letter Head [DO NOT MODIFY].docx`,
       label: 'Please provide the OneDrive full path (including the file name and extension) for the Word template for the letter heads'
     },
@@ -63,7 +63,7 @@ const settingsNames = {
       label: 'Please provide the Leases Excel Table'
     },
     {
-      name: settingsNames.leases.template,
+      name: settingsNames.leases.wordTemplate,
       value: `${root}Administratif/Modèles Actes/Template_Révision de loyer [DO NOT MODIFY].docx`,
       label: 'Please provide the OneDrive full path (including the file name and extension) for the Leases Word template'
     },
@@ -80,9 +80,6 @@ const settingsNames = {
   });
   saveSettings(values);
 })();
-
-
-const tenantId = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
 
 const byID = (id: string = "form") => document.getElementById(id);
 
@@ -143,11 +140,6 @@ function loadMsalScript() {
   document.head.appendChild(script);
   token ? console.log('Got token', token) : console.log('could not retrieve the token');
 };
-
-
-function selectForm(id: string) {
-  showForm(id)
-}
 
 async function showForm(id?: string) {
 
@@ -326,12 +318,6 @@ async function showForm(id?: string) {
 
 
 }
-/**
- * Creates a dataList with the provided id from the unique values of the column which index is passed as parameter
- * @param {string} id - the id of the dataList that will be created
- * @param {number} index - the index of the column from which the unique values of the datalist will be retrieved
- * 
-*/
 
 /**
  *
@@ -346,6 +332,7 @@ function populateSelectElement(select: HTMLInputElement, uniqueValues: string[],
   select.autocomplete = "on";
   return list
 }
+
 /**
  * 
  * @param id 
@@ -442,288 +429,11 @@ async function _generateInvoice(tableName: string, templatePath: string, saveTo:
   };
 
   const savePath = `${saveTo}/${getInvoiceFileName(invoiceDetails.clientName, invoiceDetails.matters, invoiceDetails.number)}`
-  const [rows, totalsLabels] = getRowsData(visible, discount, lang, getInvoiceNumber(date));
+  const lf = new LawFirm();
+  const {wordRows, totalsLabels} = lf.getRowsData(visible, discount, lang, getInvoiceNumber(date));
   const graph = new GraphAPI('');
-    await graph.createAndUploadDocumentFromTemplate(templatePath, savePath, lang, [['Invoice', rows, 1]], getContentControlsValues(invoiceDetails, new Date()));
+    await graph.createAndUploadDocumentFromTemplate(templatePath, savePath, lang, [['Invoice', wordRows, 1]], lf.getContentControlsValues(invoiceDetails, new Date()));
 
-}
-/**
- * Returns a string[][] representing the rows to be inserted in the Word table containing the invoice details
- * @param {string[][]} tableRows - The filtered Excel rows from which the data will be extracted and put in the required format 
- * @param {string} lang - The language in which the invoice will issued
- * @returns {string[][]} - the rows to be added to the table. Each row has 4 elements
- */
-function getRowsData(tableRows: any[][], discount: number = 0, lang: string, invoiceNumber: string): [string[][], string[]] {
-
-  const labels: { [index: string]: lable } = {
-    totalFees: {
-      nature: ['Honoraire'],
-      FR: 'Total honoraires',
-      EN: 'Total Fees'
-    },
-    totalExpenses: {
-      nature: ['Débours/Dépens', 'Rétrocession d\'honoraires', 'Débours/Dépens - Ackad Law Office', 'Charges déductibles'],
-      FR: 'Total débours et frais',
-      EN: 'Total Expenses'
-    },
-    totalPayments: {
-      nature: ['Provision/Règlement'],
-      FR: 'Total provisions reçues',
-      EN: 'Total Downpayments'
-    },
-    totalTimeSpent: {
-      nature: [],
-      FR: 'Total des heures facturables (hors prestations facturées au forfait) ',
-      EN: 'Total billable hours (other than lump-sum billed services)'
-    },
-    totalDue: {
-      nature: [],
-      FR: 'Montant dû',
-      EN: 'Total Due'
-    },
-    totalReinbursement: {
-      nature: [],
-      FR: 'A rembourser',
-      EN: 'Reimbursement'
-    },
-    totalDeduction: {
-      nature: ['Remise'],
-      FR: 'Total des remises sur honoraires',
-      EN: 'Total fees\' discounts'
-    },
-    netFees: {
-      nature: [],
-      FR: 'Total honoraires après réduction',
-      EN: 'Total fee after discount'
-    },
-    discountDescription: {
-      //This value is not used
-      nature: [],
-      FR: `XXX% de remise sur les honoraires`,
-      EN: `XXX% discount on accrued fees`
-    },
-    hourlyBilled: {
-      nature: [],
-      FR: 'facturation au temps passé\u00A0:',
-      EN: 'hourly billed:',
-    },
-    hourlyRate: {
-      nature: [],
-      FR: 'au taux horaire de\u00A0:',
-      EN: 'at an hourly rate of:',
-    },
-    decimal: {
-      nature: [],
-      FR: ',',
-      EN: '.'
-    },
-    bankHoler: {
-      nature: [],
-      FR: 'Titulaire du compte',
-      EN: 'Account holder'
-    },
-    bankName: {
-      nature: [],
-      FR: 'Banque',
-      EN: 'Bank'
-    },
-    bankAdress: {
-      nature: [],
-      FR: 'Adresse',
-      EN: 'Adress'
-    },
-  }
-  const totalsLabels: string[] = [];
-  const colDate = 3, colAmount = 9, colVAT = 10, colHours = 7, colRate = 8, colNature = 2, colDescr = 14;//Indexes of the Excel table columns from which we extract the date 
-
-  const wordRows: string[][] = tableRows.map(row => {
-    const date = dateFromExcel(Number(row[colDate]));
-    const time = getTimeSpent(Number(row[colHours]));
-
-    let description = `${String(row[colNature])} : ${String(row[colDescr])}`;//Column Nature + Column Description;
-
-    //If the billable hours are > 0, we add to the description: time spent and hourly rate
-    if (time)
-      description += ` (${labels.hourlyBilled[lang as keyof lable]} ${time}, ${labels.hourlyRate[lang as keyof lable]} ${Math.abs(row[colRate]).toString()}\u00A0€).`;
-
-
-    const rowValues: string[] = [
-      getDateString(date),//Column Date
-      description,
-      getAmountString(row[colAmount] * -1), //Column "Amount": we inverse the +/- sign for all the values 
-      getAmountString(Math.abs(row[colVAT])), //Column VAT: always a positive value
-    ];
-    return rowValues;
-  });
-  pushTotalsRows();
-  return [wordRows, totalsLabels];
-
-  function pushTotalsRows() {
-    //Adding rows for the totals of the different categories and amounts
-    const total = (lable: lable) => [colAmount, colVAT].map(col => sumColumn(col, lable.nature)) as values;//!It always returns the absolute values of the total amount and the total VAT
-    const amount = (v: values) => v[0];
-    const totalFees = total(labels.totalFees);
-    const feesDiscount = totalFees.map(amount => amount * (discount / 100));//This is an additional discount applied when the invoice is issued. The Excel table may already include other discounts registered as "Remise"
-    const feesDeductions = total(labels.totalDeduction).map((amount, index) => amount += feesDiscount[index]) as values;//This is the total of the deductions from the fees: the "Remise" deductions, and the additional discount added at the time the invoice is issued
-    const netFees = totalFees.map((amount, index) => amount - feesDeductions[index]) as values;
-    const totalPayments = total(labels.totalPayments);
-    const totalExpenses = total(labels.totalExpenses);
-    const totalTimeSpent: values = [sumColumn(colHours), NaN];//by omitting to pass the "natures" argument to sumColumn, we do not filter the "Total Time" column by any crieteria. We will get the sum of all the column. since the VAT = NaN, the VAT cell will end up empty.
-    const totalDue = netFees.map((amount, index) => amount + totalExpenses[index] - totalPayments[index]) as values;
-    const percentage = (amount(feesDeductions) / amount(totalFees)) * 100;
-
-    ['EN', 'FR'].forEach((lang) => (labels.totalDeduction[lang as keyof lable] as string) += ` (${percentage}%)`);
-
-    (function pushTotalsRows() {
-      pushRow(labels.totalFees, totalFees);
-      pushRow(labels.totalDeduction, feesDeductions, !amount(feesDeductions));
-      pushRow(labels.netFees, netFees, !(amount(netFees) < amount(totalFees)));//We don't push this row if the there is no deduction applied on the fees or if the deduction is = 0
-      pushRow(labels.totalTimeSpent, totalTimeSpent, !amount(totalTimeSpent));
-      pushRow(labels.totalExpenses, totalExpenses, !amount(totalExpenses));
-      pushRow(labels.totalPayments, totalPayments, !amount(totalPayments));
-      amount(totalDue) < 0 ? pushRow(labels.totalReinbursement, totalDue) : pushRow(labels.totalDue, totalDue)
-    })();
-
-
-    (function addDiscountRowToExcel() {
-      if (!discount) return;
-      const newRow = tableRows
-        .find(row => labels.totalFees.nature.includes(row[colNature]));
-      if (!newRow) return;
-      const [amount, vat] = feesDiscount;//!The discount must be added as a positive number. This is like a payment made by the client
-      const descr = prompt('Provide a description for the discount', `Remise sur les honoraires de la facture n° ${invoiceNumber}`) || '';
-      const date = getISODate(new Date());
-      const cells: [number, string | number][] = [
-        [colNature, 'Remise'],
-        [colAmount, amount],
-        [colVAT, vat],
-        [colDescr, descr],
-        [colDate, date],
-        [colDate + 1, date],
-      ];
-
-      cells.forEach(([col, value]) => newRow[col] = value);
-
-      addNewEntry(true, newRow);
-    })();
-
-    function pushRow(rowLable: lable, [amount, vat]: values, ignore: boolean = false) {
-      if (ignore || !amount || isNaN(amount)) return;
-      const lable = rowLable?.[lang as keyof lable] as string || '';
-      if (lable) totalsLabels.push(lable);
-      const value = rowLable === labels.totalTimeSpent ? getTimeSpent(amount) : getAmountString(amount);
-      wordRows.push(
-        [
-          lable,
-          '',
-          value,
-          getAmountString(vat)//VAT is always a positive value
-        ]);
-    }
-    /**
-     * 
-     * @param {number} col - the index of the column to be summed 
-     * @param {string[] | null} natures - the natures of the rows to be included in the sum. If null, we include all the rows regardless of their nature
-     * @returns 
-     */
-    function sumColumn(col: number, natures: string[] = []): number {
-      let rows = tableRows;
-      if (natures.length) rows = tableRows.filter(row => natures.includes(row[colNature]));//If natures is specified, we filter the rows to include only the ones whose nature is included in the natures array 
-      return Math.abs(sumArray(rows.map(row => Number(row[col]))));//!We return the absolute value of the total
-    }
-  }
-
-  function sumArray(values: number[]) {
-    let sum = 0;
-    values.forEach(value => sum += value);
-    return sum
-  }
-
-  function getAmountString(value: number): string {
-    if (isNaN(value)) return '';
-
-    const amount = value.toLocaleString(`${lang.toLowerCase()}-${lang.toUpperCase()}`, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    });
-
-    const versions = {
-      FR: `${amount}\u00A0€`,
-      EN: `€\u00A0${amount}`,
-    }
-
-    return versions[lang as keyof typeof versions];
-  }
-
-  /**
-   * Convert the time as retrieved from an Excel cell into 'hh:mm' format
-   * @param {number} time - The time as stored in an Excel cell
-   * @returns {string} - The time as 'hh:mm' format
-   */
-  function getTimeSpent(time: number): string {
-    if (!time || time <= 0) return '';
-    time = time * (60 * 60 * 24)//84600 is the number in seconds per day. Excel stores the time as fraction number of days like "1.5" which is = 36 hours 0 minutes 0 seconds;
-    const minutes = Math.floor(time / 60);
-    const hours = Math.floor(minutes / 60);
-    return [hours, minutes % 60, 0]
-      .map(el => el.toString().padStart(2, '0'))
-      .join(':');
-  }
-
-}
-
-function getContentControlsValues(invoice: { number: string, clientName: string, matters: string[], adress: string[], lang: string }, date: Date): [string, string][] {
-  const fields: InvoiceCtrls = {
-    dateLabel: {
-      title: 'LabelParisLe',
-      value: { FR: 'Paris le ', EN: 'Paris on ' }[invoice.lang] || '',
-    },
-    date: {
-      title: 'RTInvoiceDate',
-      value: getDateString(date),
-    },
-    numberLabel: {
-      title: 'LabelInvoiceNumber',
-      value: { FR: 'Facture n°\u00A0:', EN: 'Invoice No.:' }[invoice.lang] || '',
-    },
-    number: {
-      title: 'RTInvoiceNumber',
-      value: invoice.number,
-    },
-    subjectLable: {
-      title: 'LabelSubject',
-      value: { FR: 'Affaires\u00A0: ', EN: 'Matters: ' }[invoice.lang] || '',
-    },
-    subject: {
-      title: 'RTMatter',
-      value: invoice.matters.join(' & '),
-    },
-    fee: {
-      title: 'LabelTableHeadingHonoraire',
-      value: { FR: 'Honoraire/Débours', EN: 'Fees/Expenses' }[invoice.lang] || '',
-    },
-    amount: {
-      title: 'LabelTableHeadingMontantTTC',
-      value: { FR: 'Montant TTC', EN: 'Amount VAT Included' }[invoice.lang] || '',
-    },
-    vat: {
-      title: 'LabelTableHeadingTVA',
-      value: { FR: 'TVA', EN: 'VAT' }[invoice.lang] || '',
-    },
-    disclaimer: {
-      title: 'LabelDisclamer' + ['French', 'English'].find(el => !el.toUpperCase().startsWith(invoice.lang)) || 'English',
-      value: 'DELETECONTENTECONTROL',//!by setting text = "DELETECONTENTECONTROL", the contentControl will be deleted
-    },
-    clientName: {
-      title: 'RTClient',
-      value: invoice.clientName,
-    },
-    adress: {
-      title: 'RTClientAdresse',
-      value: invoice.adress.join(' & '),
-    },
-  };
-  return Object.values(fields).map(RT => [RT.title, RT.value]);
 }
 
 function getUniqueValues(index: number, array: any[][]): any[] {
@@ -739,10 +449,11 @@ class GraphAPI {
   private sessionId: string;
   private filePath: string;
   private methods = {
-    post: "POST",
-    put: "PUT",
-    get: "GET",
-    patch: "PATCH",
+    post: 'POST',
+    put: 'PUT',
+    get: 'GET',
+    patch: 'PATCH',
+    delete: 'DELETE'
   }
 
   constructor(accessToken: string = '', filePath?: string, sessionId?: string, presist: Boolean = false) {
@@ -909,12 +620,8 @@ class GraphAPI {
     }
 
     await this.sortExcelTable(tableName, [[3, true]], false, sessionId);//We sort the table by the first column (the date column)
-
     const visible = await this.getVisibleCells(tableName, sessionId);
-
-    await this.closeFileSession(sessionId);
     return visible;
-
   };
 
   /**
@@ -942,7 +649,6 @@ class GraphAPI {
       return data;
     } catch (err) {
       console.error('Update Failed:', err);
-      this.closeFileSession(sessionId);
     }
   };
 
@@ -1184,9 +890,8 @@ class GraphAPI {
     if (response?.ok) return response;
 
     message = `${message || `Error while sending ${method} request`}:\n ${await response?.text()}`;
-    alert(message);
     if (sessionId) await this.closeFileSession(sessionId)
-    throw new Error(message)
+    throwAndAlert(message)
   };
 
   /**
@@ -1203,8 +908,8 @@ class GraphAPI {
 
   private async getExcelTableRowsCount(filePath: string, tableName: string) {
     const endPoint = `${this.GRAPH_API_BASE_URL}${filePath}:/workbook/tables/${tableName}/rows/$count`;
-    const response = await this.sendRequest(endPoint, 'GET');
-
+    const response = await this.sendRequest(endPoint, this.methods.get)
+  
     if (response?.ok) {
       const rowCount = await response?.text(); // The API returns a number as plain text
       console.log(`Row count: ${rowCount}`);
@@ -1382,14 +1087,15 @@ class XML {
   }
 
   insertRowAfter(table: Element, rowTemplate: Element, after: number = -1, clone: boolean = false) {
-    const self = this;
+    const this$ = this;
+    
     if (clone) return cloneAndAppend();
     else return create();
 
     function create() {
       if (!table) return;
-      const row = self.createTableRow();
-      after >= 0 ? (self.getXMLElements(table, self.tags.row, after) as Element)?.insertAdjacentElement('afterend', row) :
+      const row = this$.createTableRow();
+      after >= 0 ? (this$.getXMLElements(table, this$.tags.row, after) as Element)?.insertAdjacentElement('afterend', row) :
         table.appendChild(row);
       return row;
     }
@@ -1454,19 +1160,19 @@ class XML {
 * @returns {Element} the textElemenet attached to the paragraph
 */
   appendParagraph(element: Element, parent?: Element) {
-    const self = this;
+    const this$ = this;
     if (parent) return clone();
     else return create();
     function clone() {
       const parag = element?.cloneNode(true) as Element;
       parent?.appendChild(parag);
-      return self.getXMLElements(parag, 't', 0) as Element
+      return this$.getXMLElements(parag, 't', 0) as Element
     }
     function create() {
-      const parag = element.appendChild(self.createXMLElement(self.tags.paragraph));
-      parag.appendChild(self.createXMLElement(self.Pr(self.tags.paragraph)));
-      const run = parag.appendChild(self.createXMLElement(self.tags.run));
-      return run.appendChild(self.createXMLElement(self.tags.text));
+      const parag = element.appendChild(this$.createXMLElement(this$.tags.paragraph));
+      parag.appendChild(this$.createXMLElement(this$.Pr(this$.tags.paragraph)));
+      const run = parag.appendChild(this$.createXMLElement(this$.tags.run));
+      return run.appendChild(this$.createXMLElement(this$.tags.text));
     }
   }
 
@@ -1495,15 +1201,15 @@ class XML {
     const paragTemplate = this.getParagraphOrRun(sdtContent);//This will set the language for the paragraph or the run
     if (!paragTemplate) return console.log('No template paragraph or run were found !');
     this.setTextLanguage(paragTemplate);//We amend the language element to the "w:pPr" or "r:pPr" child elements of paragTemplate
-    const self = this;
+    const this$ = this;
     text?.split('\n')
       .forEach((parag, index) => editParagraph(parag, index));
 
     function editParagraph(parag: string, index: number) {
       let textElement: Element;
       if (index < 1)
-        textElement = self.getXMLElements(paragTemplate, self.tags.text, index) as Element;
-      else textElement = self.appendParagraph(paragTemplate, sdtContent);//We pass sdtContent as parent argumself
+        textElement = this$.getXMLElements(paragTemplate, this$.tags.text, index) as Element;
+      else textElement = this$.appendParagraph(paragTemplate, sdtContent);//We pass sdtContent as parent argumself
       if (!textElement) return console.log('No textElement was found !');
 
       textElement.textContent = parag;
@@ -1910,16 +1616,16 @@ class MSAL {
     };
 
     return await acquire(this);
-    async function acquire(self: MSAL) {
+    async function acquire(this$: MSAL) {
       try {
-        const response = await self.msalInstance.handleRedirectPromise();
+        const response = await this$.msalInstance.handleRedirectPromise();
         if (response !== null) {
           console.log("Login successful:", response);
           return response.accessToken;
         }
-        const accounts = self.msalInstance.getAllAccounts();
+        const accounts = this$.msalInstance.getAllAccounts();
         if (accounts.length > 0) {
-          const tokenResponse = await self.msalInstance.acquireTokenSilent({
+          const tokenResponse = await this$.msalInstance.acquireTokenSilent({
             account: accounts[0],
             scopes: ["https://graph.microsoft.com/.default"]
           });
@@ -1930,7 +1636,7 @@ class MSAL {
         console.error("Error acquiring token:", error);
         //@ts-ignore
         if (error instanceof msal.InteractionRequiredAuthError) {
-          self.msalInstance.acquireTokenRedirect({
+          this$.msalInstance.acquireTokenRedirect({
             scopes: ["https://graph.microsoft.com/.default"]
           });
         }
@@ -1939,9 +1645,9 @@ class MSAL {
 
 
     // Function to handle redirect response
-    async function handleRedirectResponse(self: MSAL): Promise<string | undefined> {
+    async function handleRedirectResponse(this$: MSAL): Promise<string | undefined> {
       try {
-        const authResult = await self.msalInstance.handleRedirectPromise();
+        const authResult = await this$.msalInstance.handleRedirectPromise();
         if (authResult && authResult.accessToken) {
           console.log("Access token:", authResult.accessToken);
           return authResult.accessToken;
@@ -1997,7 +1703,7 @@ function saveSettings(values?: [string, string][], get: boolean = false) {
       },
       wordTemplate: {
         label: 'Invoices\'Word template path: ',
-        name: settingsNames.invoices.template,
+        name: settingsNames.invoices.wordTemplate,
         value: ''
       },
       saveTo: {
@@ -2014,7 +1720,7 @@ function saveSettings(values?: [string, string][], get: boolean = false) {
     Letter: {
       wordTemplate: {
         label: 'Letter Word template path: ',
-        name: settingsNames.letter.template,
+        name: settingsNames.letter.wordTemplate,
         value: ''
       },
       saveTo: {
@@ -2036,7 +1742,7 @@ function saveSettings(values?: [string, string][], get: boolean = false) {
       },
       wordTemplate: {
         label: 'Leases Word Template path :',
-        name: settingsNames.leases.template,
+        name: settingsNames.leases.wordTemplate,
         value: ''
       },
       saveTo: {
@@ -2097,7 +1803,11 @@ function saveSettings(values?: [string, string][], get: boolean = false) {
   }
 };
 
-
+function throwAndAlert(message:string) {
+  message = `Error: ${message}`
+  alert(message);
+  throw new Error(message) ;
+}
 function spinner(show: boolean) {
   if (!show) return document.querySelector('.spinner')?.remove();
   const form = byID('form');

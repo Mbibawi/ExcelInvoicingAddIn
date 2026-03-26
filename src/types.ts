@@ -69,8 +69,9 @@ type setting = {
 
 type settings = {
     issueInvoice: setting,
-    leases: setting,
-    Letter: setting,
+    leases?: setting,
+    Letter?: setting,
+    reports?:setting
 }
 
 
