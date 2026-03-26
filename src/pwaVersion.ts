@@ -31,6 +31,7 @@ function showMainUI(homeBtn?: boolean) {
  * @param {any[]} row - If provided, the function will add the row directly to the Excel Table without needing to retrieve the data from the inputs.
  */
 async function addNewEntry(add: boolean = false, row?: any[]) {
+    spinner(true);//We show the spinner
     const findSetting = (name: string, settings: settingInput[]) => settings?.find(setting => setting.name === name);
     const stored = getSavedSettings() || undefined;
     if (!stored) return;
@@ -48,9 +49,9 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
     (async function showAddNewForm() {
         if (add) return;
         document.querySelector('table')?.remove();
-        spinner(true);//We show the spinner
         try {
             await createForm();
+            spinner(false);//We hide the sinner
         } catch (error) {
             spinner(false);//We hide the sinner
             alert(error);
@@ -65,7 +66,6 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
 
             insertAddForm(tableTitles);
             await graph.closeFileSession(sessionId);
-            spinner(false);//We hide the spinner
 
 
             function insertAddForm(titles: string[]) {
@@ -201,7 +201,6 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
 
     (async function addEntry() {
         if (!add) return;
-        spinner(true);//We show the spinner
         const display = !row?.length;
         if (!row) row = parseInputs() || [];
         try {
@@ -351,6 +350,7 @@ async function addNewEntry(add: boolean = false, row?: any[]) {
 
 // Update Word Document
 async function invoice(issue: boolean = false) {
+    spinner(true);//We show the spinner
     const findSetting = (name: string, settings: settingInput[]) => settings?.find(setting => setting.name === name);
     const stored = getSavedSettings() || undefined;
     if (!stored) return;
@@ -372,13 +372,13 @@ async function invoice(issue: boolean = false) {
         if (issue) return;
         if (!workbookPath || !tableName) return alert('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
         document.querySelector('table')?.remove();
-        spinner(true);//We show the spinner
         try {
             await createForm();
+            spinner(false);//We hide the spinner
         }
         catch (error) {
-            spinner(false);//We hide the spinner
             alert(error)
+            spinner(false);//We hide the spinner
         }
 
         async function createForm() {
@@ -387,7 +387,6 @@ async function invoice(issue: boolean = false) {
 
             insertInvoiceForm(tableTitles);
             await graph.closeFileSession(sessionId);
-            spinner(false);//We hide the spinner
         }
 
         function insertInvoiceForm(tableTitles: string[]) {
@@ -491,9 +490,9 @@ async function invoice(issue: boolean = false) {
 
     (async function issueInvoice() {
         if (!issue) return;
-        spinner(true);//We show the spinner
         try {
             await editInvoice();
+            spinner(false);//We hide the spinner
         } catch (error) {
             spinner(false);//We hide the sinner
             alert(error)
@@ -542,7 +541,6 @@ async function invoice(issue: boolean = false) {
             await graph.filterExcelTable(tableName!, matter, matters, sessionId);//We filter the table by the matters that were invoiced
 
             await graph.closeFileSession(sessionId);
-            spinner(false);//We hide the spinner
         })();
 
         /**
@@ -605,6 +603,7 @@ async function invoice(issue: boolean = false) {
 }
 
 async function issueLetter(create: boolean = false) {
+    spinner(true);//We show the spinner
     (function showForm() {
         if (create) return;
         document.querySelector('table')?.remove();
@@ -628,6 +627,7 @@ async function issueLetter(create: boolean = false) {
 
         (function homeBtn() {
             showMainUI(true);
+            spinner(false);//We hide the spinner
         })();
     })();
 
@@ -645,13 +645,18 @@ async function issueLetter(create: boolean = false) {
         if (!saveToPath) return;
 
         const contentControls: [string, string][] = [['RTCoreText', input.value], ['RTReference', 'Référence'], ['RTClientName', 'Nom du Client'], ['RTEmail', 'Email du client']];
-
-        new GraphAPI('', saveToPath).createAndUploadDocumentFromTemplate(templatePath, saveToPath, 'FR', undefined, contentControls);
+        try {
+            new GraphAPI('', saveToPath).createAndUploadDocumentFromTemplate(templatePath, saveToPath, 'FR', undefined, contentControls);
+            spinner(false);//We hide the spinner
+        } catch (err) {
+            console.log(`There was an error: ${err}`)
+            spinner(false);//We hide the spinner
+        }
     })();
 
 }
 async function issueLeaseLetter(create: boolean = false) {
-    spinner(true);
+    spinner(true); //We show the spinner
     const findSetting = (name: string, settings: settingInput[]) => settings?.find(setting => setting.name === name);
     const stored = getSavedSettings() || undefined;
     if (!stored) return;
@@ -685,12 +690,6 @@ async function issueLeaseLetter(create: boolean = false) {
         nextRevision: { title: 'RTProchaineRevision', value: '' },
     };
 
-    /**
-     * This function casts the "col" property as "number" beacause the col property of some RTs is "undefined". So this function will mainly cast the col property to a number in order to avoid casting each time we retrieve the col property
-     * @param {RT} RT 
-     * @returns {number}
-     */
-    const column = (RT: RT) => RT.col as number;
 
     const ctrls = Object.values(Ctrls);
 
@@ -711,14 +710,14 @@ async function issueLeaseLetter(create: boolean = false) {
         (function insertInputs() {
             const unvalid = (values: (string | undefined)[]) => values.find(value => !value || isNaN(Number(value)));
             ctrls
-                .filter(RT => !isNaN(column(RT)))
-                .map(RT => inputs.push([createInput(RT), column(RT)] as const));
+                .filter(RT => !isNaN(RT.col!))
+                .map(RT => inputs.push([createInput(RT), RT.col!] as const));
 
             const owner = findInput(Ctrls.owner.title);
-            if (owner) populateSelectElement(owner, getUniqueValues(column(Ctrls.owner), tableRows), false);
+            if (owner) populateSelectElement(owner, getUniqueValues(Ctrls.owner.col!, tableRows), false);
 
             (function inputsOnChange() {
-                const filled = inputs.filter(([input, col]) => col <= column(Ctrls.tenant));
+                const filled = inputs.filter(([input, col]) => col <= Ctrls.tenant.col!);
                 filled.forEach(([input, col]) => input.onchange = () => row = inputOnChange(col, inputs, tableRows, false));
 
                 const index = findInput(Ctrls.index.title);
@@ -727,10 +726,10 @@ async function issueLeaseLetter(create: boolean = false) {
                     if (!row?.length)
                         return alert('No lease having owner name, property adress and tenant name as in the inputs was found');
                     rowIndex = tableRows.indexOf(row);
-                    const initial = row[column(Ctrls.initialIndex)];//This is the value of the inital index
-                    const base = row[column(Ctrls.baseIndex)] || initial;//This is the value of the base index
+                    const initial = row[Ctrls.initialIndex.col!];//This is the value of the inital index
+                    const base = row[Ctrls.baseIndex.col!] || initial;//This is the value of the base index
                     const latestIndex = index.value; //this is the latest index
-                    const currentLease = row[column(Ctrls.currentLease)];//This is the value of the current lease
+                    const currentLease = row[Ctrls.currentLease.col!];//This is the value of the current lease
                     if (unvalid([base, latestIndex, currentLease])) return alert('Please make sure that the values of the current lease, the base indice and the new indice are all provided and valid numbers');
                     const newLease = (Number(currentLease) * (Number(latestIndex) / Number(base))).toFixed(2).toString();
                     const currentLeaseInput = findInput(Ctrls.currentLease.title) as HTMLInputElement;
@@ -773,8 +772,8 @@ async function issueLeaseLetter(create: boolean = false) {
 
         (function homeBtn() {
             showMainUI(true);
+            spinner(false);//We hide the spinner
         })();
-        spinner(false);
 
         function createInput(RT: RT, className: string = 'field') {
             const id = RT.title;
@@ -795,7 +794,7 @@ async function issueLeaseLetter(create: boolean = false) {
                 input.type = RT.type || 'text';
                 input.id = id;
                 input.classList.add(className);
-                const col = column(RT).toString();
+                const col = RT.col!.toString();
                 input.dataset.index = col;
                 div.dataset.index = col;
                 append(input);
@@ -826,12 +825,12 @@ async function issueLeaseLetter(create: boolean = false) {
 
         (function setMissingValues() {
             if (!row) return alert('The values in the input did not identifiy a unique lease in the Excel table');
-            const leaseDate = dateFromExcel(row[column(Ctrls.leaseDate)]);
+            const leaseDate = dateFromExcel(row[Ctrls.leaseDate.col!]);
             const getYear = (date: number) => dateFromExcel(date).getFullYear().toString();
             const anniversary = (year: number) => [leaseDate.getDate(), leaseDate.getMonth() + 1, year].join('/')
             const year = date.getFullYear();
-            Ctrls.initialYear.value = getYear(row[column(Ctrls.initialIndexDate)]);
-            Ctrls.baseYear.value = getYear(row[column(Ctrls.baseIndexDate)]);
+            Ctrls.initialYear.value = getYear(row[Ctrls.initialIndexDate.col!]);
+            Ctrls.baseYear.value = getYear(row[Ctrls.baseIndexDate.col!]);
             Ctrls.anniversaryDate.value = anniversary(year);
             Ctrls.revisionDate.value = getDateString(date);
             Ctrls.revisionYear.value = year.toString();
@@ -839,10 +838,17 @@ async function issueLeaseLetter(create: boolean = false) {
         })();
 
         const contentControls: [string, string][] = ctrls.map(RT => [RT.title, RT.value]);
-
-        graph.createAndUploadDocumentFromTemplate(templatePath, savePath, 'FR', undefined, contentControls);
+        try {
+            await graph.createAndUploadDocumentFromTemplate(templatePath, savePath, 'FR', undefined, contentControls);
+            await updateExcelTable();
+            spinner(false);//We hide the spinner
+        } catch (error) {
+            console.log(error);
+            alert(error);
+            spinner(false);//We hide the spinner
+        }
         
-        (async function updateExcelTable() {
+        async function updateExcelTable() {
             if (!tableName) return;
             const TableRows = await graph.fetchExcelTable(tableName, true);
             if (!TableRows?.length) return alert('Failed to retrieve the Excel table');
@@ -853,7 +859,7 @@ async function issueLeaseLetter(create: boolean = false) {
                 inputs.forEach(input => update(row!, input));
                 await graph.updateExcelTableRow(tableName, rowIndex, row);
                 return;
-                const col = column(Ctrls.revisionDate);
+                const col = Ctrls.revisionDate.col!;
                 const revisionDate = findInputById(Ctrls.revisionDate)?.valueAsDate || undefined;
                 row![col] = getISODate(revisionDate);
             })();
@@ -865,15 +871,14 @@ async function issueLeaseLetter(create: boolean = false) {
                 await graph.addRowToExcelTable(row, rowIndex, tableName)
             })();
 
-            function update(row: any[], [input, col]: InputCol) {
+        function update(row: any[], [input, col]: InputCol) {
                 if (input.type === 'date')
                     row[col] = getISODate(input.valueAsDate || undefined);
                 else if (input.type === 'number')
                     row[col] = input.valueAsNumber;
                 else row[col] = input.value
             }
-        })();
-        spinner(false);
+        };
     }
 
 }
@@ -965,6 +970,7 @@ function getNewExcelRow(inputs: HTMLInputElement[]) {
 
 
 function searchFiles() {
+    spinner(true);//We show the spinner
     const graph = new GraphAPI('');
     (function showForm() {
         const form = byID('form') as HTMLDivElement;
@@ -1029,13 +1035,14 @@ function searchFiles() {
 
     async function fetchAllDriveFiles(form: HTMLDivElement, record?: string) {
         if (record) return manageFilesDatabase([], record, true);//We delete the record for the folder path
-        spinner(true);//We show the spinner
 
         try {
             await fetchAndFilter();
+            spinner(false);//Hide the spinner
         } catch (error) {
             spinner(false);//Hide the spinner
-            alert(error)
+            console.log(error);
+            alert(error);
         }
 
 
@@ -1070,8 +1077,6 @@ function searchFiles() {
             }
 
             form.insertAdjacentElement('afterend', table);
-            spinner(false);//We hide the spinner
-
 
             console.log(`Fetched ${files.length} items, displaying ${matchingFiles.length} matching files.`);
         }
@@ -1178,7 +1183,7 @@ function searchFiles() {
             if (!response?.ok) return;
             return await response.json();
         };
-        
+
         function filterFiles(files: fileItem[], search: string) {
             const byName = files.filter((item: any) => RegExp(search, 'i').test(item.name));
             const created = (file: fileItem) => new Date(file.createdDateTime);

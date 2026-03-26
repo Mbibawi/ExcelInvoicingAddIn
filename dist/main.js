@@ -1956,11 +1956,11 @@ function saveSettings(values, get = false) {
 function spinner(show) {
     if (!show)
         return document.querySelector('.spinner')?.remove();
-    const form = document.getElementById('form');
+    const form = byID('form');
     if (!form)
         return;
     const spinner = document.createElement('div');
     spinner.classList.add('spinner');
-    form.appendChild(spinner);
+    form.prepend(spinner);
 }
 //# sourceMappingURL=main.js.map

@@ -39,8 +39,8 @@ const settingsNames = {
     },
     {
       name: settingsNames.invoices.saveTo,
-      value: `${root}`,
-      label: 'Please provide the OneDrive defalut folder path wher the generated invoices will be saved'
+      value: `${root}Comptabilité/Factures/Clients}`,
+      label: 'Please provide the OneDrive defalut folder path where the generated invoices will be saved'
     },
     {
       name: settingsNames.letter.template,
@@ -1163,14 +1163,21 @@ class GraphAPI {
    * @param {string} message 
    * @returns {Promise<Response | undefined>} 
    */
-  async sendRequest(endPoint: string, method: string, body?: object, sessionId?: string, contentType?: string, message = "") {
+  async sendRequest(endPoint: string, method: string, body?: object|Blob|ArrayBuffer, sessionId?: string, contentType?: string, message = "") {
     if (!this.accessToken) this.accessToken = await this.getAccessToken() || '';
     if (!this.accessToken) return alert('Could not get an accessToken');
     const request: RequestInit = {
       method: method,
       headers: this.graphHeaders(sessionId, contentType)
+    };
+
+    if (body) {
+      if (body instanceof Blob || body instanceof ArrayBuffer) {
+        request.body = body; // Send raw binary
+      } else {
+        request.body = JSON.stringify(body); // Send JSON
+      }
     }
-    if (body) request.body = JSON.stringify(body);
 
     const response = await fetch(endPoint, request);
 
@@ -2093,9 +2100,9 @@ function saveSettings(values?: [string, string][], get: boolean = false) {
 
 function spinner(show: boolean) {
   if (!show) return document.querySelector('.spinner')?.remove();
-  const form = document.getElementById('form');
+  const form = byID('form');
   if (!form) return;
   const spinner = document.createElement('div');
   spinner.classList.add('spinner');
-  form.appendChild(spinner)
+  form.prepend(spinner)
 }
