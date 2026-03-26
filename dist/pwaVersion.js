@@ -14,18 +14,9 @@ class LawFirm {
      */
     async addNewEntry(add = false, row) {
         spinner(true); //We show the spinner
-        const this$ = this;
-        const stored = getSavedSettings() || undefined;
-        if (!stored)
-            return;
-        const workbookPath = this.findSetting(this.settingsNames.invoices.workBook, stored)?.value;
-        if (!workbookPath)
-            return alert('Could not get a valid workbook path from the localStorage');
-        const tableName = this.findSetting(this.settingsNames.invoices.tableName, stored)?.value;
-        if (!tableName)
-            return alert('Could not get the name of the Excel table from the localStorage');
-        if (!workbookPath || !tableName)
-            throw new Error('The Excel Workbook path and/or the name of the Excel Table are missing or invalid');
+        const { workbookPath, tableName } = this.getConsts(this.settingsNames.invoices);
+        if ([this.stored, workbookPath, tableName].find(v => !v))
+            throwAndAlert('One of the constant values is not valid');
         const graph = new GraphAPI('', workbookPath);
         const TableRows = await graph.fetchExcelTable(tableName, true);
         if (!TableRows?.length)
@@ -33,7 +24,8 @@ class LawFirm {
         const tableTitles = TableRows[0];
         if (add)
             return addEntry(TableRows, tableTitles);
-        (async function showAddNewForm() {
+        await showAddNewForm(this);
+        async function showAddNewForm(this$) {
             try {
                 await createForm();
                 spinner(false); //We hide the sinner
@@ -163,7 +155,8 @@ class LawFirm {
                     ;
                 }
             }
-        })();
+        }
+        ;
         async function addEntry(tableRows, tableTitles) {
             const display = !row?.length;
             if (!row)
@@ -310,8 +303,8 @@ class LawFirm {
     }
     ;
     async issueInvoice() {
-        const this$ = this;
-        (async function showInvoiceForm() {
+        await showInvoiceForm(this);
+        async function showInvoiceForm(this$) {
             spinner(true); //We show the spinner
             const { workbookPath, tableName, templatePath, saveTo } = this$.getConsts(this$.settingsNames.invoices);
             if ([this$.stored, workbookPath, tableName, templatePath, saveTo].find(v => !v))
@@ -358,7 +351,7 @@ class LawFirm {
                     const btnIssue = document.createElement('button');
                     btnIssue.innerText = 'Generate Invoice';
                     btnIssue.classList.add('button');
-                    btnIssue.onclick = () => issueInvoice(tableName, tableTitles, templatePath, saveTo, graph);
+                    btnIssue.onclick = () => issueInvoice(this$, tableName, tableTitles, templatePath, saveTo, graph);
                     form.appendChild(btnIssue);
                 })();
                 (function homeBtns() {
@@ -426,10 +419,12 @@ class LawFirm {
                 }
                 ;
             }
-        })();
-        async function issueInvoice(tableName, tableTitles, templatePath, saveTo, graph) {
+        }
+        ;
+        async function issueInvoice(this$, tableName, tableTitles, templatePath, saveTo, graph) {
+            spinner(true); //We show the spinner
             try {
-                await editInvoice(tableName, tableTitles, templatePath, saveTo, graph);
+                await editInvoice(this$, tableName, tableTitles, templatePath, saveTo, graph);
                 spinner(false); //We hide the spinner
             }
             catch (error) {
@@ -438,7 +433,7 @@ class LawFirm {
             }
         }
         ;
-        async function editInvoice(tableName, tableTitles, templatePath, saveTo, graph) {
+        async function editInvoice(this$, tableName, tableTitles, templatePath, saveTo, graph) {
             const client = tableTitles[0], matter = tableTitles[1]; //Those are the 'Client' and 'Matter' columns of the Excel table
             const sessionId = await graph.createFileSession(true) || ''; //!persist must be = true. This means that if the session is closed, the changes made to the file will be saved.
             if (!sessionId)
@@ -512,12 +507,10 @@ class LawFirm {
             }
         }
     }
-    async issueLetter(create = false) {
-        spinner(true); //We show the spinner
-        const this$ = this;
-        (function showForm() {
-            if (create)
-                return;
+    async issueLetter() {
+        showForm(this);
+        function showForm(this$) {
+            spinner(true); //We show the spinner
             document.querySelector('table')?.remove();
             const form = byID();
             if (!form)
@@ -534,46 +527,44 @@ class LawFirm {
                 form?.appendChild(btn);
                 btn.classList.add('button');
                 btn.innerText = 'Créer lettre';
-                btn.onclick = () => generate();
+                btn.onclick = () => generate(this$);
             })();
             (function homeBtn() {
                 showMainUI(true);
                 spinner(false); //We hide the spinner
             })();
-        })();
-        async function generate() {
-            if (!create)
-                return;
-            const input = byID('textInput');
-            if (!input)
-                return;
-            const stored = getSavedSettings();
-            const templatePath = stored?.find(setting => setting.name === this$.settingsNames.letter.wordTemplate).value;
-            if (!templatePath)
-                return;
-            const fileName = prompt('Provide the file name without special characthers');
-            if (!fileName)
-                return;
-            const saveTo = stored?.find(setting => setting.name === this$.settingsNames.letter.saveTo).value || 'NO STORED DEFAULT FOLDER PATH FOUND';
-            const saveToPath = `${prompt('Provide the destination folder', saveTo)}/${fileName}.docx`;
-            if (!saveToPath)
-                return;
-            const contentControls = [['RTCoreText', input.value], ['RTReference', 'Référence'], ['RTClientName', 'Nom du Client'], ['RTEmail', 'Email du client']];
+        }
+        ;
+        async function generate(this$) {
             try {
-                new GraphAPI('', saveToPath).createAndUploadDocumentFromTemplate(templatePath, saveToPath, 'FR', undefined, contentControls);
+                await createLetter();
                 spinner(false); //We hide the spinner
             }
-            catch (err) {
-                console.log(`There was an error: ${err}`);
+            catch (error) {
+                console.log(`There was an error: ${error}`);
                 spinner(false); //We hide the spinner
+            }
+            async function createLetter() {
+                spinner(true);
+                const input = byID('textInput');
+                if (!input)
+                    return;
+                const { templatePath, saveTo } = this$.getConsts(settingsNames.letter);
+                const fileName = prompt('Provide the file name without special characthers');
+                if (!fileName)
+                    return;
+                const saveToPath = `${prompt('Provide the destination folder', saveTo || 'NO SAVE TO PATH PROVIDED')}/${fileName}.docx`;
+                if (!saveToPath)
+                    return;
+                const contentControls = [['RTCoreText', input.value], ['RTReference', 'Référence'], ['RTClientName', 'Nom du Client'], ['RTEmail', 'Email du client']];
+                await new GraphAPI('', saveToPath).createAndUploadDocumentFromTemplate(templatePath, saveToPath, 'FR', undefined, contentControls);
             }
         }
         ;
     }
     async issueLeaseLetter() {
         spinner(true); //We show the spinner
-        const this$ = this;
-        const { workbookPath, tableName, templatePath, saveTo } = this$.getConsts(this$.settingsNames.leases);
+        const { workbookPath, tableName, templatePath, saveTo } = this.getConsts(this.settingsNames.leases);
         if ([this.stored, workbookPath, tableName, templatePath, saveTo].find(v => !v))
             throwAndAlert('One of the  constant values is not valid');
         const graph = new GraphAPI('', workbookPath);
@@ -603,7 +594,8 @@ class LawFirm {
         const ctrls = Object.values(Ctrls);
         const findRT = (id) => ctrls.find(RT => RT.title === id);
         let row, rowIndex = null;
-        (async function showForm() {
+        await showForm(this);
+        async function showForm(this$) {
             const inputs = [];
             const findInput = (id) => inputs.find(([input, col]) => input.id === id)?.[0];
             if (!tableRows)
@@ -704,7 +696,8 @@ class LawFirm {
                 ;
             }
             ;
-        })();
+        }
+        ;
         async function generate(inputs, row) {
             if (!inputs.length)
                 return alert('Either the inputs collection or the lease or the lease index are missing');
