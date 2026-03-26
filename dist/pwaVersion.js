@@ -1,30 +1,4 @@
 "use strict";
-showMainUI();
-function showMainUI(homeBtn) {
-    const container = byID('btns');
-    if (!container)
-        return;
-    container.innerHTML = "";
-    if (homeBtn)
-        return appendBtn('home', 'Back to Main', showMainUI);
-    const lf = new LawFirm();
-    appendBtn('entry', 'Add Entry', lf.addNewEntry);
-    appendBtn('invoice', 'Invoice', lf.issueInvoice);
-    appendBtn('letter', 'Letter', lf.issueLetter);
-    appendBtn('lease', 'Leases', lf.issueLeaseLetter);
-    appendBtn('search', 'Search Files', lf.searchFiles);
-    appendBtn('settings', 'Settings', saveSettings);
-    function appendBtn(id, text, onClick) {
-        const btn = document.createElement('button');
-        btn.id = id;
-        btn.classList.add("ms-Button");
-        btn.innerText = text;
-        btn.onclick = () => onClick();
-        container?.appendChild(btn);
-        return btn;
-    }
-}
-;
 class LawFirm {
     constructor() {
         this.findSetting = (name, settings) => settings?.find(setting => setting.name === name);
@@ -1456,6 +1430,9 @@ class Marianne extends LawFirm {
         return console.log('this is not a valid method in Marianne Class');
     }
 }
+(function startApp() {
+    showMainUI(); //!This must come after the classes have been declared
+})();
 /**
  * Convert the date in an Excel row into a javascript date (in milliseconds)
  * @param {number} excelDate - The date retrieved from an Excel cell
@@ -1466,4 +1443,29 @@ function dateFromExcel(excelDate) {
     const dateOffset = date.getTimezoneOffset() * 60 * 1000; //Getting the difference in milleseconds
     return new Date(date.getTime() + dateOffset);
 }
+function showMainUI(homeBtn) {
+    const container = byID('btns');
+    if (!container)
+        return;
+    container.innerHTML = "";
+    if (homeBtn)
+        return appendBtn('home', 'Back to Main', showMainUI);
+    const lf = new LawFirm();
+    appendBtn('entry', 'Add Entry', lf.addNewEntry);
+    appendBtn('invoice', 'Invoice', lf.issueInvoice);
+    appendBtn('letter', 'Letter', lf.issueLetter);
+    appendBtn('lease', 'Leases', lf.issueLeaseLetter);
+    appendBtn('search', 'Search Files', lf.searchFiles);
+    appendBtn('settings', 'Settings', saveSettings);
+    function appendBtn(id, text, onClick) {
+        const btn = document.createElement('button');
+        btn.id = id;
+        btn.classList.add("ms-Button");
+        btn.innerText = text;
+        btn.onclick = () => onClick();
+        container?.appendChild(btn);
+        return btn;
+    }
+}
+;
 //# sourceMappingURL=pwaVersion.js.map
