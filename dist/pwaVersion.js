@@ -24,9 +24,8 @@ class LawFirm {
         const tableTitles = TableRows[0];
         if (add)
             return addEntry(TableRows, tableTitles);
-        const _inputOnChange = this.inputOnChange.bind(this);
-        await showAddNewForm;
-        async function showAddNewForm() {
+        await showAddNewForm(this);
+        async function showAddNewForm(this$) {
             try {
                 await createForm();
                 spinner(false); //We hide the sinner
@@ -122,7 +121,7 @@ class LawFirm {
                             (function addDataLists() {
                                 const updateNext = [0, 1, 8, 15]; //Those are the indexes of the inputs (i.e; the columns numbers) that need to get an onChange event in order to update the dataLists of the next inputs when the current input is changed: "Client"(0), "Affaire"(1), "Taux Horaire"(8), "Adresses"(15)
                                 if (updateNext.includes(index))
-                                    input.onchange = () => _inputOnChange(index, bound(updateNext), tableBody, false);
+                                    input.onchange = () => this$.inputOnChange(index, bound(updateNext), tableBody, false);
                                 if (![0, 2, 11, 12, 13].includes(index))
                                     return; //We will initially populate the "Client"(0), Nature(2), "Payment Method"(11), "Bank Account"(12), "Third Party"(13) lists only, the other inputs will be populate when the onChange function will be called
                                 populateSelectElement(input, getUniqueValues(index, tableBody));
@@ -305,19 +304,10 @@ class LawFirm {
     ;
     async issueInvoice() {
         const this$ = this;
-        /*const _getConsts = this.getConsts.bind(this),
-            settingsNames = this.settingsNames.invoices,
-            stored = this.stored,
-            _inputOnChange = this.inputOnChange.bind(this),
-            _getContentControlsValues = this.getContentControlsValues.bind(this),
-            _filterTableByInputsValues = this.filterTableByInputsValues.bind(this),
-            _getRowsData = this.getRowsData.bind(this);*/
         await showInvoiceForm();
         async function showInvoiceForm() {
             spinner(true); //We show the spinner
-            //const { workbookPath, tableName, templatePath, saveTo } = _getConsts(settingsNames);
             const { workbookPath, tableName, templatePath, saveTo } = this$.getConsts(this$.settingsNames.invoices);
-            //if ([stored, workbookPath, tableName, templatePath, saveTo].find(v => !v)) throwAndAlert('One of the  constant values is not valid');
             if ([this$.stored, workbookPath, tableName, templatePath, saveTo].find(v => !v))
                 throwAndAlert('One of the  constant values is not valid');
             const graph = new GraphAPI('', workbookPath);
@@ -399,7 +389,6 @@ class LawFirm {
                             if (index < 3)
                                 boundInputs.push([input, index]); //Fields "Client"(0), "Affaire"(1), "Nature"(2) are the inputs that will need to get their dataList created or updated each time the previous input is changed.
                             if (index < 2)
-                                //input.onchange = () => _inputOnChange(index as number, boundInputs, tableBody, true);//We add onChange on "Client" (0) and "Affaire" (1) columns
                                 input.onchange = () => this$.inputOnChange(index, boundInputs, tableBody, true); //We add onChange on "Client" (0) and "Affaire" (1) columns
                             if (index < 1)
                                 populateSelectElement(input, getUniqueValues(0, tableBody)); //We create a unique values dataList for the "Client" (0) input
@@ -467,11 +456,10 @@ class LawFirm {
                 adress: adresses,
                 lang: lang
             };
-            //const contentControls = _getContentControlsValues(invoice, date);
             const contentControls = this$.getContentControlsValues(invoice, date);
             const fileName = getInvoiceFileName(clientName, matters, invoiceNumber);
             let saveToPath = `${saveTo}/${fileName}`;
-            saveToPath = prompt(`The file will be saved in ${saveTo}, and will be named : ${fileName}.\nIf you want to change the path or the name, provide the full file path and name of your choice without any sepcial characters`, saveTo) || saveTo;
+            saveToPath = prompt(`The file will be saved in ${saveTo}, and will be named : ${fileName}.\nIf you want to change the path or the name, provide the full file path and name of your choice without any sepcial characters`, saveToPath) || saveTo;
             (async function editInvoiceFilterExcelClose() {
                 await graph.createAndUploadDocumentFromTemplate(templatePath, saveToPath, lang, [['Invoice', wordRows, 1]], contentControls, totalsLabels);
                 await graph.clearFilterExcelTable(tableName, sessionId); //We unfilter the table;
@@ -523,7 +511,7 @@ class LawFirm {
         }
     }
     async issueLetter() {
-        const _getConsts = this.getConsts.bind(this);
+        const this$ = this;
         showForm();
         function showForm() {
             spinner(true); //We show the spinner
@@ -565,7 +553,7 @@ class LawFirm {
                 const input = byID('textInput');
                 if (!input)
                     return;
-                const { templatePath, saveTo } = _getConsts(settingsNames.letter);
+                const { templatePath, saveTo } = this$.getConsts(settingsNames.letter);
                 const fileName = prompt('Provide the file name without special characthers');
                 if (!fileName)
                     return;
@@ -609,7 +597,7 @@ class LawFirm {
         };
         const ctrls = Object.values(Ctrls);
         const findRT = (id) => ctrls.find(RT => RT.title === id);
-        const _inputOnChange = this.inputOnChange.bind(this);
+        const this$ = this;
         let row, rowIndex = null;
         await showForm();
         async function showForm() {
@@ -633,7 +621,7 @@ class LawFirm {
                     populateSelectElement(owner, getUniqueValues(Ctrls.owner.col, tableRows), false);
                 (function inputsOnChange() {
                     const filled = inputs.filter(([input, col]) => col <= Ctrls.tenant.col);
-                    filled.forEach(([input, col]) => input.onchange = () => row = _inputOnChange(col, inputs, tableRows, false));
+                    filled.forEach(([input, col]) => input.onchange = () => row = this$.inputOnChange(col, inputs, tableRows, false));
                     const index = findInput(Ctrls.index.title);
                     if (index)
                         index.onchange = () => {
