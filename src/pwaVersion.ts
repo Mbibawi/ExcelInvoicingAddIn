@@ -322,21 +322,24 @@ class LawFirm {
     };
 
     async issueInvoice() {
-        const _getConsts = this.getConsts.bind(this),
+        const this$ = this;
+        /*const _getConsts = this.getConsts.bind(this),
             settingsNames = this.settingsNames.invoices,
             stored = this.stored,
             _inputOnChange = this.inputOnChange.bind(this),
             _getContentControlsValues = this.getContentControlsValues.bind(this),
             _filterTableByInputsValues = this.filterTableByInputsValues.bind(this),
-            _getRowsData = this.getRowsData.bind(this);
+            _getRowsData = this.getRowsData.bind(this);*/
         
         await showInvoiceForm();
 
         async function showInvoiceForm() {
             spinner(true);//We show the spinner
-            const { workbookPath, tableName, templatePath, saveTo } = _getConsts(settingsNames);
+            //const { workbookPath, tableName, templatePath, saveTo } = _getConsts(settingsNames);
+            const { workbookPath, tableName, templatePath, saveTo } = this$.getConsts(this$.settingsNames.invoices);
             
-            if ([stored, workbookPath, tableName, templatePath, saveTo].find(v => !v)) throwAndAlert('One of the  constant values is not valid');
+            //if ([stored, workbookPath, tableName, templatePath, saveTo].find(v => !v)) throwAndAlert('One of the  constant values is not valid');
+            if ([this$.stored, workbookPath, tableName, templatePath, saveTo].find(v => !v)) throwAndAlert('One of the  constant values is not valid');
             
             const graph = new GraphAPI('', workbookPath);
     
@@ -418,7 +421,8 @@ class LawFirm {
                             if (index < 3)
                                 boundInputs.push([input, index]);//Fields "Client"(0), "Affaire"(1), "Nature"(2) are the inputs that will need to get their dataList created or updated each time the previous input is changed.
                             if (index < 2)
-                                input.onchange = () => _inputOnChange(index as number, boundInputs, tableBody, true);//We add onChange on "Client" (0) and "Affaire" (1) columns
+                                //input.onchange = () => _inputOnChange(index as number, boundInputs, tableBody, true);//We add onChange on "Client" (0) and "Affaire" (1) columns
+                                input.onchange = () =>this$.inputOnChange(index as number, boundInputs, tableBody, true);//We add onChange on "Client" (0) and "Affaire" (1) columns
                             if (index < 1)
                                 populateSelectElement(input, getUniqueValues(0, tableBody));//We create a unique values dataList for the "Client" (0) input
                         })();
@@ -492,7 +496,8 @@ class LawFirm {
                 lang: lang
             }
     
-            const contentControls = _getContentControlsValues(invoice, date);
+            //const contentControls = _getContentControlsValues(invoice, date);
+            const contentControls = this$.getContentControlsValues(invoice, date);
     
             const fileName = getInvoiceFileName(clientName, matters, invoiceNumber);
             let saveToPath = `${saveTo}/${fileName}`;
@@ -530,12 +535,14 @@ class LawFirm {
     
                 if (!tableRows) return throwAndAlert('We could not retrieve the tableRows whie trying to issue the invoice');
                 
-                tableRows = _filterTableByInputsValues([[clientNameInput!, clientCol], [matterInput!, matterCol]], excelTable!);
+                //tableRows = _filterTableByInputsValues([[clientNameInput!, clientCol], [matterInput!, matterCol]], excelTable!);
+                tableRows = this$.filterTableByInputsValues([[clientNameInput!, clientCol], [matterInput!, matterCol]], excelTable!);
                 tableRows = filterByDate(tableRows!, dateCol);
               
                 const adresses = getUniqueValues(addressCol, tableRows) as string[];//!We must retrieve the adresses at this stage before filtering by "Matter" or any other column
     
-                const {wordRows, totalsLabels} = _getRowsData(tableRows, discount, lang, invoiceNumber);
+                //const {wordRows, totalsLabels} = _getRowsData(tableRows, discount, lang, invoiceNumber);
+                const {wordRows, totalsLabels} = this$.getRowsData(tableRows, discount, lang, invoiceNumber);
     
                 return {wordRows, totalsLabels, clientName, matters, adresses};
     
@@ -1813,11 +1820,11 @@ function showMainUI(homeBtn?: boolean) {
     if (homeBtn) return appendBtn('home', 'Back to Main', showMainUI);
     const lf = new LawFirm();
 
-    appendBtn('entry', 'Add Entry', lf.addNewEntry);
-    appendBtn('invoice', 'Invoice', lf.issueInvoice);
-    appendBtn('letter', 'Letter', lf.issueLetter);
-    appendBtn('lease', 'Leases', lf.issueLeaseLetter);
-    appendBtn('search', 'Search Files', lf.searchFiles);
+    appendBtn('entry', 'Add Entry', ()=> lf.addNewEntry);
+    appendBtn('invoice', 'Invoice', ()=> lf.issueInvoice);
+    appendBtn('letter', 'Letter', ()=> lf.issueLetter);
+    appendBtn('lease', 'Leases', ()=> lf.issueLeaseLetter);
+    appendBtn('search', 'Search Files', ()=> lf.searchFiles);
     appendBtn('settings', 'Settings', saveSettings);
 
     function appendBtn(id: string, text: string, onClick: Function) {
