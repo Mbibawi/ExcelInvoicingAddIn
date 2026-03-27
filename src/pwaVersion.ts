@@ -802,7 +802,8 @@ class LawFirm {
                 })();
 
                 function getIndexYear(date: number) {
-                    const newDate = dateFromExcel(date);
+                    //!the date passed at this stage is an ISO date formated as "YYYY-MM-DD" (The conversion was  done when the Ctrls values were updated from the inputs). We do not need to convert it as a date from Excel. 
+                    const newDate = new Date(date);
                     const month = newDate.getMonth();
                     if (month < 3) {
                         //if the date of publication of the index is within the 1st quarter of the year, it means the index is the index of Q4 of the previous year
