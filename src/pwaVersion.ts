@@ -30,7 +30,7 @@ class LawFirm {
         
         await showAddNewForm(this);
 
-        async function showAddNewForm(this$:any) {
+        async function showAddNewForm(this$:LawFirm) {
             try {
                 await createForm();
                 spinner(false);//We hide the sinner
@@ -321,8 +321,8 @@ class LawFirm {
     };
 
     async issueInvoice() {
-        const this$ = this;
-
+        const this$: LawFirm = this;
+        
         await showInvoiceForm();
 
         async function showInvoiceForm() {
@@ -353,6 +353,7 @@ class LawFirm {
             function insertInvoiceForm(tableTitles: string[]) {
                 const form = byID();
                 if (!form) throw new Error('The form element was not found');
+                const isNan = (index:number|string)=> isNaN(Number(index));
                 form.innerHTML = '';
                 const tableBody = tableRows!.slice(1, -1);
                 const boundInputs: InputCol[] = [];
@@ -392,26 +393,26 @@ class LawFirm {
                     });
 
                     function appendInput(index: number | string, div: HTMLDivElement) {
-                        const NaN = isNaN(Number(index));
                         const input = document.createElement('input');
                         input.classList.add(css);
-                        !NaN ? input.id = id + index.toString() : input.id = id;
+                        const isNaN = isNan(index);
+                        !isNaN ? input.id = id + index.toString() : input.id = id;
 
-                        (function setType() {
+                        (function inputType() {
                             if (checkBox) input.type = 'checkbox';
-                            else if (NaN || index as number < 3) input.type = 'text';
+                            else if (isNaN || index as number < 3) input.type = 'text';
                             else input.type = 'date';
                         })();
 
                         (function notCheckBox() {
-                            if (NaN || checkBox) return;//If the index is not a number or the input is a checkBox, we return;
+                            if (isNaN || checkBox) return;//If the index is not a number or the input is a checkBox, we return;
                             index = Number(index);
                             input.name = input.id;
                             input.dataset.index = index.toString();
                             if (index < 3)
                                 boundInputs.push([input, index]);//Fields "Client"(0), "Affaire"(1), "Nature"(2) are the inputs that will need to get their dataList created or updated each time the previous input is changed.
                             if (index < 2)
-                                input.onchange = () => this$.inputOnChange(index as number, boundInputs, tableBody, true);//We add onChange on "Client" (0) and "Affaire" (1) columns
+                                input.onchange = () => this$.inputOnChange(index as number, boundInputs, tableBody, true);//We add onChange on "Client" (0) and "Affaire" (1) columns. We set combined = true in order to add to the dataList of the next column an option combining all the choices in the list
                             if (index < 1)
                                 populateSelectElement(input, getUniqueValues(0, tableBody));//We create a unique values dataList for the "Client" (0) input
                         })();
@@ -430,8 +431,8 @@ class LawFirm {
 
                     function appendLable(index: number | string, div: HTMLDivElement) {
                         const label = document.createElement('label');
-                        isNaN(Number(index)) || checkBox ? label.innerText = index.toString() : label.innerText = tableTitles[Number(index)];
-                        !isNaN(Number(index)) ? label.htmlFor = id + index.toString() : label.htmlFor = id;
+                        isNan(Number(index)) || checkBox ? label.innerText = index.toString() : label.innerText = tableTitles[Number(index)];
+                        !isNan(Number(index)) ? label.htmlFor = id + index.toString() : label.htmlFor = id;
                         div?.appendChild(label);
                     }
 
@@ -557,10 +558,9 @@ class LawFirm {
     }
 
     async issueLetter() {
-        const this$ = this;
-        showForm();
+        showForm(this);
 
-        function showForm() {
+        function showForm(this$:LawFirm) {
             spinner(true);//We show the spinner
             document.querySelector('table')?.remove();
             const form = byID();
@@ -578,7 +578,7 @@ class LawFirm {
                 form?.appendChild(btn);
                 btn.classList.add('button');
                 btn.innerText = 'Créer lettre'
-                btn.onclick = () => generate();
+                btn.onclick = () => generate(this$);
             })();
 
             (function homeBtn() {
@@ -587,7 +587,7 @@ class LawFirm {
             })();
         };
 
-        async function generate() {
+        async function generate(this$:LawFirm) {
             try {
                 await createLetter();
                 spinner(false);//We hide the spinner
@@ -631,7 +631,7 @@ class LawFirm {
             leaseDate: { title: 'RTDateBail', label: 'Date du Bail', col: 3, type: 'date', value: '' },
             leaseType: { title: 'RTNature', label: 'Nature du Bail', col: 4, type: 'text', value: '' },
             initialIndex: { title: 'RTIndiceInitial', label: 'Indice initial', col: 5, type: 'number', value: '' },
-            indexQuarter: { title: 'RTTrimestre', label: 'Trimestre de l\'indice', col: 6, type: 'number', value: '' },
+            indexQuarter: { title: 'RTTrimestre', label: 'Trimestre de l\'indice', col: 6, type: 'text', value: '' },
             initialIndexDate: { title: 'RTIndiceInitialDate', label: 'Date de l\'indice initial', col: 7, type: 'date', value: '' },
             baseIndex: { title: 'RTIndiceBase', label: 'Indice de référence', col: 8, type: 'number', value: '' },
             baseIndexDate: { title: 'RTDateIndiceBase', label: 'Date de l\'indice de référence', col: 9, type: 'date', value: '' },
@@ -650,12 +650,11 @@ class LawFirm {
         const ctrls = Object.values(Ctrls);
 
         const findRT = (id: string) => ctrls.find(RT => RT.title === id);
-        const this$ = this;
 
         let row: any[] | void, rowIndex: number | null = null;
-        await showForm();
+        await showForm(this);
 
-        async function showForm() {
+        async function showForm(this$:LawFirm) {
             const inputs: InputCol[] = [];
             const findInput = (id: string) => inputs.find(([input, col]) => input.id === id)?.[0];
             if (!tableRows) return;
@@ -1164,10 +1163,10 @@ class LawFirm {
      * Updates the data list or the value of bound inputs according to the value of the input that has been changed
      * @param {number} index - the dataset.index of the input that has been changed
      * @param {any[][]} table - The table that will be filtered to update the data list of the button. If undefined, it means that the data list will not be updated.
-     * @param {boolean} invoice - If true, it means that we called the function in order to generate an invoice. If false, we called it in order to add a new entry in the table
+     * @param {boolean} combine - If true, it means that the dataList of the next bound input, will include an additional option combining all the options in the dataList
      * @returns 
      */
-    private inputOnChange(index: number, inputs: InputCol[], table: any[][] | undefined, invoice: boolean): any[] | void {
+    private inputOnChange(index: number, inputs: InputCol[], table: any[][] | undefined, combine: boolean): any[] | void {
         if (!table?.length) return;
 
         const filledInputs =
@@ -1186,8 +1185,6 @@ class LawFirm {
             const row = fillBound(list, input);
             if (row) return row;//!If the function returns true, it means that we filled the value of all the bound inputs, so we break the loop. If it returns false, it means that there is more than one value in the list, so we need to create or update the data list of the input.
             //if (fillBound(list, input)) break;//!If the function returns true, it means that we filled the value of all the bound inputs, so we break the loop. If it returns false, it means that there is more than one value in the list, so we need to create or update the data list of the input.
-            const combine = (invoice && [1, 2].includes(col))//For the "Matter" and "Nature" lists, we add a new element combining all the values separated by ","
-
             populateSelectElement(input, list, combine);
         }
 
@@ -1202,7 +1199,7 @@ class LawFirm {
 
         function setValue(input: HTMLInputElement, value: any) {
             if (input.type === "date")
-                input.valueAsDate = dateFromExcel(value);//!We must convert the dates from Excel
+                input.value = getDateString(dateFromExcel(value));//!We must convert the dates from Excel
             else input.value = value?.toString() || '';
         };
     };

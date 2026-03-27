@@ -332,6 +332,7 @@ class LawFirm {
                 const form = byID();
                 if (!form)
                     throw new Error('The form element was not found');
+                const isNan = (index) => isNaN(Number(index));
                 form.innerHTML = '';
                 const tableBody = tableRows.slice(1, -1);
                 const boundInputs = [];
@@ -368,20 +369,20 @@ class LawFirm {
                         return appendInput(index, div);
                     });
                     function appendInput(index, div) {
-                        const NaN = isNaN(Number(index));
                         const input = document.createElement('input');
                         input.classList.add(css);
-                        !NaN ? input.id = id + index.toString() : input.id = id;
-                        (function setType() {
+                        const isNaN = isNan(index);
+                        !isNaN ? input.id = id + index.toString() : input.id = id;
+                        (function inputType() {
                             if (checkBox)
                                 input.type = 'checkbox';
-                            else if (NaN || index < 3)
+                            else if (isNaN || index < 3)
                                 input.type = 'text';
                             else
                                 input.type = 'date';
                         })();
                         (function notCheckBox() {
-                            if (NaN || checkBox)
+                            if (isNaN || checkBox)
                                 return; //If the index is not a number or the input is a checkBox, we return;
                             index = Number(index);
                             input.name = input.id;
@@ -389,7 +390,7 @@ class LawFirm {
                             if (index < 3)
                                 boundInputs.push([input, index]); //Fields "Client"(0), "Affaire"(1), "Nature"(2) are the inputs that will need to get their dataList created or updated each time the previous input is changed.
                             if (index < 2)
-                                input.onchange = () => this$.inputOnChange(index, boundInputs, tableBody, true); //We add onChange on "Client" (0) and "Affaire" (1) columns
+                                input.onchange = () => this$.inputOnChange(index, boundInputs, tableBody, true); //We add onChange on "Client" (0) and "Affaire" (1) columns. We set combined = true in order to add to the dataList of the next column an option combining all the choices in the list
                             if (index < 1)
                                 populateSelectElement(input, getUniqueValues(0, tableBody)); //We create a unique values dataList for the "Client" (0) input
                         })();
@@ -406,8 +407,8 @@ class LawFirm {
                     }
                     function appendLable(index, div) {
                         const label = document.createElement('label');
-                        isNaN(Number(index)) || checkBox ? label.innerText = index.toString() : label.innerText = tableTitles[Number(index)];
-                        !isNaN(Number(index)) ? label.htmlFor = id + index.toString() : label.htmlFor = id;
+                        isNan(Number(index)) || checkBox ? label.innerText = index.toString() : label.innerText = tableTitles[Number(index)];
+                        !isNan(Number(index)) ? label.htmlFor = id + index.toString() : label.htmlFor = id;
                         div?.appendChild(label);
                     }
                     function newDiv(i, css = "block") {
@@ -511,9 +512,8 @@ class LawFirm {
         }
     }
     async issueLetter() {
-        const this$ = this;
-        showForm();
-        function showForm() {
+        showForm(this);
+        function showForm(this$) {
             spinner(true); //We show the spinner
             document.querySelector('table')?.remove();
             const form = byID();
@@ -531,7 +531,7 @@ class LawFirm {
                 form?.appendChild(btn);
                 btn.classList.add('button');
                 btn.innerText = 'Créer lettre';
-                btn.onclick = () => generate();
+                btn.onclick = () => generate(this$);
             })();
             (function homeBtn() {
                 showMainUI(true);
@@ -539,7 +539,7 @@ class LawFirm {
             })();
         }
         ;
-        async function generate() {
+        async function generate(this$) {
             try {
                 await createLetter();
                 spinner(false); //We hide the spinner
@@ -580,7 +580,7 @@ class LawFirm {
             leaseDate: { title: 'RTDateBail', label: 'Date du Bail', col: 3, type: 'date', value: '' },
             leaseType: { title: 'RTNature', label: 'Nature du Bail', col: 4, type: 'text', value: '' },
             initialIndex: { title: 'RTIndiceInitial', label: 'Indice initial', col: 5, type: 'number', value: '' },
-            indexQuarter: { title: 'RTTrimestre', label: 'Trimestre de l\'indice', col: 6, type: 'number', value: '' },
+            indexQuarter: { title: 'RTTrimestre', label: 'Trimestre de l\'indice', col: 6, type: 'text', value: '' },
             initialIndexDate: { title: 'RTIndiceInitialDate', label: 'Date de l\'indice initial', col: 7, type: 'date', value: '' },
             baseIndex: { title: 'RTIndiceBase', label: 'Indice de référence', col: 8, type: 'number', value: '' },
             baseIndexDate: { title: 'RTDateIndiceBase', label: 'Date de l\'indice de référence', col: 9, type: 'date', value: '' },
@@ -597,10 +597,9 @@ class LawFirm {
         };
         const ctrls = Object.values(Ctrls);
         const findRT = (id) => ctrls.find(RT => RT.title === id);
-        const this$ = this;
         let row, rowIndex = null;
-        await showForm();
-        async function showForm() {
+        await showForm(this);
+        async function showForm(this$) {
             const inputs = [];
             const findInput = (id) => inputs.find(([input, col]) => input.id === id)?.[0];
             if (!tableRows)
@@ -1074,10 +1073,10 @@ class LawFirm {
      * Updates the data list or the value of bound inputs according to the value of the input that has been changed
      * @param {number} index - the dataset.index of the input that has been changed
      * @param {any[][]} table - The table that will be filtered to update the data list of the button. If undefined, it means that the data list will not be updated.
-     * @param {boolean} invoice - If true, it means that we called the function in order to generate an invoice. If false, we called it in order to add a new entry in the table
+     * @param {boolean} combine - If true, it means that the dataList of the next bound input, will include an additional option combining all the options in the dataList
      * @returns
      */
-    inputOnChange(index, inputs, table, invoice) {
+    inputOnChange(index, inputs, table, combine) {
         if (!table?.length)
             return;
         const filledInputs = inputs
@@ -1093,7 +1092,6 @@ class LawFirm {
             if (row)
                 return row; //!If the function returns true, it means that we filled the value of all the bound inputs, so we break the loop. If it returns false, it means that there is more than one value in the list, so we need to create or update the data list of the input.
             //if (fillBound(list, input)) break;//!If the function returns true, it means that we filled the value of all the bound inputs, so we break the loop. If it returns false, it means that there is more than one value in the list, so we need to create or update the data list of the input.
-            const combine = (invoice && [1, 2].includes(col)); //For the "Matter" and "Nature" lists, we add a new element combining all the values separated by ","
             populateSelectElement(input, list, combine);
         }
         function fillBound(list, input) {
@@ -1108,7 +1106,7 @@ class LawFirm {
         }
         function setValue(input, value) {
             if (input.type === "date")
-                input.valueAsDate = dateFromExcel(value); //!We must convert the dates from Excel
+                input.value = getDateString(dateFromExcel(value)); //!We must convert the dates from Excel
             else
                 input.value = value?.toString() || '';
         }
