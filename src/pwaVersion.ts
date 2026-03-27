@@ -651,6 +651,7 @@ class LawFirm {
         const ctrls = Object.values(Ctrls);
 
         const findRT = (id: string) => ctrls.find(RT => RT.title === id);
+        const fraction = (n: number) => Math.round(n * 100) / 100;
 
         let row: any[] | void, rowIndex: number | null = null;
         await showForm(this);
@@ -689,7 +690,7 @@ class LawFirm {
                         const latestIndex = index!.valueAsNumber; //this is the latest index as provided by the user when the input.onChange() event was fired
                         const currentLease = row[Ctrls.currentLease.col!];//This is the value of the current lease
                         if (unvalid([base, latestIndex, currentLease])) return alert('Please make sure that the values of the current lease, the base indice and the new indice are all provided and valid numbers');
-                        const newLease = (currentLease * (latestIndex / base));
+                        const newLease = fraction(currentLease * (latestIndex / base));//we get a 2 digits fractions from the value
                         currentLeaseInput!.valueAsNumber = newLease;//This will just show the value of the new lease after applying the calculation, but it will not change the value of row[Ctrls.currentLease]. We will escape this when updating the values of the Ctrls from the inputs
                         Ctrls.baseIndex.value = latestIndex.toString();//We update  the value of the base index with the latest index
                         Ctrls.newLease.value = newLease;//We update the new lease RT
@@ -760,7 +761,6 @@ class LawFirm {
                 };
             };
         };
-
         async function generate(inputs: InputCol[], row: any[] | void) {
 
             if (!inputs.length) return throwAndAlert('The inputs collection is missing');
@@ -777,7 +777,7 @@ class LawFirm {
                 if (id === Ctrls.currentLease.title) return;//!We don't update the value of current lease from the input because the value of the input is the new lease not the old one saved in the Excel table
                 const RT = findRT(id) as RT;
                 if (RT.type === 'date') RT.value = getISODate(input.valueAsDate);
-                else if (RT.type === 'number') RT.value = input.valueAsNumber;
+                else if (RT.type === 'number') RT.value = fraction(input.valueAsNumber);
                 else RT.value = input.value
             });
 

@@ -598,6 +598,7 @@ class LawFirm {
         };
         const ctrls = Object.values(Ctrls);
         const findRT = (id) => ctrls.find(RT => RT.title === id);
+        const fraction = (n) => Math.round(n * 100) / 100;
         let row, rowIndex = null;
         await showForm(this);
         async function showForm(this$) {
@@ -633,7 +634,7 @@ class LawFirm {
                         const currentLease = row[Ctrls.currentLease.col]; //This is the value of the current lease
                         if (unvalid([base, latestIndex, currentLease]))
                             return alert('Please make sure that the values of the current lease, the base indice and the new indice are all provided and valid numbers');
-                        const newLease = (currentLease * (latestIndex / base));
+                        const newLease = fraction(currentLease * (latestIndex / base)); //we get a 2 digits fractions from the value
                         currentLeaseInput.valueAsNumber = newLease; //This will just show the value of the new lease after applying the calculation, but it will not change the value of row[Ctrls.currentLease]. We will escape this when updating the values of the Ctrls from the inputs
                         Ctrls.baseIndex.value = latestIndex.toString(); //We update  the value of the base index with the latest index
                         Ctrls.newLease.value = newLease; //We update the new lease RT
@@ -720,7 +721,7 @@ class LawFirm {
                 if (RT.type === 'date')
                     RT.value = getISODate(input.valueAsDate);
                 else if (RT.type === 'number')
-                    RT.value = input.valueAsNumber;
+                    RT.value = fraction(input.valueAsNumber);
                 else
                     RT.value = input.value;
             });
