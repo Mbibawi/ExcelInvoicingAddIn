@@ -751,12 +751,12 @@ class LawFirm {
                     }
                 }
             })();
-            const amounts = [Ctrls.initialIndex, Ctrls.index, Ctrls.baseIndex, Ctrls.currentLease, Ctrls.newLease];
+            const decimals = [Ctrls.initialIndex, Ctrls.index, Ctrls.baseIndex, Ctrls.currentLease, Ctrls.newLease]; //Those are the ctrls for which we will replace the '.' decimal with a ',' decimal mark
             const contentControls = ctrls.map(RT => {
                 if (RT.type === 'date')
                     return [RT.title, getDateString(new Date(RT.value) || null)];
-                else if (amounts.includes(RT))
-                    return [RT.title, RT.value.toString().replace('.', ',')]; //!We must NOT do this on the Ctrls object directly. We need the values to remain numbers in order to update the Excel table.
+                else if (decimals.includes(RT))
+                    return [RT.title, RT.value.toFixed(2).replace('.', ',')]; //!We must NOT do this on the Ctrls object directly. We need the values of these Ctrls to remain numbers in order to update the Excel table.
                 else
                     return [RT.title, RT.value.toString()];
             });
