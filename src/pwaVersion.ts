@@ -1193,7 +1193,7 @@ class LawFirm {
 
         function setValue(input: HTMLInputElement, value: any) {
             if (input.type === "date")
-                input.valueAsDate = dateFromExcel(value);//!We must convert the dates from Excel
+                input.value = getISODate(dateFromExcel(value));//!We must convert the dates from Excel, and pass the ISO date to the input value (NOT to the input.valueAsDate) in order to avoid the timezone offset issue when using input.valueASDate
             else input.value = value?.toString() || '';
         };
     };
