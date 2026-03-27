@@ -644,12 +644,14 @@ class GraphAPI {
 
     try {
       const response = await this.sendRequest(url, this.methods.patch, body, sessionId, undefined, "Error while updating the Excel Table row's values");
-      if (response?.ok) alert('Successfully updated the Excel table');
-      const data = await response?.json();
-      console.log('Update Successful:', data);
-      return data;
+      if (response?.ok) alert('Successfully updated the Excel table')
+        await this.closeFileSession(sessionId);
+        const data = await response?.json();
+        console.log('Update Successful:', data);
+        return data;
     } catch (err) {
-      console.error('Update Failed:', err);
+      await this.closeFileSession(sessionId);
+      throwAndAlert(`Update Failed: ${err}`);
     }
   };
 
