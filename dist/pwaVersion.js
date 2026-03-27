@@ -633,8 +633,8 @@ class LawFirm {
                         const currentLease = row[Ctrls.currentLease.col]; //This is the value of the current lease
                         if (unvalid([base, latestIndex, currentLease]))
                             return alert('Please make sure that the values of the current lease, the base indice and the new indice are all provided and valid numbers');
-                        const newLease = (currentLease * (latestIndex / base)).toFixed(2).toString();
-                        currentLeaseInput.value = newLease; //This will just show the value of the new lease after applying the calculation, but it will not change the value of row[Ctrls.currentLease]. We will escape this when updating the values of the Ctrls from the inputs
+                        const newLease = (currentLease * (latestIndex / base));
+                        currentLeaseInput.valueAsNumber = newLease; //This will just show the value of the new lease after applying the calculation, but it will not change the value of row[Ctrls.currentLease]. We will escape this when updating the values of the Ctrls from the inputs
                         Ctrls.baseIndex.value = latestIndex.toString(); //We update  the value of the base index with the latest index
                         Ctrls.newLease.value = newLease; //We update the new lease RT
                     };
@@ -703,44 +703,48 @@ class LawFirm {
         ;
         async function generate(inputs, row) {
             if (!inputs.length)
-                return alert('Either the inputs collection or the lease or the lease index are missing');
+                return throwAndAlert('The inputs collection is missing');
+            if (!row)
+                return throwAndAlert('The values in the inputs did not point to a unique lease in the Excel table');
             const findInputById = (RT) => inputs.find(([input, col]) => input.id === RT.title)?.[0];
-            const stored = getSavedSettings() || undefined;
-            if (!stored)
-                return;
             const date = new Date();
-            const fileName = prompt('Provide the file name without special characthers');
-            if (!fileName)
-                return;
-            const savePath = `${prompt('Provide the destination folder', saveTo)}/${fileName}_${date.getFullYear()}${date.getMonth() + 1}${date.getDate()}@${date.getHours()}-${date.getMinutes()}.docx`;
+            const fileName = prompt('Provide the file name without special characthers') || '';
+            const savePath = prompt('Provide the destination folder', `${saveTo}/${fileName}_${date.getFullYear()}${date.getMonth() + 1}${date.getDate()}@${date.getHours()}-${date.getMinutes()}.docx`);
             if (!savePath)
-                return;
+                return alert('The path for saving the file is not valid');
             inputs.map(([input, col]) => {
                 const id = input.id;
                 if (id === Ctrls.currentLease.title)
                     return; //!We don't update the value of current lease from the input because the value of the input is the new lease not the old one saved in the Excel table
                 const RT = findRT(id);
                 if (RT.type === 'date')
-                    RT.value = getDateString(input.valueAsDate);
+                    RT.value = getISODate(input.valueAsDate);
+                else if (RT.type === 'number')
+                    RT.value = input.valueAsNumber;
                 else
                     RT.value = input.value;
             });
             (function setMissingValues() {
-                if (!row)
-                    return throwAndAlert('The values in the input did not identifiy a unique lease in the Excel table');
                 const getYear = (date) => dateFromExcel(date).getFullYear().toString();
                 const anniversary = (year, date) => { date.setFullYear(year); return getDateString(date); };
                 const leaseDate = dateFromExcel(row[Ctrls.leaseDate.col]);
                 const year = date.getFullYear();
-                Ctrls.anniversaryDate.value = anniversary(year, leaseDate);
-                Ctrls.initialYear.value = getYear(row[Ctrls.initialIndexDate.col]);
-                Ctrls.baseYear.value = getYear(row[Ctrls.baseIndexDate.col]);
-                Ctrls.revisionYear.value = year.toString();
-                Ctrls.nextRevision.value = anniversary(year + 1, leaseDate);
-                Ctrls.revisionDate.value = getDateString(date);
-                Ctrls.startingMonth.value = `${new Intl.DateTimeFormat('fr-FR', { month: 'long' }).format(date)} ${year.toString()}`;
+                Ctrls.revisionDate.value = getISODate(date); //!This Ctrl is associated with a column in the table, that's why we are setting its value to ISO date in order to update the excel table later with a valid date format
+                (function withNoColumn() {
+                    Ctrls.initialYear.value = getYear(row[Ctrls.initialIndexDate.col]);
+                    Ctrls.baseYear.value = getYear(row[Ctrls.baseIndexDate.col]);
+                    Ctrls.revisionYear.value = year.toString();
+                    Ctrls.anniversaryDate.value = anniversary(year, leaseDate);
+                    Ctrls.nextRevision.value = anniversary(year + 1, leaseDate);
+                    Ctrls.startingMonth.value = `${new Intl.DateTimeFormat('fr-FR', { month: 'long' }).format(date)} ${year.toString()}`;
+                })();
             })();
-            const contentControls = ctrls.map(RT => [RT.title, RT.value]);
+            const contentControls = ctrls.map(RT => {
+                if (RT.type === 'date')
+                    return [RT.title, getDateString(new Date(RT.value) || null)];
+                else
+                    return [RT.title, RT.value.toString()];
+            });
             try {
                 await graph.createAndUploadDocumentFromTemplate(templatePath, savePath, 'FR', undefined, contentControls);
                 await updateExcelTable();
@@ -752,36 +756,17 @@ class LawFirm {
                 spinner(false); //We hide the spinner
             }
             async function updateExcelTable() {
-                if (!tableName)
-                    return;
-                const TableRows = await graph.fetchExcelTable(tableName, true);
-                if (!TableRows?.length)
-                    return alert('Failed to retrieve the Excel table');
-                const tableTitles = TableRows[0];
-                (async function updateRow() {
-                    if (!row || !rowIndex)
-                        return;
-                    inputs.forEach(input => update(row, input));
-                    await graph.updateExcelTableRow(tableName, rowIndex, row);
-                    return;
-                    const col = Ctrls.revisionDate.col;
-                    const revisionDate = findInputById(Ctrls.revisionDate)?.valueAsDate || undefined;
-                    row[col] = getISODate(revisionDate);
-                })();
-                (async function newRow() {
-                    if (row || rowIndex)
-                        return; //This a scenario where no row has ever been found for the specified lease
+                if (row && rowIndex) {
+                    update(row);
+                    await graph.updateExcelTableRow(tableName, rowIndex, update(row));
+                }
+                else {
                     row = Array(inputs.length);
-                    inputs.forEach(input => update(row, input));
-                    await graph.addRowToExcelTable(row, rowIndex, tableName);
-                })();
-                function update(row, [input, col]) {
-                    if (input.type === 'date')
-                        row[col] = getISODate(input.valueAsDate || undefined);
-                    else if (input.type === 'number')
-                        row[col] = input.valueAsNumber;
-                    else
-                        row[col] = input.value;
+                    await graph.addRowToExcelTable(update(row), rowIndex, tableName);
+                }
+                function update(row) {
+                    ctrls.filter(ctrl => ctrl.col).forEach(({ value, col }) => row[col] = value);
+                    return row;
                 }
             }
             ;

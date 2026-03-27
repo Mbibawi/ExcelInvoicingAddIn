@@ -10,7 +10,7 @@ type lable = {
 };
 type RT = {
     title: string;
-    value: string
+    value: string |number,
     label?: string;
     col?: number;
     type?: string;

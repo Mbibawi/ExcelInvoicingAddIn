@@ -683,9 +683,9 @@ class GraphAPI {
                 return;
             const ctrls = xml.getContentControls(doc);
             contentControls
-                .forEach(([title, text]) => {
+                .forEach(([title, value]) => {
                 const sameTitle = xml.findContentControlsByTitle(ctrls, title); //!we  retrieve all then XML ContentControls having the same title
-                sameTitle.forEach(control => xml.editContentControlText(control, text));
+                sameTitle.forEach(control => xml.editContentControlText(control, value));
             });
         }
         ;

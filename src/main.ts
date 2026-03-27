@@ -737,9 +737,9 @@ class GraphAPI {
       if (!contentControls?.length) return;
       const ctrls = xml.getContentControls(doc);
       contentControls
-        .forEach(([title, text]) => {
+        .forEach(([title, value]) => {
           const sameTitle = xml.findContentControlsByTitle(ctrls, title) as Element[];//!we  retrieve all then XML ContentControls having the same title
-          sameTitle.forEach(control => xml.editContentControlText(control, text))
+          sameTitle.forEach(control => xml.editContentControlText(control, value))
         });
     };
   };
@@ -1393,7 +1393,7 @@ function getInvoiceNumber(date: Date): string {
  * @param {Date} date - the Date that we need to convert to ISO format
  * @returns {string} - The date in ISO format
  */
-function getISODate(date: Date | undefined) {
+function getISODate(date: Date | null) {
   if (!date) return '';
   return [date.getFullYear(), date.getMonth() + 1, date.getDate()].map(el => el.toString().padStart(2, '0')).join('-');
 };
