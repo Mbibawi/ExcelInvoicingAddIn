@@ -656,7 +656,7 @@ class LawFirm {
 
         async function showForm(this$:LawFirm) {
             const inputs: InputCol[] = [];
-            const findInput = (id: string) => inputs.find(([input, col]) => input.id === id)?.[0];
+            const findInput = (RT: RT) => inputs.find(([input, col]) => input.id === RT.title)?.[0];
             if (!tableRows) return;
             document.querySelector('table')?.remove();
             const form = byID();
@@ -670,28 +670,27 @@ class LawFirm {
                     .filter(RT => !isNaN(RT.col!))
                     .map(RT => inputs.push([createInput(RT), RT.col!] as const));
 
-                const owner = findInput(Ctrls.owner.title);
+                const owner = findInput(Ctrls.owner);
                 if (owner) populateSelectElement(owner, getUniqueValues(Ctrls.owner.col!, tableRows), false);
 
                 (function inputsOnChange() {
                     const filled = inputs.filter(([input, col]) => col <= Ctrls.tenant.col!);
-                    filled.forEach(([input, col]) => input.onchange = () => row = this$.inputOnChange(col, inputs, tableRows, false));
+                    filled.forEach(([input, col]) => input.onchange = () => [row, rowIndex] = this$.inputOnChange(col, inputs, tableRows, false) || [undefined, null]);
 
-                    const index = findInput(Ctrls.index.title);
-
-                    if (index) index.onchange = () => {
+                    const index = findInput(Ctrls.index);
+                    const currentLeaseInput = findInput(Ctrls.currentLease);
+                    
+                    index!.onchange = () => {
                         if (!row?.length)
-                            return alert('No lease having owner name, property adress and tenant name as in the inputs was found');
-                        rowIndex = tableRows.indexOf(row);
+                            return alert('No single lease having owner name, property adress and tenant name as in the inputs was found');
                         const initial = row[Ctrls.initialIndex.col!];//This is the value of the inital index
-                        const base = row[Ctrls.baseIndex.col!] || initial;//This is the value of the base index
-                        const latestIndex = index.value; //this is the latest index
+                        const base = row[Ctrls.index.col!] || initial;//!For the base index, we will retrieve the value of the "Indice de Révision" (column 10) from the Excel row. We will not retrieve this value from the input but from the row itself. If this is the first time we are indexing the lease, we will fall back to the intial index (i.e., the value indicated in the lease agreement)
+                        const latestIndex = index!.value; //this is the latest index as provided by the user when the input.onChange() event was fired
                         const currentLease = row[Ctrls.currentLease.col!];//This is the value of the current lease
                         if (unvalid([base, latestIndex, currentLease])) return alert('Please make sure that the values of the current lease, the base indice and the new indice are all provided and valid numbers');
                         const newLease = (Number(currentLease) * (Number(latestIndex) / Number(base))).toFixed(2).toString();
-                        const currentLeaseInput = findInput(Ctrls.currentLease.title) as HTMLInputElement;
-                        currentLeaseInput.value = newLease;//This will show the value of the new lease after applying the calculation
-                        Ctrls.baseIndex.value = latestIndex;//We replace the value of the base index with the latest index
+                        currentLeaseInput!.value = newLease;//This will just show the value of the new lease after applying the calculation, but it will not change the value of row[Ctrls.currentLease]. We will escape this when updating the values of the Ctrls from the inputs
+                        Ctrls.baseIndex.value = latestIndex;//We update  the value of the base index with the latest index
                         Ctrls.newLease.value = newLease;//We update the new lease RT
                     };
                 })();
@@ -774,25 +773,25 @@ class LawFirm {
 
             inputs.map(([input, col]) => {
                 const id = input.id
-                if (id === Ctrls.currentLease.title) return;//!We don't update the value of current lease from the input because the value of the input is the new lease not the old one
+                if (id === Ctrls.currentLease.title) return;//!We don't update the value of current lease from the input because the value of the input is the new lease not the old one saved in the Excel table
                 const RT = findRT(id);
-                if (!RT) return;
-                if (RT.type === 'date') RT.value = getDateString(input.valueAsDate)
-                else RT.value = input.value
+                if (RT!.type === 'date') RT!.value = getDateString(input.valueAsDate);
+                else RT!.value = input.value
             });
 
             (function setMissingValues() {
                 if (!row) return throwAndAlert('The values in the input did not identifiy a unique lease in the Excel table');
-                const leaseDate = dateFromExcel(row[Ctrls.leaseDate.col!]);
                 const getYear = (date: number) => dateFromExcel(date).getFullYear().toString();
-                const anniversary = (year: number) => [leaseDate.getDate(), leaseDate.getMonth() + 1, year].join('/')
+                const anniversary = (year: number, date:Date) => [date.getDate(), date.getMonth() + 1, year].join('/')
+                const leaseDate = dateFromExcel(row[Ctrls.leaseDate.col!]);
                 const year = date.getFullYear();
+                
+                Ctrls.anniversaryDate.value = anniversary(year, leaseDate);
                 Ctrls.initialYear.value = getYear(row[Ctrls.initialIndexDate.col!]);
                 Ctrls.baseYear.value = getYear(row[Ctrls.baseIndexDate.col!]);
-                Ctrls.anniversaryDate.value = anniversary(year);
-                Ctrls.revisionDate.value = getDateString(date);
                 Ctrls.revisionYear.value = year.toString();
-                Ctrls.nextRevision.value = anniversary(year + 1);
+                Ctrls.nextRevision.value = anniversary(year + 1, leaseDate);
+                Ctrls.revisionDate.value = getDateString(date);
             })();
 
             const contentControls: [string, string][] = ctrls.map(RT => [RT.title, RT.value]);
@@ -1166,7 +1165,7 @@ class LawFirm {
      * @param {boolean} combine - If true, it means that the dataList of the next bound input, will include an additional option combining all the options in the dataList
      * @returns 
      */
-    private inputOnChange(index: number, inputs: InputCol[], table: any[][] | undefined, combine: boolean): any[] | void {
+    private inputOnChange(index: number, inputs: InputCol[], table: any[][] | undefined, combine: boolean): [any[], number] | void {
         if (!table?.length) return;
 
         const filledInputs =
@@ -1183,7 +1182,7 @@ class LawFirm {
             input.value = ''; //We reset the value of all bound inputs.
             const list = getUniqueValues(col, filtered);
             const row = fillBound(list, input);
-            if (row) return row;//!If the function returns true, it means that we filled the value of all the bound inputs, so we break the loop. If it returns false, it means that there is more than one value in the list, so we need to create or update the data list of the input.
+            if (row) return [row, table.indexOf(row)];//!If the function returns true, it means that we filled the value of all the bound inputs, so we break the loop. If it returns false, it means that there is more than one value in the list, so we need to create or update the data list of the input.
             //if (fillBound(list, input)) break;//!If the function returns true, it means that we filled the value of all the bound inputs, so we break the loop. If it returns false, it means that there is more than one value in the list, so we need to create or update the data list of the input.
             populateSelectElement(input, list, combine);
         }
@@ -1199,7 +1198,7 @@ class LawFirm {
 
         function setValue(input: HTMLInputElement, value: any) {
             if (input.type === "date")
-                input.value = getDateString(dateFromExcel(value));//!We must convert the dates from Excel
+                input.valueAsDate = dateFromExcel(value);//!We must convert the dates from Excel
             else input.value = value?.toString() || '';
         };
     };
