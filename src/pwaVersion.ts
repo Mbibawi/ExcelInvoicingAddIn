@@ -1786,9 +1786,11 @@ class Marianne extends LawFirm {
  * @returns {Date} - a javascript format of the date
  */
 function dateFromExcel(excelDate: number): Date {
-    const date = new Date((excelDate - 25569) * (60 * 60 * 24) * 1000);//This gives the days converted from milliseconds. 
+    const day = 86400000;//this is the milliseconds in a day
+    const date = new Date(Math.round((excelDate - 25569) * day) );//This gives the days converted from milliseconds. 
 
-    const dateOffset = date.getTimezoneOffset() * 60 * 1000;//Getting the difference in milleseconds
+
+    const dateOffset = date.getTimezoneOffset() *60000;//Getting the difference in milleseconds
     return new Date(date.getTime() + dateOffset);
 }
 
