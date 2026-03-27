@@ -636,6 +636,7 @@ class LawFirm {
                             return alert('Please make sure that the values of the current lease, the base indice and the new indice are all provided and valid numbers');
                         const newLease = fraction(currentLease * (latestIndex / base)); //we get a 2 digits fractions from the value
                         currentLeaseInput.valueAsNumber = newLease; //!We only update the input value, NOT the value in the Excel row (row). We need to keep the initial value in case the user wants to correct  the value in the index input which means we will need to recalculate the newLease value based on the current lease value. We will hence keep the current lease value unchanged until the generate() function is called.
+                        Ctrls.currentLease.value = currentLease; //!We set the value of this control at this stage, because we will escape this Ctrl when we will update Ctrls values from the inputs in order to avoid updating its value from the input which is now showing the new lease value not the original value
                         Ctrls.baseIndex.value = latestIndex.toString(); //We update  the value of the base index with the latest index
                         Ctrls.newLease.value = newLease; //We update the new lease RT
                     };
@@ -714,6 +715,8 @@ class LawFirm {
                 return alert('The path for saving the file is not valid');
             inputs.map(([input, col]) => {
                 const RT = findRT(input.id);
+                if (RT === Ctrls.currentLease)
+                    return; //! we do not update the value of the current lease from the input because the value in the input is the new lease value after revision
                 if (RT.type === 'date')
                     RT.value = getISODate(input.valueAsDate);
                 else if (RT.type === 'number')
