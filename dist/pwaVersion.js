@@ -732,7 +732,7 @@ class LawFirm {
                 (function withNoColumn() {
                     Ctrls.initialYear.value = getIndexYear(Ctrls.initialIndexDate.value);
                     Ctrls.baseYear.value = getIndexYear(Ctrls.baseIndexDate.value);
-                    Ctrls.revisionYear.value = year.toString();
+                    Ctrls.revisionYear.value = getIndexYear(Ctrls.indexDate.value);
                     Ctrls.anniversaryDate.value = anniversary(year, leaseDate);
                     Ctrls.nextRevision.value = anniversary(year + 1, leaseDate);
                     Ctrls.startingMonth.value = `${new Intl.DateTimeFormat('fr-FR', { month: 'long' }).format(date)} ${year.toString()}`;
