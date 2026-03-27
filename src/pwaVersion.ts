@@ -817,7 +817,6 @@ class LawFirm {
 
             async function updateExcelTable() {
                     if (row && rowIndex) {
-                        update(row);
                         await graph.updateExcelTableRow(tableName, rowIndex, update(row));
                     } else {
                         row = Array(inputs.length);

@@ -634,7 +634,7 @@ class GraphAPI {
    */
   async updateExcelTableRow(tableName: string, rowIndex: number, values: any[]) {
     if (!this.filePath || !tableName || !rowIndex || !values?.length) return alert('One of the arguments is missing or not valid');
-    const sessionId = await this.createFileSession();
+    const sessionId = await this.createFileSession(true);//!Persist must be true. Otherwise the changes will not be saved !
     if (!sessionId) return alert('Failed to create a new Session');
     const url = `${this.GRAPH_API_BASE_URL}${this.filePath}:/workbook/tables/${tableName}/rows/itemAt(index=${rowIndex})`;
 
