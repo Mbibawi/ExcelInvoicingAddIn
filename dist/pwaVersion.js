@@ -1636,9 +1636,10 @@ class Marianne extends LawFirm {
  */
 function dateFromExcel(excelDate) {
     const day = 86400000; //this is the milliseconds in a day
-    const date = new Date(Math.round((excelDate - 25569) * day)); //This gives the days converted from milliseconds. 
-    const dateOffset = date.getTimezoneOffset() * 60000; //Getting the difference in milleseconds
-    return new Date(date.getTime() + dateOffset);
+    const dateMS = Math.round((excelDate - 25569) * day); //This gives the days converted from milliseconds. 
+    //!We have to do this in order to avoid the timezone conversion issues
+    const date = new Date(dateMS);
+    return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
 function showMainUI(homeBtn) {
     const container = byID('btns');
