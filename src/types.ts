@@ -37,6 +37,7 @@ type LeaseCtrls = {
     anniversaryDate: RT;
     newLease: RT;
     nextRevision: RT;
+    startingMonth: RT;
 };
 
 type InvoiceCtrls = {
@@ -73,8 +74,6 @@ type settings = {
     Letter?: setting,
     reports?: setting
 }
-
-
 
 type values = [number, number];
 type folderItem = { name: string; id: string; folder: any; createdDateTime: string; lastModifiedDateTime: string };

@@ -645,6 +645,7 @@ class LawFirm {
             revisionYear: { title: 'RTIndiceAnnée', value: '' },
             newLease: { title: 'RTLoyerNouveau', value: '' },
             nextRevision: { title: 'RTProchaineRevision', value: '' },
+            startingMonth: { title: 'RTMoisRévision', value: '' },
         };
 
         const ctrls = Object.values(Ctrls);
@@ -685,12 +686,12 @@ class LawFirm {
                             return alert('No single lease having owner name, property adress and tenant name as in the inputs was found');
                         const initial = row[Ctrls.initialIndex.col!];//This is the value of the inital index
                         const base = row[Ctrls.index.col!] || initial;//!For the base index, we will retrieve the value of the "Indice de Révision" (column 10) from the Excel row. We will not retrieve this value from the input but from the row itself. If this is the first time we are indexing the lease, we will fall back to the intial index (i.e., the value indicated in the lease agreement)
-                        const latestIndex = index!.value; //this is the latest index as provided by the user when the input.onChange() event was fired
+                        const latestIndex = index!.valueAsNumber; //this is the latest index as provided by the user when the input.onChange() event was fired
                         const currentLease = row[Ctrls.currentLease.col!];//This is the value of the current lease
                         if (unvalid([base, latestIndex, currentLease])) return alert('Please make sure that the values of the current lease, the base indice and the new indice are all provided and valid numbers');
-                        const newLease = (Number(currentLease) * (Number(latestIndex) / Number(base))).toFixed(2).toString();
+                        const newLease = (currentLease * (latestIndex / base)).toFixed(2).toString();
                         currentLeaseInput!.value = newLease;//This will just show the value of the new lease after applying the calculation, but it will not change the value of row[Ctrls.currentLease]. We will escape this when updating the values of the Ctrls from the inputs
-                        Ctrls.baseIndex.value = latestIndex;//We update  the value of the base index with the latest index
+                        Ctrls.baseIndex.value = latestIndex.toString();//We update  the value of the base index with the latest index
                         Ctrls.newLease.value = newLease;//We update the new lease RT
                     };
                 })();
@@ -782,7 +783,8 @@ class LawFirm {
             (function setMissingValues() {
                 if (!row) return throwAndAlert('The values in the input did not identifiy a unique lease in the Excel table');
                 const getYear = (date: number) => dateFromExcel(date).getFullYear().toString();
-                const anniversary = (year: number, date:Date) => [date.getDate(), date.getMonth() + 1, year].join('/')
+                const anniversary = (year: number, date: Date) => {date.setFullYear(year); return getDateString(date)};
+               
                 const leaseDate = dateFromExcel(row[Ctrls.leaseDate.col!]);
                 const year = date.getFullYear();
                 
@@ -792,6 +794,7 @@ class LawFirm {
                 Ctrls.revisionYear.value = year.toString();
                 Ctrls.nextRevision.value = anniversary(year + 1, leaseDate);
                 Ctrls.revisionDate.value = getDateString(date);
+                Ctrls.startingMonth.value = `${new Intl.DateTimeFormat('fr-FR', { month: 'long' }).format(date)} ${year.toString()}`;
             })();
 
             const contentControls: [string, string][] = ctrls.map(RT => [RT.title, RT.value]);
