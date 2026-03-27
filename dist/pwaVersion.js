@@ -726,20 +726,20 @@ class LawFirm {
             });
             (function setMissingValues() {
                 const anniversary = (year, date) => { date.setFullYear(year); return getDateString(date); };
-                const leaseDate = dateFromExcel(row[Ctrls.leaseDate.col]);
+                const leaseDate = new Date(Ctrls.leaseDate.value); //The value was set to an ISO Date when the Ctrls were updated from the inputs (since the input asscoiated with this Ctrl is of type "date", the input.value is an ISO Date)
                 const year = date.getFullYear();
                 Ctrls.revisionDate.value = getISODate(date); //!This Ctrl is associated with a column in the table, that's why we are setting its value to ISO date in order to update the excel table later with a valid date format
                 (function withNoColumn() {
-                    Ctrls.initialYear.value = getIndexYear(row[Ctrls.initialIndexDate.col]);
-                    Ctrls.baseYear.value = getIndexYear(row[Ctrls.baseIndexDate.col]);
+                    Ctrls.initialYear.value = getIndexYear(Ctrls.initialIndexDate.value);
+                    Ctrls.baseYear.value = getIndexYear(Ctrls.baseIndexDate.value);
                     Ctrls.revisionYear.value = year.toString();
                     Ctrls.anniversaryDate.value = anniversary(year, leaseDate);
                     Ctrls.nextRevision.value = anniversary(year + 1, leaseDate);
                     Ctrls.startingMonth.value = `${new Intl.DateTimeFormat('fr-FR', { month: 'long' }).format(date)} ${year.toString()}`;
                 })();
-                function getIndexYear(date) {
+                function getIndexYear(isoDate) {
                     //!the date passed at this stage is an ISO date formated as "YYYY-MM-DD" (The conversion was  done when the Ctrls values were updated from the inputs). We do not need to convert it as a date from Excel. 
-                    const newDate = new Date(date);
+                    const newDate = new Date(isoDate);
                     const month = newDate.getMonth();
                     if (month < 3) {
                         //if the date of publication of the index is within the 1st quarter of the year, it means the index is the index of Q4 of the previous year
