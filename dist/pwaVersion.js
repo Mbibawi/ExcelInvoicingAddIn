@@ -727,19 +727,30 @@ class LawFirm {
                     RT.value = input.value;
             });
             (function setMissingValues() {
-                const getYear = (date) => dateFromExcel(date).getFullYear().toString();
                 const anniversary = (year, date) => { date.setFullYear(year); return getDateString(date); };
                 const leaseDate = dateFromExcel(row[Ctrls.leaseDate.col]);
                 const year = date.getFullYear();
                 Ctrls.revisionDate.value = getISODate(date); //!This Ctrl is associated with a column in the table, that's why we are setting its value to ISO date in order to update the excel table later with a valid date format
                 (function withNoColumn() {
-                    Ctrls.initialYear.value = getYear(row[Ctrls.initialIndexDate.col]);
-                    Ctrls.baseYear.value = getYear(row[Ctrls.baseIndexDate.col]);
+                    Ctrls.initialYear.value = getIndexYear(row[Ctrls.initialIndexDate.col]);
+                    Ctrls.baseYear.value = getIndexYear(row[Ctrls.baseIndexDate.col]);
                     Ctrls.revisionYear.value = year.toString();
                     Ctrls.anniversaryDate.value = anniversary(year, leaseDate);
                     Ctrls.nextRevision.value = anniversary(year + 1, leaseDate);
                     Ctrls.startingMonth.value = `${new Intl.DateTimeFormat('fr-FR', { month: 'long' }).format(date)} ${year.toString()}`;
                 })();
+                function getIndexYear(date) {
+                    const newDate = dateFromExcel(date);
+                    const month = newDate.getMonth();
+                    if (month < 3) {
+                        //if the date of publication of the index is within the 1st quarter of the year, it means the index is the index of Q4 of the previous year
+                        return newDate.getFullYear() - 1;
+                    }
+                    else {
+                        //The year of the index is the same year as the year of its publication
+                        return newDate.getFullYear();
+                    }
+                }
             })();
             const contentControls = ctrls.map(RT => {
                 if (RT.type === 'date')
