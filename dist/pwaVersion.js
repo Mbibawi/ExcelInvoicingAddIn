@@ -719,12 +719,10 @@ class LawFirm {
                 const RT = findRT(input.id);
                 if (RT === Ctrls.currentLease)
                     return; //! We DO NOT update the value of the current lease from the input because the value in the input is the new lease value after revision, not the original value. We need to keep the original value
-                if (RT.type === 'date')
-                    RT.value = getISODate(input.valueAsDate);
-                else if (RT.type === 'number')
+                if (RT.type === 'number')
                     RT.value = fraction(input.valueAsNumber);
                 else
-                    RT.value = input.value;
+                    RT.value = input.value; //If the input.type is "date", the input.value is an ISO date string. So we do not need to make any conversions
             });
             (function setMissingValues() {
                 const anniversary = (year, date) => { date.setFullYear(year); return getDateString(date); };
