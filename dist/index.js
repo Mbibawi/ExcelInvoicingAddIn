@@ -1,4 +1,4 @@
-import { showLawFirmUI, byID } from "./ui";
+import { showLawFirmUI, byID } from "./ui.js";
 export const settingsNames = {
     invoices: {
         workBook: 'invoicesWorkbook',
@@ -1472,4 +1472,4 @@ export function spinner(show) {
     spinner.classList.add('spinner');
     form.prepend(spinner);
 }
-//# sourceMappingURL=main.js.map
+//# sourceMappingURL=index.js.map

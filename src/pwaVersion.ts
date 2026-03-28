@@ -1,11 +1,14 @@
-class LawFirm {
+import * as m from "./index.js";
+import { showLawFirmUI, byID, populateSelectElement, splitter } from "./ui.js";
+
+export class LawFirm {
     private stored;
     private tenantID;
     private settingsNames;
 
     constructor() {
-        this.stored = getSavedSettings() || undefined;
-        this.settingsNames = settingsNames;
+        this.stored = m.getSavedSettings() || undefined;
+        this.settingsNames = m.settingsNames;
         this.tenantID = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
     }
 
@@ -16,33 +19,33 @@ class LawFirm {
      * @param {any[]} row - If provided, the function will add the row directly to the Excel Table without needing to retrieve the data from the inputs.
      */
     async addNewEntry(add: boolean = false, row?: any[]) {
-        spinner(true);//We show the spinner
+        m.spinner(true);//We show the spinner
         const { workbookPath, tableName } = this.getConsts(this.settingsNames.invoices);
 
-        if ([this.stored, workbookPath, tableName].find(v => !v)) throwAndAlert('One of the constant values is not valid');
+        if ([this.stored, workbookPath, tableName].find(v => !v)) m.throwAndAlert('One of the constant values is not valid');
 
-        const graph = new GraphAPI('', workbookPath);
+        const graph = new m.GraphAPI('', workbookPath);
 
         const TableRows = await graph.fetchExcelTable(tableName, true);
         if (!TableRows?.length) return alert('Failed to retrieve the Excel table')
         const tableTitles = TableRows[0];
         if (add) return addEntry(TableRows, tableTitles);
-        
+
         await showAddNewForm(this);
 
-        async function showAddNewForm(this$:LawFirm) {
+        async function showAddNewForm(this$: LawFirm) {
             try {
                 await createForm();
-                spinner(false);//We hide the sinner
+                m.spinner(false);//We hide the sinner
             } catch (error) {
-                spinner(false);//We hide the sinner
+                m.spinner(false);//We hide the sinner
                 alert(error);
             }
 
             async function createForm() {
                 const tableBody = TableRows!.slice(1, -1);
                 const inputs: HTMLInputElement[] = [];
-                const bound = (indexes: number[]) => inputs.filter(input => indexes.includes(getIndex(input))).map(input => [input, getIndex(input)]) as InputCol[];
+                const bound = (indexes: number[]) => inputs.filter(input => indexes.includes(m.getIndex(input))).map(input => [input, m.getIndex(input)]) as InputCol[];
 
                 insertAddForm(tableTitles);
 
@@ -81,7 +84,7 @@ class LawFirm {
                     })();
 
                     (function homeBtn() {
-                        showMainUI(true);
+                        showLawFirmUI(true);
                     })();
 
                     function newDiv(i: number, divs?: HTMLDivElement[], css: string = "block") {
@@ -142,7 +145,7 @@ class LawFirm {
                                 if (updateNext.includes(index)) input.onchange = () => this$.inputOnChange(index, bound(updateNext), tableBody, false);
 
                                 if (![0, 2, 11, 12, 13].includes(index)) return;//We will initially populate the "Client"(0), Nature(2), "Payment Method"(11), "Bank Account"(12), "Third Party"(13) lists only, the other inputs will be populate when the onChange function will be called
-                                populateSelectElement(input, getUniqueValues(index, tableBody));
+                                populateSelectElement(input, m.getUniqueValues(index, tableBody));
                             })();
 
                             (function addRestOnChange() {
@@ -183,9 +186,9 @@ class LawFirm {
             try {
                 const visibleCells = await addRow(row);
                 if (visibleCells?.length) displayVisibleCells(visibleCells, display);
-                spinner(false);//We hide the spinner
+                m.spinner(false);//We hide the spinner
             } catch (error) {
-                spinner(false);//We hide the spinner
+                m.spinner(false);//We hide the spinner
                 alert(error)
             }
 
@@ -195,12 +198,12 @@ class LawFirm {
 
                 const inputs = Array.from(document.getElementsByTagName('input')) as HTMLInputElement[];//all inputs
 
-                const nature = getInputByIndex(inputs, colNature)?.value;
+                const nature = m.getInputByIndex(inputs, colNature)?.value;
                 if (!nature) return stop('The matter is')
-                const date = getInputByIndex(inputs, colDate)?.valueAsDate as Date | null;
+                const date = m.getInputByIndex(inputs, colDate)?.valueAsDate as Date | null;
                 if (!date) return stop('The invoice date is');
-                const amount = getInputByIndex(inputs, colAmount) as HTMLInputElement;
-                const rate = getInputByIndex(inputs, colRate)?.valueAsNumber || 0;
+                const amount = m.getInputByIndex(inputs, colAmount) as HTMLInputElement;
+                const rate = m.getInputByIndex(inputs, colRate)?.valueAsNumber || 0;
 
                 const debit = ['Honoraire', 'Débours/Dépens', 'Débours/Dépens non facturables', 'Rétrocession d\'honoraires', 'Charges déductibles'].includes(nature);//We check if we need to change the value sign
 
@@ -212,15 +215,15 @@ class LawFirm {
                 return row
 
                 function getInputValue(index: number) {
-                    const input = getInputByIndex(inputs, index) as HTMLInputElement;
+                    const input = m.getInputByIndex(inputs, index) as HTMLInputElement;
                     if ([colDate, colDate + 1].includes(index))
-                        return getISODate(date);//Those are the 2 date columns
+                        return m.getISODate(date);//Those are the 2 date columns
                     else if ([colStart, colEnd].includes(index))
-                        return getTime([input]);//time start and time end columns
+                        return m.getTime([input]);//time start and time end columns
                     else if (index === 7) {
                         //!This is a hidden input
-                        const timeInputs = [colStart, colEnd].map(i => getInputByIndex(inputs, i));
-                        const totalTime = getTime(timeInputs);//Total time column
+                        const timeInputs = [colStart, colEnd].map(i => m.getInputByIndex(inputs, i));
+                        const totalTime = m.getTime(timeInputs);//Total time column
                         if (totalTime && rate && !amount.valueAsNumber)
                             amount.valueAsNumber = totalTime * 24 * rate// making the amount equal the rate * totalTime
                         return totalTime
@@ -246,11 +249,11 @@ class LawFirm {
             }
 
             async function addRow(row: any[] | undefined) {
-                if (!row) return throwAndAlert('The row is not valid');
+                if (!row) return m.throwAndAlert('The row is not valid');
                 const visibleCells = await graph.addRowToExcelTable(row, tableRows!.length - 2, tableName!, tableTitles);
 
                 if (!visibleCells?.length)
-                    return throwAndAlert('There was an issue with the adding or the filtering, check the console.log for more details');
+                    return m.throwAndAlert('There was an issue with the adding or the filtering, check the console.log for more details');
 
                 alert('Row aded and the table was filtered');
                 return visibleCells
@@ -259,7 +262,7 @@ class LawFirm {
                 if (!display) return;
                 const form = byID();
                 const tableDiv = createDivContainer();
-                if (!form) return throwAndAlert('The form element was not found');
+                if (!form) return m.throwAndAlert('The form element was not found');
                 const table = document.createElement('table');
                 table.classList.add('table');
                 tableDiv.appendChild(table);
@@ -267,7 +270,7 @@ class LawFirm {
                 const columns = [0, 1, 2, 3, 7, 8, 9, 10, 14];//The columns that will be displayed in the table;
                 const rowClass = 'excelRow';
                 (function insertTableHeader() {
-                    if (!tableTitles) return throwAndAlert('No Table Titles');
+                    if (!tableTitles) return m.throwAndAlert('No Table Titles');
                     const headerRow = document.createElement('tr');
                     headerRow.classList.add(rowClass);
                     const thead = document.createElement('thead');
@@ -322,38 +325,38 @@ class LawFirm {
 
     async issueInvoice() {
         const this$: LawFirm = this;
-        
+
         await showInvoiceForm();
 
         async function showInvoiceForm() {
-            spinner(true);//We show the spinner
+            m.spinner(true);//We show the spinner
             const { workbookPath, tableName, templatePath, saveTo } = this$.getConsts(this$.settingsNames.invoices);
 
-            if ([this$.stored, workbookPath, tableName, templatePath, saveTo].find(v => !v)) throwAndAlert('One of the  constant values is not valid');
+            if ([this$.stored, workbookPath, tableName, templatePath, saveTo].find(v => !v)) m.throwAndAlert('One of the  constant values is not valid');
 
-            const graph = new GraphAPI('', workbookPath);
+            const graph = new m.GraphAPI('', workbookPath);
 
             const sessionId = await graph.createFileSession() || '';
-            if (!sessionId) return throwAndAlert('There was an issue with the creation of the file cession. Check the console.log for more details');
+            if (!sessionId) return m.throwAndAlert('There was an issue with the creation of the file cession. Check the console.log for more details');
 
             const tableRows = await graph.fetchExcelTable(tableName, true);
-            if (!tableRows?.length) return throwAndAlert('Failed to retrieve the Excel table');
+            if (!tableRows?.length) return m.throwAndAlert('Failed to retrieve the Excel table');
             const tableTitles = tableRows[0];
             document.querySelector('table')?.remove();
             try {
                 insertInvoiceForm(tableTitles);
                 await graph.closeFileSession(sessionId);
-                spinner(false);//We hide the spinner
+                m.spinner(false);//We hide the spinner
             }
             catch (error) {
-                throwAndAlert(`Error while showing the invoice user form: ${error}`)
-                spinner(false);//We hide the spinner
+                m.throwAndAlert(`Error while showing the invoice user form: ${error}`)
+                m.spinner(false);//We hide the spinner
             }
 
             function insertInvoiceForm(tableTitles: string[]) {
                 const form = byID();
                 if (!form) throw new Error('The form element was not found');
-                const isNan = (index:number|string)=> isNaN(Number(index));
+                const isNan = (index: number | string) => isNaN(Number(index));
                 form.innerHTML = '';
                 const tableBody = tableRows!.slice(1, -1);
                 const boundInputs: InputCol[] = [];
@@ -380,7 +383,7 @@ class LawFirm {
                 })();
 
                 (function homeBtns() {
-                    showMainUI(true);
+                    showLawFirmUI(true);
                 })();
 
                 function insertInputsAndLables(indexes: (number | string)[], id: string, checkBox: boolean = false): HTMLInputElement[] {
@@ -414,7 +417,7 @@ class LawFirm {
                             if (index < 2)
                                 input.onchange = () => this$.inputOnChange(index as number, boundInputs, tableBody, true);//We add onChange on "Client" (0) and "Affaire" (1) columns. We set combined = true in order to add to the dataList of the next column an option combining all the choices in the list
                             if (index < 1)
-                                populateSelectElement(input, getUniqueValues(0, tableBody));//We create a unique values dataList for the "Client" (0) input
+                                populateSelectElement(input, m.getUniqueValues(0, tableBody));//We create a unique values dataList for the "Client" (0) input
                         })();
 
                         (function isCheckBox() {
@@ -447,34 +450,34 @@ class LawFirm {
             }
         };
 
-        async function createInvoice(tableName: string, tableTitles: string[], templatePath: string, saveTo: string, graph: GraphAPI) {
-            spinner(true);//We show the spinner
+        async function createInvoice(tableName: string, tableTitles: string[], templatePath: string, saveTo: string, graph: m.GraphAPI) {
+            m.spinner(true);//We show the spinner
             try {
                 await editInvoice(tableName, tableTitles, templatePath, saveTo, graph);
-                spinner(false);//We hide the spinner
+                m.spinner(false);//We hide the spinner
             } catch (error) {
-                spinner(false);//We hide the sinner
+                m.spinner(false);//We hide the sinner
                 alert(error)
             }
         };
 
-        async function editInvoice(tableName: string, tableTitles: string[], templatePath: string, saveTo: string, graph: GraphAPI) {
+        async function editInvoice(tableName: string, tableTitles: string[], templatePath: string, saveTo: string, graph: m.GraphAPI) {
             const client = tableTitles[0], matter = tableTitles[1];//Those are the 'Client' and 'Matter' columns of the Excel table
             const sessionId = await graph.createFileSession(true) || '';//!persist must be = true. This means that if the session is closed, the changes made to the file will be saved.
-            if (!sessionId) return throwAndAlert('There was an issue with the creation of the file cession. Check the console.log for more details');
+            if (!sessionId) return m.throwAndAlert('There was an issue with the creation of the file cession. Check the console.log for more details');
 
             const inputs = Array.from(document.getElementsByTagName('input'));
-            const criteria = inputs.filter(input => getIndex(input) >= 0);
+            const criteria = inputs.filter(input => m.getIndex(input) >= 0);
 
             const discount = parseInt(inputs.find(input => input.id === 'discount')?.value || '0%');
 
             const lang = inputs.find(input => input.dataset.language && input.checked === true)?.dataset.language || 'FR';
 
             const date = new Date();//We need to generate the date at this level and pass it down to all the functions that need it
-            const invoiceNumber = getInvoiceNumber(date);
+            const invoiceNumber = m.getInvoiceNumber(date);
             const data = await filterExcelData(criteria, discount, lang, invoiceNumber);
 
-            if (!data) return throwAndAlert('Could not retrieve the filtered Excel table');
+            if (!data) return m.throwAndAlert('Could not retrieve the filtered Excel table');
 
             const { wordRows, totalsLabels, clientName, matters, adresses } = data;
 
@@ -488,7 +491,7 @@ class LawFirm {
 
             const contentControls = this$.getContentControlsValues(invoice, date);
 
-            const fileName = getInvoiceFileName(clientName, matters, invoiceNumber);
+            const fileName = m.getInvoiceFileName(clientName, matters, invoiceNumber);
             let saveToPath = `${saveTo}/${fileName}`;
 
             saveToPath = prompt(`The file will be saved in ${saveTo}, and will be named : ${fileName}.\nIf you want to change the path or the name, provide the full file path and name of your choice without any sepcial characters`, saveToPath) || saveTo;
@@ -510,25 +513,25 @@ class LawFirm {
              */
             async function filterExcelData(inputs: HTMLInputElement[], discount: number, lang: string, invoiceNumber: string): Promise<{ wordRows: string[][], totalsLabels: string[], clientName: string, matters: string[], adresses: string[] } | void> {
                 const clientCol = 0, matterCol = 1, dateCol = 3, addressCol = 15;//Indexes of the 'Matter' and 'Date' columns in the Excel table
-                const clientNameInput = getInputByIndex(inputs, clientCol);
-                const matterInput = getInputByIndex(inputs, matterCol);
+                const clientNameInput = m.getInputByIndex(inputs, clientCol);
+                const matterInput = m.getInputByIndex(inputs, matterCol);
                 const clientName = clientNameInput!.value || '';
                 const matters =
-                    getArray(matterInput!.value) || []; //!The Matter input may include multiple entries separated by ', ' not only one entry.
+                    m.getArray(matterInput!.value) || []; //!The Matter input may include multiple entries separated by ', ' not only one entry.
 
-                if (!clientName || !matters?.length) throwAndAlert('could not retrieve the client name or the matter/matters list from the inputs');
+                if (!clientName || !matters?.length) m.throwAndAlert('could not retrieve the client name or the matter/matters list from the inputs');
 
                 const excelTable = await graph.fetchExcelTable(tableName, true);
 
                 let tableRows = excelTable?.slice(1, -1) || undefined; //We exclude the first and the last rows of the table. Since we are calling the "range" endpoint, we get the whole table including the headers. The first row is the header, and the last row is the total row.
 
-                if (!tableRows) return throwAndAlert('We could not retrieve the tableRows whie trying to issue the invoice');
+                if (!tableRows) return m.throwAndAlert('We could not retrieve the tableRows whie trying to issue the invoice');
 
                 //tableRows = _filterTableByInputsValues([[clientNameInput!, clientCol], [matterInput!, matterCol]], excelTable!);
                 tableRows = this$.filterTableByInputsValues([[clientNameInput!, clientCol], [matterInput!, matterCol]], excelTable!);
                 tableRows = filterByDate(tableRows!, dateCol);
 
-                const adresses = getUniqueValues(addressCol, tableRows) as string[];//!We must retrieve the adresses at this stage before filtering by "Matter" or any other column
+                const adresses = m.getUniqueValues(addressCol, tableRows) as string[];//!We must retrieve the adresses at this stage before filtering by "Matter" or any other column
 
                 //const {wordRows, totalsLabels} = _getRowsData(tableRows, discount, lang, invoiceNumber);
                 const { wordRows, totalsLabels } = this$.getRowsData(tableRows, discount, lang, invoiceNumber);
@@ -540,7 +543,7 @@ class LawFirm {
                     const convert = (date: string | number) => dateFromExcel(Number(date)).getTime();
 
                     const [from, to] = inputs
-                        .filter(input => getIndex(input) === dateCol)
+                        .filter(input => m.getIndex(input) === dateCol)
                         .map(input => input.valueAsDate?.getTime());
 
                     if (from && to)
@@ -560,8 +563,8 @@ class LawFirm {
     async issueLetter() {
         showForm(this);
 
-        function showForm(this$:LawFirm) {
-            spinner(true);//We show the spinner
+        function showForm(this$: LawFirm) {
+            m.spinner(true);//We show the spinner
             document.querySelector('table')?.remove();
             const form = byID();
             if (!form) return;
@@ -582,25 +585,25 @@ class LawFirm {
             })();
 
             (function homeBtn() {
-                showMainUI(true);
-                spinner(false);//We hide the spinner
+                showLawFirmUI(true);
+                m.spinner(false);//We hide the spinner
             })();
         };
 
-        async function generate(this$:LawFirm) {
+        async function generate(this$: LawFirm) {
             try {
                 await createLetter();
-                spinner(false);//We hide the spinner
+                m.spinner(false);//We hide the spinner
             } catch (error) {
                 console.log(`There was an error: ${error}`)
-                spinner(false);//We hide the spinner
+                m.spinner(false);//We hide the spinner
             }
 
             async function createLetter() {
-                spinner(true);
+                m.spinner(true);
                 const input = byID('textInput') as HTMLTextAreaElement;
                 if (!input) return;
-                const { templatePath, saveTo } = this$.getConsts(settingsNames.letter);
+                const { templatePath, saveTo } = this$.getConsts(m.settingsNames.letter);
 
                 const fileName = prompt('Provide the file name without special characthers');
                 if (!fileName) return;
@@ -609,19 +612,19 @@ class LawFirm {
                 if (!saveToPath) return;
                 const contentControls: [string, string][] = [['RTCoreText', input.value], ['RTReference', 'Référence'], ['RTClientName', 'Nom du Client'], ['RTEmail', 'Email du client']];
 
-                await new GraphAPI('', saveToPath).createAndUploadDocumentFromTemplate(templatePath, saveToPath, 'FR', undefined, contentControls);
+                await new m.GraphAPI('', saveToPath).createAndUploadDocumentFromTemplate(templatePath, saveToPath, 'FR', undefined, contentControls);
             }
         };
 
     }
 
     async issueLeaseLetter() {
-        spinner(true);//We show the spinner
+        m.spinner(true);//We show the spinner
         const { workbookPath, tableName, templatePath, saveTo } = this.getConsts(this.settingsNames.leases);
 
-        if ([this.stored, workbookPath, tableName, templatePath, saveTo].find(v => !v)) throwAndAlert('One of the  constant values is not valid');
+        if ([this.stored, workbookPath, tableName, templatePath, saveTo].find(v => !v)) m.throwAndAlert('One of the  constant values is not valid');
 
-        const graph = new GraphAPI('', workbookPath);
+        const graph = new m.GraphAPI('', workbookPath);
         const tableRows = await graph.fetchExcelTable(tableName, false);//We are calling the "/rows" endPoint, so we will get the tableBody without the headers
 
         const Ctrls: LeaseCtrls = {
@@ -651,12 +654,12 @@ class LawFirm {
         const ctrls = Object.values(Ctrls);
 
         const findRT = (id: string) => ctrls.find(RT => RT.title === id);
-        const fraction = (n: number) => Math.round(n * 100)/ 100;
+        const fraction = (n: number) => Math.round(n * 100) / 100;
 
-        let row: any[] | void, rowIndex: number | null = null;
+        let row: any[] | undefined, rowIndex: number = NaN;
         await showForm(this);
 
-        async function showForm(this$:LawFirm) {
+        async function showForm(this$: LawFirm) {
             const inputs: InputCol[] = [];
             const findInput = (RT: RT) => inputs.find(([input, col]) => input.id === RT.title)?.[0];
             if (!tableRows) return;
@@ -673,17 +676,17 @@ class LawFirm {
                     .map(RT => inputs.push([createInput(RT), RT.col!] as const));
 
                 const owner = findInput(Ctrls.owner);
-                if (owner) populateSelectElement(owner, getUniqueValues(Ctrls.owner.col!, tableRows), false);
+                if (owner) populateSelectElement(owner, m.getUniqueValues(Ctrls.owner.col!, tableRows), false);
 
                 (function inputsOnChange() {
                     const filled = inputs.filter(([input, col]) => col <= Ctrls.tenant.col!);
-                    filled.forEach(([input, col]) => input.onchange = () => [row, rowIndex] = this$.inputOnChange(col, inputs, tableRows, false) || [undefined, null]);
+                    filled.forEach(([input, col]) => input.onchange = () => [row, rowIndex] = this$.inputOnChange(col, inputs, tableRows, false) || [undefined, NaN]);
 
                     const index = findInput(Ctrls.index);
                     const currentLeaseInput = findInput(Ctrls.currentLease);
-                    
+
                     index!.onchange = () => {
-                        if (!row?.length)
+                        if (!row)
                             return alert('No single lease having owner name, property adress and tenant name as in the inputs was found');
                         const initial = row[Ctrls.initialIndex.col!];//This is the value of the inital index
                         const base = row[Ctrls.index.col!] || initial;//!For the base index, we will retrieve the value of the "Indice de Révision" (column 10) from the Excel row. We will not retrieve this value from the input but from the row itself. If this is the first time we are indexing the lease, we will fall back to the intial index (i.e., the value indicated in the lease agreement)
@@ -693,7 +696,7 @@ class LawFirm {
 
                         Ctrls.currentLease.value = currentLease;//!We immediately set the value of this control at this stage, because we will escape this Ctrl when we will update Ctrls values from the inputs, because the corresponding input will be showing the new lease value not the original value
 
-                        (function newLease(){
+                        (function newLease() {
                             const newLease = fraction(currentLease * (latestIndex / base));//we get a 2 digits fractions from the value
                             currentLeaseInput!.valueAsNumber = newLease;//!We only update the input value, NOT the value of the Excel row (row). We need to keep the initial value in case the user wants to correct  the value in the index input which means we will need to recalculate the newLease value based on the current lease value. We will hence keep the current lease value unchanged until the generate() function is called.
                             Ctrls.newLease.value = newLease;//We update the new lease RT
@@ -713,7 +716,7 @@ class LawFirm {
                     [10, 11],//"Indice de révision"(10), "Date de l'indice de révision"(11)
                     [12, 13],//"Loyer Actuel (ou révisé)"(12), "Date de la dernière Révision"(13)
                 ]
-                    .forEach((group, index) => groupDivs(divs.filter(div => group.includes(getIndex(div))), index));
+                    .forEach((group, index) => groupDivs(divs.filter(div => group.includes(m.getIndex(div))), index));
 
                 function groupDivs(divs: HTMLDivElement[], i: number) {
                     const div = document.createElement('div');
@@ -734,8 +737,8 @@ class LawFirm {
             })();
 
             (function homeBtn() {
-                showMainUI(true);
-                spinner(false);//We hide the spinner
+                showLawFirmUI(true);
+                m.spinner(false);//We hide the spinner
             })();
 
             function createInput(RT: RT, className: string = 'field') {
@@ -766,31 +769,30 @@ class LawFirm {
                 };
             };
         };
-        async function generate(inputs: InputCol[], row: any[] | void) {
+        async function generate(inputs: InputCol[], row: any[] | undefined) {
 
-            if (!inputs.length) return throwAndAlert('The inputs collection is missing');
-            if (!row) return throwAndAlert('The values in the inputs did not point to a unique lease in the Excel table');  
+            if (!inputs.length) return m.throwAndAlert('The inputs collection is missing');
 
             const date = new Date();
-            const fileName = prompt('Provide the file name without special characthers') || '';
+            const fileName = prompt('Provide the file name without special characthers') ?? 'NO VALID FILE NAME WAS PROVIDED';
             const savePath = prompt('Provide the destination folder', `${saveTo}/${fileName}_${date.getFullYear()}${date.getMonth() + 1}${date.getDate()}@${date.getHours()}-${date.getMinutes()}.docx`);
             if (!savePath) return alert('The path for saving the file is not valid');
 
             inputs.map(([input, col]) => {
                 const RT = findRT(input.id) as RT;
-                if(RT=== Ctrls.currentLease) return; //! We DO NOT update the value of the current lease from the input because the value in the input is the new lease value after revision, not the original value. We need to keep the original value
+                if (RT === Ctrls.currentLease) return; //! We DO NOT update the value of the current lease from the input because the value in the input is the new lease value after revision, not the original value. We need to keep the original value
 
                 if (RT.type === 'number') RT.value = fraction(input.valueAsNumber);
                 else RT.value = input.value //If the input.type is "date", the input.value is an ISO date string. So we do not need to make any conversions
             });
 
             (function setMissingValues() {
-                const anniversary = (year: number, date: Date) => { date.setFullYear(year); return getDateString(date) };
-                
+                const anniversary = (year: number, date: Date) => { date.setFullYear(year); return m.getDateString(date) };
+
                 const leaseDate = new Date(Ctrls.leaseDate.value);//The value was set to an ISO Date when the Ctrls were updated from the inputs (since the input asscoiated with this Ctrl is of type "date", the input.value is an ISO Date)
                 const year = date.getFullYear();
-                
-                Ctrls.revisionDate.value = getISODate(date);//!This Ctrl is associated with a column in the table, that's why we are setting its value to ISO date in order to update the excel table later with a valid date format
+
+                Ctrls.revisionDate.value = m.getISODate(date);//!This Ctrl is associated with a column in the table, that's why we are setting its value to ISO date in order to update the excel table later with a valid date format
 
                 (function withNoColumn() {
                     Ctrls.initialYear.value = getIndexYear(Ctrls.initialIndexDate.value as string);
@@ -807,7 +809,7 @@ class LawFirm {
                     const month = newDate.getMonth();
                     if (month < 3) {
                         //if the date of publication of the index is within the 1st quarter of the year, it means the index is the index of Q4 of the previous year
-                        return newDate.getFullYear() -1
+                        return newDate.getFullYear() - 1
                     } else {
                         //The year of the index is the same year as the year of its publication
                         return newDate.getFullYear();
@@ -816,9 +818,10 @@ class LawFirm {
             })();
 
             const decimals = [Ctrls.initialIndex, Ctrls.index, Ctrls.baseIndex, Ctrls.currentLease, Ctrls.newLease];//Those are the ctrls for which we will replace the '.' decimal with a ',' decimal mark
+
             const contentControls: [string, string][] = ctrls.map(RT => {
                 if (RT.type === 'date')
-                    return [RT.title, getDateString(new Date(RT.value) || null)];
+                    return [RT.title, m.getDateString(new Date(RT.value) || null)];
                 else if (decimals.includes(RT))
                     return [RT.title, (RT.value as number).toFixed(2).replace('.', ',')];//!We must NOT do this on the Ctrls object directly. We need the values of these Ctrls to remain numbers in order to update the Excel table.
                 else return [RT.title, RT.value.toString()];
@@ -827,32 +830,32 @@ class LawFirm {
             try {
                 await graph.createAndUploadDocumentFromTemplate(templatePath, savePath, 'FR', undefined, contentControls);
                 await updateExcelTable();
-                spinner(false);//We hide the spinner
+                m.spinner(false);//We hide the spinner
             } catch (error) {
                 console.log(error);
                 alert(error);
-                spinner(false);//We hide the spinner
+                m.spinner(false);//We hide the spinner
             }
 
             async function updateExcelTable() {
                 Ctrls.currentLease.value = Ctrls.newLease.value; //!This must be done at this stage NOT EARLIER, otherwise, we will lose the value of the original lease when editing the Word template. Notice  that Ctrls.newLease is not associated with a column of the Excel table, (i.e., Ctrls.newLease.col property is undefined), which means the row[] will not updated from this Ctrl.
-                    if (row && rowIndex) {
-                        await graph.updateExcelTableRow(tableName, rowIndex, update(row));
-                    } else {
-                        row = Array(inputs.length);
-                        await graph.addRowToExcelTable(update(row), rowIndex, tableName);
-                    }
-                    function update(row:any[]) {
-                        ctrls.filter(ctrl=>ctrl.col).forEach(({value, col}) => row[col!] = value);
-                        return row
-                    }
+                if (row && rowIndex) {
+                    await graph.updateExcelTableRow(tableName, rowIndex, update(row));
+                } else {
+                    row = Array(inputs.length);
+                    await graph.addRowToExcelTable(update(row), rowIndex, tableName);
+                }
+                function update(row: any[]) {
+                    ctrls.filter(ctrl => ctrl.col).forEach(({ value, col }) => row[col!] = value);
+                    return row
+                }
             };
         }
     }
 
     async searchFiles() {
-        spinner(true);//We show the spinner
-        const graph = new GraphAPI('');
+        m.spinner(true);//We show the spinner
+        const graph = new m.GraphAPI('');
         (function showForm() {
             const form = byID('form') as HTMLDivElement;
             if (!form) return;
@@ -919,9 +922,9 @@ class LawFirm {
 
             try {
                 await fetchAndFilter();
-                spinner(false);//Hide the spinner
+                m.spinner(false);//Hide the spinner
             } catch (error) {
-                spinner(false);//Hide the spinner
+                m.spinner(false);//Hide the spinner
                 console.log(error);
                 alert(error);
             }
@@ -1191,7 +1194,7 @@ class LawFirm {
 
         for (const [input, col] of boundInputs) {
             input.value = ''; //We reset the value of all bound inputs.
-            const list = getUniqueValues(col, filtered);
+            const list = m.getUniqueValues(col, filtered);
             const row = fillBound(list, input);
             if (row) return [row, table.indexOf(row)];//!If the function returns true, it means that we filled the value of all the bound inputs, so we break the loop. If it returns false, it means that there is more than one value in the list, so we need to create or update the data list of the input.
             //if (fillBound(list, input)) break;//!If the function returns true, it means that we filled the value of all the bound inputs, so we break the loop. If it returns false, it means that there is more than one value in the list, so we need to create or update the data list of the input.
@@ -1209,7 +1212,7 @@ class LawFirm {
 
         function setValue(input: HTMLInputElement, value: any) {
             if (input.type === "date")
-                input.value = getISODate(dateFromExcel(value));//!We must convert the dates from Excel, and pass the ISO date to the input value (NOT to the input.valueAsDate) in order to avoid the timezone offset issue when using input.valueASDate
+                input.value = m.getISODate(dateFromExcel(value));//!We must convert the dates from Excel, and pass the ISO date to the input value (NOT to the input.valueAsDate) in order to avoid the timezone offset issue when using input.valueASDate
             else input.value = value?.toString() || '';
         };
     };
@@ -1326,7 +1329,7 @@ class LawFirm {
 
 
             const rowValues: string[] = [
-                getDateString(date),//Column Date
+                m.getDateString(date),//Column Date
                 description,
                 getAmountString(row[colAmount] * -1), //Column "Amount": we inverse the +/- sign for all the values 
                 getAmountString(Math.abs(row[colVAT])), //Column VAT: always a positive value
@@ -1370,7 +1373,7 @@ class LawFirm {
                 if (!newRow) return;
                 const [amount, vat] = feesDiscount;//!The discount must be added as a positive number. This is like a payment made by the client
                 const descr = prompt('Provide a description for the discount', `Remise sur les honoraires de la facture n° ${invoiceNumber}`) || '';
-                const date = getISODate(new Date());
+                const date = m.getISODate(new Date());
                 const cells: [number, string | number][] = [
                     [colNature, 'Remise'],
                     [colAmount, amount],
@@ -1458,7 +1461,7 @@ class LawFirm {
             },
             date: {
                 title: 'RTInvoiceDate',
-                value: getDateString(date),
+                value: m.getDateString(date),
             },
             numberLabel: {
                 title: 'LabelInvoiceNumber',
@@ -1516,28 +1519,28 @@ class Marianne extends LawFirm {
         await showReportsForm(this);
 
         async function showReportsForm(this$: any) {
-            spinner(true);//We show the spinner
+            m.spinner(true);//We show the spinner
             const { workbookPath, tableName, templatePath, saveTo } = this$.getConsts(this$.settingsNames.invoices);
 
-            if ([this$.stored, workbookPath, tableName, templatePath, saveTo].find(v => !v)) throwAndAlert('One of the  constant values is not valid');
+            if ([this$.stored, workbookPath, tableName, templatePath, saveTo].find(v => !v)) m.throwAndAlert('One of the  constant values is not valid');
 
-            const graph = new GraphAPI('', workbookPath);
+            const graph = new m.GraphAPI('', workbookPath);
 
             const sessionId = await graph.createFileSession() || '';
-            if (!sessionId) return throwAndAlert('There was an issue with the creation of the file cession. Check the console.log for more details');
+            if (!sessionId) return m.throwAndAlert('There was an issue with the creation of the file cession. Check the console.log for more details');
 
             const tableRows = await graph.fetchExcelTable(tableName, true);
-            if (!tableRows?.length) return throwAndAlert('Failed to retrieve the Excel table');
+            if (!tableRows?.length) return m.throwAndAlert('Failed to retrieve the Excel table');
             const tableTitles = tableRows[0];
             document.querySelector('table')?.remove();
             try {
                 insertInvoiceForm(tableTitles);
                 await graph.closeFileSession(sessionId);
-                spinner(false);//We hide the spinner
+                m.spinner(false);//We hide the spinner
             }
             catch (error) {
-                throwAndAlert(`Error while showing the invoice user form: ${error}`)
-                spinner(false);//We hide the spinner
+                m.throwAndAlert(`Error while showing the invoice user form: ${error}`)
+                m.spinner(false);//We hide the spinner
             }
 
             function insertInvoiceForm(tableTitles: string[]) {
@@ -1569,7 +1572,7 @@ class Marianne extends LawFirm {
                 })();
 
                 (function homeBtns() {
-                    showMainUI(true);
+                    showLawFirmUI(true);
                 })();
 
                 function insertInputsAndLables(indexes: (number | string)[], id: string, checkBox: boolean = false): HTMLInputElement[] {
@@ -1603,7 +1606,7 @@ class Marianne extends LawFirm {
                             if (index < 2)
                                 input.onchange = () => this$.inputOnChange(index as number, boundInputs, tableBody, true);//We add onChange on "Client" (0) and "Affaire" (1) columns
                             if (index < 1)
-                                populateSelectElement(input, getUniqueValues(0, tableBody));//We create a unique values dataList for the "Client" (0) input
+                                populateSelectElement(input, m.getUniqueValues(0, tableBody));//We create a unique values dataList for the "Client" (0) input
                         })();
 
                         (function isCheckBox() {
@@ -1649,34 +1652,34 @@ class Marianne extends LawFirm {
 
         }
 
-        async function issueReport(this$: any, tableName: string, tableTitles: string[], templatePath: string, saveTo: string, graph: GraphAPI) {
-            spinner(true);//We show the spinner
+        async function issueReport(this$: any, tableName: string, tableTitles: string[], templatePath: string, saveTo: string, graph: m.GraphAPI) {
+            m.spinner(true);//We show the spinner
             try {
                 await editInvoice(this$, tableName, tableTitles, templatePath, saveTo, graph);
-                spinner(false);//We hide the spinner
+                m.spinner(false);//We hide the spinner
             } catch (error) {
-                spinner(false);//We hide the sinner
+                m.spinner(false);//We hide the sinner
                 alert(error)
             }
         };
 
-        async function editInvoice(this$: any, tableName: string, tableTitles: string[], templatePath: string, saveTo: string, graph: GraphAPI) {
+        async function editInvoice(this$: any, tableName: string, tableTitles: string[], templatePath: string, saveTo: string, graph: m.GraphAPI) {
             const client = tableTitles[0], matter = tableTitles[1];//Those are the 'Client' and 'Matter' columns of the Excel table
             const sessionId = await graph.createFileSession(true) || '';//!persist must be = true. This means that if the session is closed, the changes made to the file will be saved.
-            if (!sessionId) return throwAndAlert('There was an issue with the creation of the file cession. Check the console.log for more details');
+            if (!sessionId) return m.throwAndAlert('There was an issue with the creation of the file cession. Check the console.log for more details');
 
             const inputs = Array.from(document.getElementsByTagName('input'));
-            const criteria = inputs.filter(input => getIndex(input) >= 0);
+            const criteria = inputs.filter(input => m.getIndex(input) >= 0);
 
             const discount = parseInt(inputs.find(input => input.id === 'discount')?.value || '0%');
 
             const lang = inputs.find(input => input.dataset.language && input.checked === true)?.dataset.language || 'FR';
 
             const date = new Date();//We need to generate the date at this level and pass it down to all the functions that need it
-            const invoiceNumber = getInvoiceNumber(date);
+            const invoiceNumber = m.getInvoiceNumber(date);
             const data = await filterExcelData(criteria, discount, lang, invoiceNumber);
 
-            if (!data) return throwAndAlert('Could not retrieve the filtered Excel table');
+            if (!data) return m.throwAndAlert('Could not retrieve the filtered Excel table');
 
             const { wordRows, totalsLabels } = data;
 
@@ -1690,7 +1693,7 @@ class Marianne extends LawFirm {
 
             const contentControls = this$.getContentControlsValues(report, date);
 
-            const fileName = getInvoiceFileName('', [''], invoiceNumber);
+            const fileName = m.getInvoiceFileName('', [''], invoiceNumber);
             let saveToPath = `${saveTo}/${fileName}`;
 
             saveToPath = prompt(`The file will be saved in ${saveTo}, and will be named : ${fileName}.\nIf you want to change the path or the name, provide the full file path and name of your choice without any sepcial characters`, saveTo) || saveTo;
@@ -1712,13 +1715,13 @@ class Marianne extends LawFirm {
              */
             async function filterExcelData(inputs: HTMLInputElement[], discount: number, lang: string, invoiceNumber: string): Promise<{ wordRows: string[][], totalsLabels: string[] } | void> {
                 const clientCol = 0, matterCol = 1, dateCol = 3, addressCol = 15;//Indexes of the 'Matter' and 'Date' columns in the Excel table
-                const clientNameInput = getInputByIndex(inputs, clientCol);
-                const matterInput = getInputByIndex(inputs, matterCol);
+                const clientNameInput = m.getInputByIndex(inputs, clientCol);
+                const matterInput = m.getInputByIndex(inputs, matterCol);
                 const clientName = clientNameInput!.value || '';
                 const matters =
-                    getArray(matterInput!.value) || []; //!The Matter input may include multiple entries separated by ', ' not only one entry.
+                    m.getArray(matterInput!.value) || []; //!The Matter input may include multiple entries separated by ', ' not only one entry.
 
-                if (!clientName || !matters?.length) throwAndAlert('could not retrieve the client name or the matter/matters list from the inputs');
+                if (!clientName || !matters?.length) m.throwAndAlert('could not retrieve the client name or the matter/matters list from the inputs');
                 let tableRows = this$.getExcelTable(tableName);
                 tableRows = this$.filterTableByInputsValues([[clientNameInput!, clientCol], [matterInput!, matterCol]], tableRows);
 
@@ -1734,7 +1737,7 @@ class Marianne extends LawFirm {
                     const convert = (date: string | number) => dateFromExcel(Number(date)).getTime();
 
                     const [from, to] = inputs
-                        .filter(input => getIndex(input) === dateCol)
+                        .filter(input => m.getIndex(input) === dateCol)
                         .map(input => input.valueAsDate?.getTime());
 
                     if (from && to)
@@ -1750,10 +1753,10 @@ class Marianne extends LawFirm {
             }
         }
 
-        async function getExcelTable(tableName: string, graph: GraphAPI) {
+        async function getExcelTable(tableName: string, graph: m.GraphAPI) {
             const excelTable = await graph.fetchExcelTable(tableName, true);
             let tableRows = excelTable?.slice(1, -1) || undefined; //We exclude the first and the last rows of the table. Since we are calling the "range" endpoint, we get the whole table including the headers. The first row is the header, and the last row is the total row.
-            if (!tableRows) return throwAndAlert('We could not retrieve the tableRows whie trying to issue the invoice');
+            if (!tableRows) return m.throwAndAlert('We could not retrieve the tableRows whie trying to issue the invoice');
             return tableRows
         }
     }
@@ -1792,9 +1795,6 @@ class Marianne extends LawFirm {
     }
 }
 
-(function startApp() {
-    showMainUI();//!This must come after the classes have been declared
-})();
 
 /**
  * Convert the date in an Excel row into a javascript date (in milliseconds)
@@ -1809,29 +1809,6 @@ function dateFromExcel(excelDate: number): Date {
     return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
 
-function showMainUI(homeBtn?: boolean) {
-    const container = byID('btns');
-    if (!container) return;
-    container.innerHTML = "";
-    if (homeBtn) return appendBtn('home', 'Back to Main', ()=>showMainUI());
-    const lf = new LawFirm();
-    appendBtn('entry', 'Add Entry', () => lf.addNewEntry());
-    appendBtn('invoice', 'Invoice', () => lf.issueInvoice());
-    appendBtn('letter', 'Letter', () => lf.issueLetter());
-    appendBtn('lease', 'Leases', () => lf.issueLeaseLetter());
-    appendBtn('search', 'Search Files', () => lf.searchFiles());
-    appendBtn('settings', 'Settings', () => saveSettings());
-
-    function appendBtn(id: string, text: string, onClick: onClick) {
-        const btn = document.createElement('button');
-        btn.id = id;
-        btn.classList.add("ms-Button");
-        btn.innerText = text;
-        btn.onclick = onClick;
-        container?.appendChild(btn);
-        return btn
-    }
-};
 
 
 
