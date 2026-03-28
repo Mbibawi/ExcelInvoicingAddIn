@@ -1,7 +1,11 @@
-import { showLawFirmUI, byID } from "./ui.js";
+import { showLawFirmUI, appendUIBtn, byID, showMarianneUI } from "./ui.js";
 import { settingsNames, saveSettings } from "./pwaVersion.js";
 (function startApp() {
-    showLawFirmUI();
+    const btns = byID('btns');
+    if (!btns)
+        return;
+    appendUIBtn(btns, 'LFUI', 'Show Law FIRM UI', () => showLawFirmUI());
+    appendUIBtn(btns, 'MRUI', 'Show Reporting UI', () => showMarianneUI());
     (function savedSettings() {
         if (localStorage.InvoicingPWA)
             return;

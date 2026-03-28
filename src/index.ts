@@ -1,8 +1,12 @@
-import { showLawFirmUI, byID } from "./ui.js";
+import { showLawFirmUI, appendUIBtn, byID, showMarianneUI } from "./ui.js";
 import { settingsNames, saveSettings } from "./pwaVersion.js";
 
 (function startApp() {
-  showLawFirmUI();
+  const btns = byID('btns');
+  if (!btns) return;
+  appendUIBtn(btns, 'LFUI', 'Show Law FIRM UI', () => showLawFirmUI());
+  appendUIBtn(btns, 'MRUI', 'Show Reporting UI', () => showMarianneUI());
+
 
   (function savedSettings() {
     if (localStorage.InvoicingPWA) return;
@@ -59,7 +63,7 @@ import { settingsNames, saveSettings } from "./pwaVersion.js";
         label: 'Please provide the path of the OneDrive folder where the created letter will be saved'
       },
     ];
-  
+
     const values = settings.map(({ name, value, label }) => {
       const setting = prompt(label, value) || '';
       return [name, setting] as [string, string];

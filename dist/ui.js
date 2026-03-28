@@ -1,9 +1,9 @@
-import { LawFirm, saveSettings } from "./pwaVersion.js";
+import { LawFirm, Marianne, saveSettings } from "./pwaVersion.js";
 export const splitter = "; OR "; //This is the splitter that will be used to separate multiple values in the input fields. We need to use a splitter that is not likely to be included in the values themselves.
 class LawFirmUI {
     lf;
-    constructor() {
-        this.lf = new LawFirm();
+    constructor(scope) {
+        this.lf = new scope();
     }
     appendUIBtns(homeBtn = false) {
         const container = byID('btns');
@@ -11,31 +11,43 @@ class LawFirmUI {
             return;
         container.innerHTML = "";
         if (homeBtn)
-            return this.appendBtn(container, 'home', 'Back to Main', () => this.appendUIBtns());
-        this.appendBtn(container, 'entry', 'Add Entry', () => this.lf.addNewEntry());
-        this.appendBtn(container, 'invoice', 'Invoice', () => this.lf.issueInvoice());
-        this.appendBtn(container, 'letter', 'Letter', () => this.lf.issueLetter());
-        this.appendBtn(container, 'lease', 'Leases', () => this.lf.issueLeaseLetter());
-        this.appendBtn(container, 'search', 'Search Files', () => this.lf.searchFiles());
-        this.appendBtn(container, 'settings', 'Settings', () => saveSettings());
-    }
-    appendBtn(container, id, text, onClick) {
-        const btn = document.createElement('button');
-        btn.id = id;
-        btn.classList.add("ms-Button");
-        btn.innerText = text;
-        btn.onclick = onClick;
-        container?.appendChild(btn);
-        return btn;
+            return appendUIBtn(container, 'home', 'Back to Main', () => this.appendUIBtns());
+        appendUIBtn(container, 'entry', 'Add Entry', () => this.lf.addNewEntry());
+        appendUIBtn(container, 'invoice', 'Invoice', () => this.lf.issueInvoice());
+        appendUIBtn(container, 'letter', 'Letter', () => this.lf.issueLetter());
+        appendUIBtn(container, 'lease', 'Leases', () => this.lf.issueLeaseLetter());
+        appendUIBtn(container, 'search', 'Search Files', () => this.lf.searchFiles());
+        appendUIBtn(container, 'settings', 'Settings', () => saveSettings());
     }
 }
-const LFUI = new LawFirmUI();
+class MarianneUI extends LawFirmUI {
+    super() {
+    }
+    appendBtn(container, id, text, onClick) {
+        return document.createElement('button');
+    }
+}
+const LFUI = new LawFirmUI(LawFirm);
+const MR = new MarianneUI(Marianne);
 export function showLawFirmUI(homeBtn) {
     LFUI.appendUIBtns(homeBtn);
 }
 ;
+export function showMarianneUI(homeBtn) {
+    MR.appendUIBtns(homeBtn);
+}
+;
 export function byID(id = "form") { return document.getElementById(id); }
 ;
+export function appendUIBtn(container, id, text, onClick) {
+    const btn = document.createElement('button');
+    btn.id = id;
+    btn.classList.add("ms-Button");
+    btn.innerText = text;
+    btn.onclick = onClick;
+    container?.appendChild(btn);
+    return btn;
+}
 /**
  *
  * @param select

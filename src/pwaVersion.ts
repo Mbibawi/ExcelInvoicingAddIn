@@ -1552,7 +1552,7 @@ export class LawFirm {
 };
 
 
-class Marianne extends LawFirm {
+export class Marianne extends LawFirm {
     private report: setting = {};
 
     super() {

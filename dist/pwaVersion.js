@@ -1428,7 +1428,7 @@ export class LawFirm {
     }
 }
 ;
-class Marianne extends LawFirm {
+export class Marianne extends LawFirm {
     report = {};
     super() {
     }
