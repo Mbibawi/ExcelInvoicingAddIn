@@ -1,15 +1,36 @@
 import * as m from "./index.js";
 import { showLawFirmUI, byID, populateSelectElement, splitter } from "./ui.js";
 
+export const settingsNames = {
+    invoices: {
+      workBook: 'invoicesWorkbook',
+      tableName: 'invoicesTable',
+      wordTemplate: 'invoicesTemplate',
+      saveTo: 'invoicesSaveTo',
+    },
+    letter: {
+      workBook: 'letterWorkbook',
+      wordTemplate: 'letterTemplate',
+      saveTo: 'letterSaveTo',
+      tableName: '',
+    },
+    leases: {
+      workBook: 'leasesWorkbook',
+      tableName: 'leasesTable',
+      wordTemplate: 'leasesTemplate',
+      saveTo: 'leasesSaveTo',
+    },
+};
+  
+
 export class LawFirm {
     private stored;
     private tenantID;
     private settingsNames;
 
-    constructor(skip:boolean= false) {
-        if (skip) return;//!we need to do this because when the app starts ui.js is calling the constructor before the settingsNames is declared by index.js
-        this.stored = m.getSavedSettings() || undefined;
-        this.settingsNames = m.settingsNames;
+    constructor() {
+        this.stored = saveSettings(undefined, true) || undefined;
+        this.settingsNames = settingsNames;
         this.tenantID = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
     }
 
@@ -21,7 +42,7 @@ export class LawFirm {
      */
     async addNewEntry(add: boolean = false, row?: any[]) {
         m.spinner(true);//We show the spinner
-        const { workbookPath, tableName } = this.getConsts(this.settingsNames!.invoices);
+        const { workbookPath, tableName } = this.getConsts(this.settingsNames.invoices);
 
         if ([this.stored, workbookPath, tableName].find(v => !v)) m.throwAndAlert('One of the constant values is not valid');
 
@@ -331,7 +352,7 @@ export class LawFirm {
 
         async function showInvoiceForm() {
             m.spinner(true);//We show the spinner
-            const { workbookPath, tableName, templatePath, saveTo } = this$.getConsts(this$.settingsNames!.invoices);
+            const { workbookPath, tableName, templatePath, saveTo } = this$.getConsts(this$.settingsNames.invoices);
 
             if ([this$.stored, workbookPath, tableName, templatePath, saveTo].find(v => !v)) m.throwAndAlert('One of the  constant values is not valid');
 
@@ -625,7 +646,7 @@ export class LawFirm {
                 m.spinner(true);
                 const input = byID('textInput') as HTMLTextAreaElement;
                 if (!input) return;
-                const { templatePath, saveTo } = this$.getConsts(m.settingsNames.letter);
+                const { templatePath, saveTo } = this$.getConsts(settingsNames.letter);
 
                 const fileName = prompt('Provide the file name without special characthers');
                 if (!fileName) return;
@@ -642,7 +663,7 @@ export class LawFirm {
 
     async issueLeaseLetter() {
         m.spinner(true);//We show the spinner
-        const { workbookPath, tableName, templatePath, saveTo } = this.getConsts(this.settingsNames!.leases);
+        const { workbookPath, tableName, templatePath, saveTo } = this.getConsts(this.settingsNames.leases);
 
         if ([this.stored, workbookPath, tableName, templatePath, saveTo].find(v => !v)) m.throwAndAlert('One of the  constant values is not valid');
 
@@ -1831,7 +1852,117 @@ function dateFromExcel(excelDate: number): Date {
     return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
 
-
+  
+  export function saveSettings(values?: [string, string][], get: boolean = false) {
+  
+    const settings: settings = {
+      issueInvoice: {
+        workBook: {
+          label: 'Invoices workbook path :',
+          name: settingsNames.invoices.workBook,
+          value: ''
+        },
+        wordTemplate: {
+          label: 'Invoices\'Word template path: ',
+          name: settingsNames.invoices.wordTemplate,
+          value: ''
+        },
+        saveTo: {
+          label: 'Invoices\' save to path: ',
+          name: settingsNames.invoices.saveTo,
+          value: ''
+        },
+        tableName: {
+          label: 'Invoices\' Excel Table name: ',
+          name: settingsNames.invoices.tableName,
+          value: ''
+        },
+      },
+      Letter: {
+        wordTemplate: {
+          label: 'Letter Word template path: ',
+          name: settingsNames.letter.wordTemplate,
+          value: ''
+        },
+        saveTo: {
+          label: 'Letter save to path: ',
+          name: settingsNames.letter.saveTo,
+          value: ''
+        },
+      },
+      leases: {
+        workBook: {
+          label: 'Leases Excel workbook path :',
+          name: settingsNames.leases.workBook,
+          value: ''
+        },
+        tableName: {
+          label: 'Leas\'s Excel Table name: ',
+          name: settingsNames.leases.tableName,
+          value: ''
+        },
+        wordTemplate: {
+          label: 'Leases Word Template path :',
+          name: settingsNames.leases.wordTemplate,
+          value: ''
+        },
+        saveTo: {
+          label: 'Leases\' save to path: ',
+          name: settingsNames.leases.saveTo,
+          value: ''
+        },
+      },
+    };
+  
+    const groups = Object.values(settings);
+    const inputs = groups.map(group => Object.values(group)).flat();
+  
+    let stored: settingInput[];
+    localStorage.InvoicingPWA ? stored = JSON.parse(localStorage.InvoicingPWA) as settingInput[] : stored = inputs;
+    if (get) return stored;
+  
+    const findSetting = (name: string, settings: settingInput[]) => settings?.find(setting => setting.name === name);
+  
+    if (values?.length) return save(values);//If the values of some settings have been passed as argument, we save the changes to the localStorage directly withouth showing inputs;
+  
+    const form = byID();
+    if (!form) return;
+    form.innerHTML = '';
+    groups.forEach(group => showInputs(group));
+  
+    (function homeBtn() {
+      showLawFirmUI(true);
+    })();
+  
+    function showInputs(group: setting) {
+      const groupDiv = document.createElement('div');
+      form!.appendChild(groupDiv);
+      Object.values(group)
+        .forEach(input => groupDiv.appendChild(createInput(input)));
+    };
+  
+    function createInput({ label, name, value }: settingInput): HTMLDivElement {
+      const container = document.createElement('div');
+      const labelHtml = document.createElement('label');
+      labelHtml.innerText = label;
+      const input = document.createElement('input');
+      input.classList.add('field');
+      input.value = findSetting(name, stored)!.value || '';
+      input.onchange = () => confirmSaving(input.value, label, name);
+      container.appendChild(labelHtml);
+      container.appendChild(input);
+      return container
+    };
+  
+    function confirmSaving(value: string, label: string, name: string) {
+      if (!confirm(`Are you sure you want to change the ${label} localStorage value to ${value}?`)) return;
+      save([[name, value]])
+    }
+    function save(values: [string, string][]) {
+      values.forEach(([name, value]) => findSetting(name, stored)!.value = value.replaceAll('\\', '/') || '')
+      localStorage.InvoicingPWA = JSON.stringify(stored);
+    }
+  };
 
 
 
