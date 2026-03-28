@@ -474,7 +474,7 @@ export class LawFirm {
             const lang = inputs.find(input => input.dataset.language && input.checked === true)?.dataset.language || 'FR';
 
             const date = new Date();//We need to generate the date at this level and pass it down to all the functions that need it
-            const invoiceNumber = m.getInvoiceNumber(date);
+            const invoiceNumber = getInvoiceNumber(date);
             const data = await filterExcelData(criteria, discount, lang, invoiceNumber);
 
             if (!data) return m.throwAndAlert('Could not retrieve the filtered Excel table');
@@ -491,7 +491,7 @@ export class LawFirm {
 
             const contentControls = this$.getContentControlsValues(invoice, date);
 
-            const fileName = m.getInvoiceFileName(clientName, matters, invoiceNumber);
+            const fileName = getInvoiceFileName(clientName, matters, invoiceNumber);
             let saveToPath = `${saveTo}/${fileName}`;
 
             saveToPath = prompt(`The file will be saved in ${saveTo}, and will be named : ${fileName}.\nIf you want to change the path or the name, provide the full file path and name of your choice without any sepcial characters`, saveToPath) || saveTo;
@@ -558,6 +558,27 @@ export class LawFirm {
 
             }
         }
+
+        /**
+         * Returns the Word file name by which the newly issued invoice will be saved on OneDrive
+         * @param {string} clientName - The name of the client for which the invoice will be issued
+         * @param {string} matters - The matters included in the invoice
+         * @param {string} invoiceNumber - The invoice serial number
+         * @returns {string} - The name of the Word file to be saved
+         */
+            function getInvoiceFileName(clientName: string, matters: string[], invoiceNumber: string): string {
+            // return 'test file name for now.docx'
+            return `${clientName}_Facture_${Array.from(matters).join('&')}_No.${invoiceNumber.replace('/', '@')}.docx`
+            .replaceAll('/', '_')
+            .replaceAll('"', '')
+            .replaceAll("\\", '');
+        };
+        
+        function getInvoiceNumber(date: Date): string {
+            const padStart = (n: number) => n.toString().padStart(2, '0');
+        
+            return `${date.getFullYear() - 2000}${padStart(date.getMonth() + 1)}${padStart(date.getDate())}/${padStart(date.getHours())}${padStart(date.getMinutes())}`;
+        };
     }
 
     async issueLetter() {
@@ -1676,7 +1697,7 @@ class Marianne extends LawFirm {
             const lang = inputs.find(input => input.dataset.language && input.checked === true)?.dataset.language || 'FR';
 
             const date = new Date();//We need to generate the date at this level and pass it down to all the functions that need it
-            const invoiceNumber = m.getInvoiceNumber(date);
+            const invoiceNumber = this$.getInvoiceNumber(date);
             const data = await filterExcelData(criteria, discount, lang, invoiceNumber);
 
             if (!data) return m.throwAndAlert('Could not retrieve the filtered Excel table');
@@ -1693,7 +1714,7 @@ class Marianne extends LawFirm {
 
             const contentControls = this$.getContentControlsValues(report, date);
 
-            const fileName = m.getInvoiceFileName('', [''], invoiceNumber);
+            const fileName = this$.getInvoiceFileName('', [''], invoiceNumber);
             let saveToPath = `${saveTo}/${fileName}`;
 
             saveToPath = prompt(`The file will be saved in ${saveTo}, and will be named : ${fileName}.\nIf you want to change the path or the name, provide the full file path and name of your choice without any sepcial characters`, saveTo) || saveTo;

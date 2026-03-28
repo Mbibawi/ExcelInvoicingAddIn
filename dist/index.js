@@ -1050,26 +1050,6 @@ class blob {
 }
 ;
 /**
- * Returns the Word file name by which the newly issued invoice will be saved on OneDrive
- * @param {string} clientName - The name of the client for which the invoice will be issued
- * @param {string} matters - The matters included in the invoice
- * @param {string} invoiceNumber - The invoice serial number
- * @returns {string} - The name of the Word file to be saved
- */
-export function getInvoiceFileName(clientName, matters, invoiceNumber) {
-    // return 'test file name for now.docx'
-    return `${clientName}_Facture_${Array.from(matters).join('&')}_No.${invoiceNumber.replace('/', '@')}.docx`
-        .replaceAll('/', '_')
-        .replaceAll('"', '')
-        .replaceAll("\\", '');
-}
-;
-export function getInvoiceNumber(date) {
-    const padStart = (n) => n.toString().padStart(2, '0');
-    return `${date.getFullYear() - 2000}${padStart(date.getMonth() + 1)}${padStart(date.getDate())}/${padStart(date.getHours())}${padStart(date.getMinutes())}`;
-}
-;
-/**
  * Returns any date in the ISO format (YYY-MM-DD) accepted by Excel
  * @param {Date} date - the Date that we need to convert to ISO format
  * @returns {string} - The date in ISO format
