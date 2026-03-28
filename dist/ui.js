@@ -4,7 +4,7 @@ export const splitter = "; OR "; //This is the splitter that will be used to sep
 class LawFirmUI {
     lf;
     constructor() {
-        this.lf = new LawFirm();
+        this.lf = new LawFirm(true);
     }
     appendUIBtns(homeBtn = false) {
         const container = byID('btns');

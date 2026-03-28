@@ -6,7 +6,8 @@ export class LawFirm {
     private tenantID;
     private settingsNames;
 
-    constructor() {
+    constructor(skip:boolean= false) {
+        if (skip) return;//!we need to do this because when the app starts ui.js is calling the constructor before the settingsNames is declared by index.js
         this.stored = m.getSavedSettings() || undefined;
         this.settingsNames = m.settingsNames;
         this.tenantID = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
@@ -20,7 +21,7 @@ export class LawFirm {
      */
     async addNewEntry(add: boolean = false, row?: any[]) {
         m.spinner(true);//We show the spinner
-        const { workbookPath, tableName } = this.getConsts(this.settingsNames.invoices);
+        const { workbookPath, tableName } = this.getConsts(this.settingsNames!.invoices);
 
         if ([this.stored, workbookPath, tableName].find(v => !v)) m.throwAndAlert('One of the constant values is not valid');
 
@@ -330,7 +331,7 @@ export class LawFirm {
 
         async function showInvoiceForm() {
             m.spinner(true);//We show the spinner
-            const { workbookPath, tableName, templatePath, saveTo } = this$.getConsts(this$.settingsNames.invoices);
+            const { workbookPath, tableName, templatePath, saveTo } = this$.getConsts(this$.settingsNames!.invoices);
 
             if ([this$.stored, workbookPath, tableName, templatePath, saveTo].find(v => !v)) m.throwAndAlert('One of the  constant values is not valid');
 
@@ -641,7 +642,7 @@ export class LawFirm {
 
     async issueLeaseLetter() {
         m.spinner(true);//We show the spinner
-        const { workbookPath, tableName, templatePath, saveTo } = this.getConsts(this.settingsNames.leases);
+        const { workbookPath, tableName, templatePath, saveTo } = this.getConsts(this.settingsNames!.leases);
 
         if ([this.stored, workbookPath, tableName, templatePath, saveTo].find(v => !v)) m.throwAndAlert('One of the  constant values is not valid');
 

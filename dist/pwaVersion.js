@@ -4,7 +4,9 @@ export class LawFirm {
     stored;
     tenantID;
     settingsNames;
-    constructor() {
+    constructor(skip = false) {
+        if (skip)
+            return; //!we need to do this because when the app starts ui.js is calling the constructor before the settingsNames is declared by index.js
         this.stored = m.getSavedSettings() || undefined;
         this.settingsNames = m.settingsNames;
         this.tenantID = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";

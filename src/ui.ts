@@ -7,7 +7,7 @@ export const splitter = "; OR ";//This is the splitter that will be used to sepa
 class LawFirmUI {
     private lf;
     constructor() {
-        this.lf = new LawFirm();
+        this.lf = new LawFirm(true);
     }
 
     appendUIBtns(homeBtn: boolean = false) {
