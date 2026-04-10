@@ -210,3 +210,49 @@ table tr:hover {
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         text-align: center;
     }
+
+    /* Hidden by default */
+.tooltip-text {
+  visibility: hidden;
+  width: 200px;
+  background-color: #323130; /* Dark grey Fluent UI style */
+  color: #fff;
+  text-align: center;
+  border-radius: 4px;
+  padding: 8px;
+  position: absolute;
+  z-index: 1;
+  bottom: 125%; /* Place it above the button */
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+/* The little arrow at the bottom of the balloon */
+.tooltip-text::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #323130 transparent transparent transparent;
+}
+
+/* Show the balloon on hover */
+.tooltip-container:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Container must be relative so the balloon positions correctly */
+.tooltip-container {
+  position: relative;
+  display: inline-block;
+  width: 100%; 
+}
