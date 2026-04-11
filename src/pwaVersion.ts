@@ -68,7 +68,9 @@ export class LawFirm implements ILawFirm {
     async addNewEntry(add: boolean = false, row?: any[]) {
         m.spinner(true);//We show the spinner
         const form = this.form ?? byID() ?? undefined;
+
         const UI = this.UI, inputOnChange = this.inputOnChange;
+
         const { workbookPath, tableName } = this.getConsts(this.settingsNames.invoices);
 
         if ([this.stored, workbookPath, tableName].find(v => !v)) m.throwAndAlert('One of the constant values is not valid');
@@ -123,6 +125,7 @@ export class LawFirm implements ILawFirm {
 
 
                     (function addBtn() {
+                        row = [];//!We must empty the row[] because if the button had already been clicked before, row[] is not empty, which means that addEntry() will not parse the values from the inputs, but will instead use the values already in row[]
                         const btnIssue = document.createElement('button');
                         btnIssue.innerText = 'Add Entry';
                         btnIssue.classList.add('button');

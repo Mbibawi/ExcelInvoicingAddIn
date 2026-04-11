@@ -97,6 +97,7 @@ export class LawFirm {
                             .forEach(group => newDiv(NaN, divs.filter(div => group.includes(Number(div.dataset.block)))));
                     })();
                     (function addBtn() {
+                        row = []; //!We must empty the row[] because if the button had already been clicked before, row[] is not empty, which means that addEntry() will not parse the values from the inputs, but will instead use the values already in row[]
                         const btnIssue = document.createElement('button');
                         btnIssue.innerText = 'Add Entry';
                         btnIssue.classList.add('button');
