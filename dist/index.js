@@ -1,5 +1,5 @@
-import { showUI, lfUI, mrUI, appendUIBtn, byID } from "./ui.js";
-import { settingsNames, saveSettings } from "./pwaVersion.js";
+import { showUI, appendUIBtn, byID } from "./ui.js";
+import { LawFirm, Marianne, settingsNames, saveSettings } from "./pwaVersion.js";
 (function startApp() {
     const btns = byID('btns');
     if (!btns)
@@ -66,8 +66,8 @@ import { settingsNames, saveSettings } from "./pwaVersion.js";
         });
         saveSettings(undefined, values, undefined);
     })();
-    appendUIBtn(btns, 'LFUI', 'Show Law FIRM UI', () => showUI(lfUI));
-    appendUIBtn(btns, 'MRUI', 'Show Reporting UI', () => showUI(mrUI));
+    appendUIBtn(btns, 'LFUI', 'Show Law FIRM UI', () => showUI(new LawFirm().getUI()));
+    appendUIBtn(btns, 'MRUI', 'Show Reporting UI', () => showUI(new Marianne().getUI()));
 })();
 (function RegisterServiceWorker() {
     // Check if the browser supports service workers

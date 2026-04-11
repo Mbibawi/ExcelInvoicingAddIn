@@ -1,5 +1,5 @@
 import * as m from "./index.js";
-import { showUI, lfUI, mrUI, byID, populateSelectElement, splitter } from "./ui.js";
+import { showUI, LawFirmUI, MarianneUI, byID, populateSelectElement, splitter } from "./ui.js";
 export const settingsNames = {
     invoices: {
         workBook: 'invoicesWorkbook',
@@ -27,17 +27,19 @@ export const settingsNames = {
     },
 };
 export class LawFirm {
+    UI;
     stored;
     form;
     tenantID;
     settingsNames;
-    UI = lfUI;
     constructor() {
         this.form = byID();
+        this.UI = new LawFirmUI(this);
         this.stored = saveSettings(this.UI, undefined, true) || undefined;
         this.settingsNames = settingsNames;
         this.tenantID = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
     }
+    getUI = () => this.UI;
     /**
      *
      * @param {boolean} add - If false, the function will only show a form containing input fields for the user to provide the data for the new row to be added to the Excel Table. If true, the function will parse the values from the input fields in the form, and will add them as a new row to the Excel Table. Its default value is false.
@@ -47,7 +49,7 @@ export class LawFirm {
     async addNewEntry(add = false, row) {
         m.spinner(true); //We show the spinner
         const form = this.form ?? byID() ?? undefined;
-        const this$ = this;
+        const UI = this.UI, inputOnChange = this.inputOnChange;
         const { workbookPath, tableName } = this.getConsts(this.settingsNames.invoices);
         if ([this.stored, workbookPath, tableName].find(v => !v))
             m.throwAndAlert('One of the constant values is not valid');
@@ -57,7 +59,7 @@ export class LawFirm {
             return alert('Failed to retrieve the Excel table');
         const tableTitles = TableRows[0];
         if (add)
-            return addEntry(TableRows, tableTitles, this);
+            return addEntry(TableRows, tableTitles);
         await showAddNewForm();
         async function showAddNewForm() {
             try {
@@ -98,11 +100,11 @@ export class LawFirm {
                         const btnIssue = document.createElement('button');
                         btnIssue.innerText = 'Add Entry';
                         btnIssue.classList.add('button');
-                        btnIssue.onclick = () => addEntry(TableRows, tableTitles, this$);
+                        btnIssue.onclick = () => addEntry(TableRows, tableTitles);
                         form.appendChild(btnIssue);
                     })();
                     (function homeBtn() {
-                        showUI(this$.UI, true);
+                        showUI(UI, true);
                     })();
                     function newDiv(i, divs, css = "block") {
                         if (divs)
@@ -154,7 +156,7 @@ export class LawFirm {
                             (function addDataLists() {
                                 const updateNext = [0, 1, 8, 15]; //Those are the indexes of the inputs (i.e; the columns numbers) that need to get an onChange event in order to update the dataLists of the next inputs when the current input is changed: "Client"(0), "Affaire"(1), "Taux Horaire"(8), "Adresses"(15)
                                 if (updateNext.includes(index))
-                                    input.onchange = () => this$.inputOnChange(index, bound(updateNext), tableBody, false);
+                                    input.onchange = () => inputOnChange(index, bound(updateNext), tableBody, false);
                                 if (![0, 2, 11, 12, 13].includes(index))
                                     return; //We will initially populate the "Client"(0), Nature(2), "Payment Method"(11), "Bank Account"(12), "Third Party"(13) lists only, the other inputs will be populate when the onChange function will be called
                                 populateSelectElement(input, m.getUniqueValues(index, tableBody));
@@ -190,7 +192,7 @@ export class LawFirm {
             }
         }
         ;
-        async function addEntry(tableRows, tableTitles, this$) {
+        async function addEntry(tableRows, tableTitles) {
             if (!row?.length)
                 row = parseInputs() ?? undefined;
             try {
@@ -332,12 +334,12 @@ export class LawFirm {
     ;
     async issueInvoice() {
         const form = this.form;
-        const this$ = this;
+        const UI = this.UI, inputOnChange = this.inputOnChange, getConsts = this.getConsts, settingsNames = this.settingsNames, stored = this.stored, getContentControlsValues = this.getContentControlsValues, getWordTableRows = this.getWordTableRows;
         await showInvoiceForm();
         async function showInvoiceForm() {
             m.spinner(true); //We show the spinner
-            const { workbookPath, tableName, templatePath, saveTo } = this$.getConsts(this$.settingsNames.invoices);
-            if ([this$.stored, workbookPath, tableName, templatePath, saveTo].find(v => !v))
+            const { workbookPath, tableName, templatePath, saveTo } = getConsts(settingsNames.invoices);
+            if ([stored, workbookPath, tableName, templatePath, saveTo].find(v => !v))
                 m.throwAndAlert('One of the  constant values is not valid');
             const graph = new m.GraphAPI('', workbookPath);
             const sessionId = await graph.createFileSession() || '';
@@ -385,7 +387,7 @@ export class LawFirm {
                     form.appendChild(btnIssue);
                 })();
                 (function homeBtns() {
-                    showUI(this$.UI, true);
+                    showUI(UI, true);
                 })();
                 function insertInputsAndLables(indexes, id, checkBox = false) {
                     let css = 'field';
@@ -418,7 +420,7 @@ export class LawFirm {
                             if (index < 3)
                                 boundInputs.push([input, index]); //Fields "Client"(0), "Affaire"(1), "Nature"(2) are the inputs that will need to get their dataList created or updated each time the previous input is changed.
                             if (index < 2)
-                                input.onchange = () => this$.inputOnChange(index, boundInputs, tableBody, true); //We add onChange on "Client" (0) and "Affaire" (1) columns. We set combined = true in order to add to the dataList of the next column an option combining all the choices in the list
+                                input.onchange = () => inputOnChange(index, boundInputs, tableBody, true); //We add onChange on "Client" (0) and "Affaire" (1) columns. We set combined = true in order to add to the dataList of the next column an option combining all the choices in the list
                             if (index < 1)
                                 populateSelectElement(input, m.getUniqueValues(0, tableBody)); //We create a unique values dataList for the "Client" (0) input
                         })();
@@ -485,7 +487,7 @@ export class LawFirm {
                 adress: adresses,
                 lang: lang
             };
-            const contentControls = this$.getContentControlsValues(invoice, date);
+            const contentControls = getContentControlsValues(invoice, date);
             const fileName = getInvoiceFileName(clientName, matters, invoiceNumber);
             let saveToPath = `${saveTo}/${fileName}`;
             saveToPath = prompt(`The file will be saved in ${saveTo}, and will be named : ${fileName}.\nIf you want to change the path or the name, provide the full file path and name of your choice without any sepcial characters`, saveToPath) || saveTo;
@@ -520,7 +522,7 @@ export class LawFirm {
                 tableRows = filterByDate(tableRows, dateCol);
                 const adresses = m.getUniqueValues(addressCol, tableRows); //!We must retrieve the adresses at this stage before filtering by "Matter" or any other column
                 //const {wordRows, totalsLabels} = _getRowsData(tableRows, discount, lang, invoiceNumber);
-                const { wordRows, totalsLabels } = this$.getWordTableRows(this$, tableRows, discount, lang, invoiceNumber);
+                const { wordRows, totalsLabels } = getWordTableRows(tableRows, discount, lang, invoiceNumber);
                 return { wordRows, totalsLabels, clientName, matters, adresses };
                 function filterByDate(visible, dateCol) {
                     const convert = (date) => dateFromExcel(Number(date)).getTime();
@@ -560,7 +562,7 @@ export class LawFirm {
         ;
     }
     async issueLetter() {
-        const this$ = this;
+        const UI = this.UI, getConsts = this.getConsts;
         const form = this.form ?? byID() ?? undefined;
         if (!form)
             return;
@@ -580,15 +582,15 @@ export class LawFirm {
                 form.appendChild(btn);
                 btn.classList.add('button');
                 btn.innerText = 'Créer lettre';
-                btn.onclick = () => generate(this$);
+                btn.onclick = () => generate();
             })();
             (function homeBtn() {
-                showUI(this$.UI, true);
+                showUI(UI, true);
                 m.spinner(false); //We hide the spinner
             })();
         }
         ;
-        async function generate(this$) {
+        async function generate() {
             try {
                 await createLetter();
                 m.spinner(false); //We hide the spinner
@@ -602,7 +604,7 @@ export class LawFirm {
                 const input = byID('textInput');
                 if (!input)
                     return;
-                const { templatePath, saveTo } = this$.getConsts(settingsNames.letter);
+                const { templatePath, saveTo } = getConsts(settingsNames.letter);
                 const fileName = prompt('Provide the file name without special characthers');
                 if (!fileName)
                     return;
@@ -619,7 +621,7 @@ export class LawFirm {
         const form = this.form ?? byID() ?? undefined;
         if (!form)
             return;
-        const this$ = this;
+        const UI = this.UI, inputOnChange = this.inputOnChange;
         m.spinner(true); //We show the spinner
         const { workbookPath, tableName, templatePath, saveTo } = this.getConsts(this.settingsNames.leases);
         if ([this.stored, workbookPath, tableName, templatePath, saveTo].find(v => !v))
@@ -672,7 +674,7 @@ export class LawFirm {
                     populateSelectElement(owner, m.getUniqueValues(Ctrls.owner.col, tableRows), false);
                 (function inputsOnChange() {
                     const filled = inputs.filter(([input, col]) => col <= Ctrls.tenant.col);
-                    filled.forEach(([input, col]) => input.onchange = () => [row, rowIndex] = this$.inputOnChange(col, inputs, tableRows, false) || [undefined, NaN]);
+                    filled.forEach(([input, col]) => input.onchange = () => [row, rowIndex] = inputOnChange(col, inputs, tableRows, false) || [undefined, NaN]);
                     const index = findInput(Ctrls.index);
                     const currentLeaseInput = findInput(Ctrls.currentLease);
                     index.onchange = () => {
@@ -709,25 +711,25 @@ export class LawFirm {
                     div.classList.add("group");
                     div.dataset.block = i.toString();
                     divs?.forEach(el => div.appendChild(el));
-                    this$.form?.appendChild(div);
+                    form.appendChild(div);
                     return div;
                 }
             })();
             (function generateBtn() {
                 const btn = document.createElement('button');
-                this$.form?.appendChild(btn);
+                form.appendChild(btn);
                 btn.classList.add('button');
                 btn.innerText = 'Créer lettre';
                 btn.onclick = () => generate(inputs, row);
             })();
             (function homeBtn() {
-                showUI(this$.UI, true);
+                showUI(UI, true);
                 m.spinner(false); //We hide the spinner
             })();
             function createInput(RT, className = 'field') {
                 const id = RT.title;
                 const div = document.createElement('div');
-                this$.form?.appendChild(div);
+                form.appendChild(div);
                 const append = (el) => div.appendChild(el);
                 (function appendLabel() {
                     if (!RT.label)
@@ -840,7 +842,6 @@ export class LawFirm {
         const form = this.form;
         if (!form)
             return;
-        const this$ = this;
         const graph = new m.GraphAPI('');
         (function showForm() {
             form.innerHTML = '';
@@ -1170,7 +1171,8 @@ export class LawFirm {
      * @param {string} lang - The language in which the invoice will issued
      * @returns {string[][]} - the rows to be added to the table. Each row has 4 elements
      */
-    getWordTableRows(this$, tableRows, discount = 0, lang, invoiceNumber) {
+    getWordTableRows(tableRows, discount = 0, lang, invoiceNumber) {
+        const addNewEntry = this.addNewEntry;
         const labels = {
             totalFees: {
                 nature: ['Honoraire'],
@@ -1310,7 +1312,7 @@ export class LawFirm {
                     [colDate + 1, date],
                 ];
                 cells.forEach(([col, value]) => newRow[col] = value);
-                this$.addNewEntry(true, newRow);
+                addNewEntry(true, newRow);
             })();
             function pushRow(rowLable, [amount, vat], ignore = false) {
                 if (ignore || !amount || isNaN(amount))
@@ -1429,6 +1431,7 @@ export class LawFirm {
 }
 ;
 export class Marianne {
+    UI;
     report = {};
     stored;
     form;
@@ -1436,7 +1439,6 @@ export class Marianne {
     settingsNames;
     workbookPath;
     graph;
-    UI = mrUI;
     Ctrls = {
         monthly: [
             {
@@ -1478,14 +1480,16 @@ export class Marianne {
     datesColumns = [3, 4, 16];
     constructor() {
         this.form = byID();
+        this.UI = new MarianneUI(this);
         this.stored = saveSettings(this.UI, undefined, true) || undefined;
         this.settingsNames = settingsNames;
         this.workbookPath = this.findSetting(this.settingsNames.invoices.wordTemplate, this.stored)?.value ?? prompt('The path for the Excel workbook is missing') ?? alert('the workbook path is missing');
         this.graph = new m.GraphAPI(undefined, this.workbookPath ?? '');
         this.tenantID = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
     }
+    getUI = () => this.UI;
     async reportFactory(columns, callBack) {
-        const this$ = this;
+        const datesColumns = this.datesColumns, appendInputsAndLabels = this.appendInputsAndLabels, form = this.form, findSetting = this.findSetting, stored = this.stored, settingsNames = this.settingsNames;
         const tableName = this.findSetting(this.settingsNames.Marianne.tableName, this.stored)?.value ?? prompt('Provide the name of the Excel table') ?? '';
         const tableRows = await this.graph.fetchExcelTable(tableName, true);
         if (!tableRows)
@@ -1496,9 +1500,9 @@ export class Marianne {
             //Show the user form for filtering the table. The user from will show inputs for the relevant columns for the report
             const inputs = columns.map(col => {
                 let type = 'text';
-                if (this$.datesColumns.includes(col))
+                if (datesColumns.includes(col))
                     type = 'date';
-                const input = this$.appendInputsAndLabels(col.toString(), tableTitles[col], type, this$.form);
+                const input = appendInputsAndLabels(col.toString(), tableTitles[col], type, form);
                 return [input, col];
             });
             (function addCreateInput() {
@@ -1514,8 +1518,8 @@ export class Marianne {
             })();
         }
         async function prepareData(inputs) {
-            const templatePath = this$.findSetting(this$.settingsNames.Marianne.wordTemplate, this$.stored)?.value ?? prompt('Provide the name of the path for the word document used as a template for the report') ?? '';
-            const saveTo = this$.findSetting(this$.settingsNames.Marianne.saveTo, this$.stored)?.value ?? prompt('Provide the name of the destination path for saving the report') ?? '';
+            const templatePath = findSetting(settingsNames.Marianne.wordTemplate, stored)?.value ?? prompt('Provide the name of the path for the word document used as a template for the report') ?? '';
+            const saveTo = findSetting(settingsNames.Marianne.saveTo, stored)?.value ?? prompt('Provide the name of the destination path for saving the report') ?? '';
             (async function filterTableRowsLogic() {
                 //Use the filter table by inputs value in the LawFirm class
                 let filtered = tableRows?.filter(r => r.map((cell, index) => columns.includes(index)));
@@ -1920,7 +1924,7 @@ class Reports {
             return;
         function userForm() {
         }
-        function report(this$) {
+        function report() {
         }
     }
     ;

@@ -1,9 +1,9 @@
-import { LawFirm, Marianne, saveSettings } from "./pwaVersion.js";
+import { saveSettings } from "./pwaVersion.js";
 export const splitter = "; OR "; //This is the splitter that will be used to separate multiple values in the input fields. We need to use a splitter that is not likely to be included in the values themselves.
-class LawFirmUI {
+export class LawFirmUI {
     lf;
     constructor(lawfirm) {
-        this.lf = new lawfirm();
+        this.lf = lawfirm;
     }
     appendUIBtns(homeBtn = false) {
         const container = byID('btns');
@@ -20,18 +20,16 @@ class LawFirmUI {
         appendUIBtn(container, 'settings', 'Settings', () => saveSettings(this));
     }
 }
-class MarianneUI {
+export class MarianneUI {
     mr;
     constructor(marianne) {
-        this.mr = new marianne();
+        this.mr = marianne;
     }
     appendUIBtns(homeBtn) {
         //overriding the function
         return undefined;
     }
 }
-export const lfUI = new LawFirmUI(LawFirm);
-export const mrUI = new MarianneUI(Marianne);
 export function showUI(ui, homeBtn = false) {
     ui.appendUIBtns(homeBtn);
 }

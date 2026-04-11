@@ -1,5 +1,5 @@
 import * as m from "./index.js";
-import { showUI, lfUI, mrUI, IUserInterface, byID, populateSelectElement, splitter } from "./ui.js";
+import { showUI, LawFirmUI, MarianneUI, IUserInterface, byID, populateSelectElement, splitter } from "./ui.js";
 
 export const settingsNames = {
     invoices: {
@@ -43,18 +43,21 @@ interface ILawFirm {
 }
 
 export class LawFirm implements ILawFirm {
+    private UI: IUserInterface;
     private stored;
     private form;
     private tenantID;
     private settingsNames;
-    private UI = lfUI;
 
     constructor() {
         this.form = byID();
+        this.UI = new LawFirmUI(this);
         this.stored = saveSettings(this.UI, undefined, true) || undefined;
         this.settingsNames = settingsNames;
         this.tenantID = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
     }
+
+    getUI = () => this.UI
 
     /**
      * 
@@ -65,7 +68,7 @@ export class LawFirm implements ILawFirm {
     async addNewEntry(add: boolean = false, row?: any[]) {
         m.spinner(true);//We show the spinner
         const form = this.form ?? byID() ?? undefined;
-        const this$: LawFirm = this;
+        const UI = this.UI, inputOnChange = this.inputOnChange;
         const { workbookPath, tableName } = this.getConsts(this.settingsNames.invoices);
 
         if ([this.stored, workbookPath, tableName].find(v => !v)) m.throwAndAlert('One of the constant values is not valid');
@@ -75,7 +78,7 @@ export class LawFirm implements ILawFirm {
         const TableRows = await graph.fetchExcelTable(tableName, true);
         if (!TableRows?.length) return alert('Failed to retrieve the Excel table')
         const tableTitles = TableRows[0];
-        if (add) return addEntry(TableRows, tableTitles, this);
+        if (add) return addEntry(TableRows, tableTitles);
 
         await showAddNewForm();
 
@@ -123,12 +126,12 @@ export class LawFirm implements ILawFirm {
                         const btnIssue = document.createElement('button');
                         btnIssue.innerText = 'Add Entry';
                         btnIssue.classList.add('button');
-                        btnIssue.onclick = () => addEntry(TableRows!, tableTitles, this$);
+                        btnIssue.onclick = () => addEntry(TableRows!, tableTitles);
                         form.appendChild(btnIssue);
                     })();
 
                     (function homeBtn() {
-                        showUI(this$.UI, true);
+                        showUI(UI, true);
                     })();
 
                     function newDiv(i: number, divs?: HTMLDivElement[], css: string = "block") {
@@ -186,7 +189,7 @@ export class LawFirm implements ILawFirm {
                             (function addDataLists() {
                                 const updateNext = [0, 1, 8, 15]//Those are the indexes of the inputs (i.e; the columns numbers) that need to get an onChange event in order to update the dataLists of the next inputs when the current input is changed: "Client"(0), "Affaire"(1), "Taux Horaire"(8), "Adresses"(15)
 
-                                if (updateNext.includes(index)) input.onchange = () => this$.inputOnChange(index, bound(updateNext), tableBody, false);
+                                if (updateNext.includes(index)) input.onchange = () => inputOnChange(index, bound(updateNext), tableBody, false);
 
                                 if (![0, 2, 11, 12, 13].includes(index)) return;//We will initially populate the "Client"(0), Nature(2), "Payment Method"(11), "Bank Account"(12), "Third Party"(13) lists only, the other inputs will be populate when the onChange function will be called
                                 populateSelectElement(input, m.getUniqueValues(index, tableBody));
@@ -224,7 +227,7 @@ export class LawFirm implements ILawFirm {
             }
         };
 
-        async function addEntry(tableRows: any[][], tableTitles: string[], this$: LawFirm) {
+        async function addEntry(tableRows: any[][], tableTitles: string[]) {
             if (!row?.length) row = parseInputs() ?? undefined;
             try {
                 const visibleCells = await addRow(row);
@@ -365,15 +368,14 @@ export class LawFirm implements ILawFirm {
 
     async issueInvoice() {
         const form = this.form;
-        const this$: LawFirm = this;
-
+        const UI = this.UI, inputOnChange = this.inputOnChange, getConsts = this.getConsts, settingsNames = this.settingsNames, stored = this.stored, getContentControlsValues = this.getContentControlsValues, getWordTableRows = this.getWordTableRows;
         await showInvoiceForm();
 
         async function showInvoiceForm() {
             m.spinner(true);//We show the spinner
-            const { workbookPath, tableName, templatePath, saveTo } = this$.getConsts(this$.settingsNames.invoices);
+            const { workbookPath, tableName, templatePath, saveTo } = getConsts(settingsNames.invoices);
 
-            if ([this$.stored, workbookPath, tableName, templatePath, saveTo].find(v => !v)) m.throwAndAlert('One of the  constant values is not valid');
+            if ([stored, workbookPath, tableName, templatePath, saveTo].find(v => !v)) m.throwAndAlert('One of the  constant values is not valid');
 
             const graph = new m.GraphAPI('', workbookPath);
 
@@ -423,7 +425,7 @@ export class LawFirm implements ILawFirm {
                 })();
 
                 (function homeBtns() {
-                    showUI(this$.UI, true);
+                    showUI(UI, true);
                 })();
 
                 function insertInputsAndLables(indexes: (number | string)[], id: string, checkBox: boolean = false): HTMLInputElement[] {
@@ -455,7 +457,7 @@ export class LawFirm implements ILawFirm {
                             if (index < 3)
                                 boundInputs.push([input, index]);//Fields "Client"(0), "Affaire"(1), "Nature"(2) are the inputs that will need to get their dataList created or updated each time the previous input is changed.
                             if (index < 2)
-                                input.onchange = () => this$.inputOnChange(index as number, boundInputs, tableBody, true);//We add onChange on "Client" (0) and "Affaire" (1) columns. We set combined = true in order to add to the dataList of the next column an option combining all the choices in the list
+                                input.onchange = () => inputOnChange(index as number, boundInputs, tableBody, true);//We add onChange on "Client" (0) and "Affaire" (1) columns. We set combined = true in order to add to the dataList of the next column an option combining all the choices in the list
                             if (index < 1)
                                 populateSelectElement(input, m.getUniqueValues(0, tableBody));//We create a unique values dataList for the "Client" (0) input
                         })();
@@ -529,7 +531,7 @@ export class LawFirm implements ILawFirm {
                 lang: lang
             }
 
-            const contentControls = this$.getContentControlsValues(invoice, date);
+            const contentControls = getContentControlsValues(invoice, date);
 
             const fileName = getInvoiceFileName(clientName, matters, invoiceNumber);
             let saveToPath = `${saveTo}/${fileName}`;
@@ -574,7 +576,7 @@ export class LawFirm implements ILawFirm {
                 const adresses = m.getUniqueValues(addressCol, tableRows) as string[];//!We must retrieve the adresses at this stage before filtering by "Matter" or any other column
 
                 //const {wordRows, totalsLabels} = _getRowsData(tableRows, discount, lang, invoiceNumber);
-                const { wordRows, totalsLabels } = this$.getWordTableRows(this$, tableRows, discount, lang, invoiceNumber);
+                const { wordRows, totalsLabels } = getWordTableRows(tableRows, discount, lang, invoiceNumber);
 
                 return { wordRows, totalsLabels, clientName, matters, adresses };
 
@@ -622,7 +624,7 @@ export class LawFirm implements ILawFirm {
     }
 
     async issueLetter() {
-        const this$: LawFirm = this;
+        const UI = this.UI, getConsts = this.getConsts;
         const form = this.form ?? byID() ?? undefined;
         if (!form) return;
         showForm();
@@ -643,16 +645,16 @@ export class LawFirm implements ILawFirm {
                 form!.appendChild(btn);
                 btn.classList.add('button');
                 btn.innerText = 'Créer lettre'
-                btn.onclick = () => generate(this$);
+                btn.onclick = () => generate();
             })();
 
             (function homeBtn() {
-                showUI(this$.UI, true);
+                showUI(UI, true);
                 m.spinner(false);//We hide the spinner
             })();
         };
 
-        async function generate(this$: LawFirm) {
+        async function generate() {
             try {
                 await createLetter();
                 m.spinner(false);//We hide the spinner
@@ -665,7 +667,7 @@ export class LawFirm implements ILawFirm {
                 m.spinner(true);
                 const input = byID('textInput') as HTMLTextAreaElement;
                 if (!input) return;
-                const { templatePath, saveTo } = this$.getConsts(settingsNames.letter);
+                const { templatePath, saveTo } = getConsts(settingsNames.letter);
 
                 const fileName = prompt('Provide the file name without special characthers');
                 if (!fileName) return;
@@ -683,7 +685,7 @@ export class LawFirm implements ILawFirm {
     async issueLeaseLetter() {
         const form = this.form ?? byID() ?? undefined;
         if (!form) return;
-        const this$: LawFirm = this;
+        const UI = this.UI, inputOnChange = this.inputOnChange;
         m.spinner(true);//We show the spinner
         const { workbookPath, tableName, templatePath, saveTo } = this.getConsts(this.settingsNames.leases);
 
@@ -743,7 +745,7 @@ export class LawFirm implements ILawFirm {
 
                 (function inputsOnChange() {
                     const filled = inputs.filter(([input, col]) => col <= Ctrls.tenant.col!);
-                    filled.forEach(([input, col]) => input.onchange = () => [row, rowIndex] = this$.inputOnChange(col, inputs, tableRows, false) || [undefined, NaN]);
+                    filled.forEach(([input, col]) => input.onchange = () => [row, rowIndex] = inputOnChange(col, inputs, tableRows, false) || [undefined, NaN]);
 
                     const index = findInput(Ctrls.index);
                     const currentLeaseInput = findInput(Ctrls.currentLease);
@@ -786,28 +788,28 @@ export class LawFirm implements ILawFirm {
                     div.classList.add("group");
                     div.dataset.block = i.toString();
                     divs?.forEach(el => div.appendChild(el));
-                    this$.form?.appendChild(div);
+                    form!.appendChild(div);
                     return div
                 }
             })();
 
             (function generateBtn() {
                 const btn = document.createElement('button');
-                this$.form?.appendChild(btn);
+                form!.appendChild(btn);
                 btn.classList.add('button');
                 btn.innerText = 'Créer lettre'
                 btn.onclick = () => generate(inputs, row);
             })();
 
             (function homeBtn() {
-                showUI(this$.UI, true);
+                showUI(UI, true);
                 m.spinner(false);//We hide the spinner
             })();
 
             function createInput(RT: RT, className: string = 'field') {
                 const id = RT.title;
                 const div = document.createElement('div');
-                this$.form?.appendChild(div);
+                form!.appendChild(div);
                 const append = (el: HTMLElement) => div.appendChild(el);
 
                 (function appendLabel() {
@@ -919,7 +921,6 @@ export class LawFirm implements ILawFirm {
         m.spinner(true);//We show the spinner
         const form = this.form;
         if (!form) return;
-        const this$: LawFirm = this;
         const graph = new m.GraphAPI('');
         (function showForm() {
             form.innerHTML = '';
@@ -1292,7 +1293,8 @@ export class LawFirm implements ILawFirm {
      * @param {string} lang - The language in which the invoice will issued
      * @returns {string[][]} - the rows to be added to the table. Each row has 4 elements
      */
-    getWordTableRows(this$: LawFirm, tableRows: any[][], discount: number = 0, lang: string, invoiceNumber: string): { wordRows: string[][], totalsLabels: string[] } {
+    getWordTableRows(tableRows: any[][], discount: number = 0, lang: string, invoiceNumber: string): { wordRows: string[][], totalsLabels: string[] } {
+        const addNewEntry = this.addNewEntry;
 
         const labels: { [index: string]: lable } = {
             totalFees: {
@@ -1443,7 +1445,7 @@ export class LawFirm implements ILawFirm {
 
                 cells.forEach(([col, value]) => newRow[col] = value);
 
-                this$.addNewEntry(true, newRow);
+                addNewEntry(true, newRow);
             })();
 
             function pushRow(rowLable: lable, [amount, vat]: values, ignore: boolean = false) {
@@ -1567,6 +1569,7 @@ export class LawFirm implements ILawFirm {
 };
 
 export class Marianne implements IGraphAPI {
+    private UI: IUserInterface;
     private report: setting = {};
     private stored;
     private form;
@@ -1574,7 +1577,6 @@ export class Marianne implements IGraphAPI {
     private settingsNames;
     private workbookPath;
     private graph;
-    private UI: IUserInterface = mrUI;
     private Ctrls: ReportsCtrls = {
         monthly: [
             {
@@ -1618,6 +1620,7 @@ export class Marianne implements IGraphAPI {
 
     constructor() {
         this.form = byID();
+        this.UI = new MarianneUI(this);
         this.stored = saveSettings(this.UI, undefined, true) || undefined;
         this.settingsNames = settingsNames;
         this.workbookPath = this.findSetting(this.settingsNames.invoices.wordTemplate, this.stored)?.value ?? prompt('The path for the Excel workbook is missing') ?? alert('the workbook path is missing');
@@ -1625,9 +1628,10 @@ export class Marianne implements IGraphAPI {
         this.tenantID = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
     }
 
+    getUI = () => this.UI;
 
     async reportFactory(columns: number[], callBack: Function) {
-        const this$: Marianne = this;
+        const datesColumns = this.datesColumns, appendInputsAndLabels = this.appendInputsAndLabels, form = this.form, findSetting = this.findSetting, stored = this.stored, settingsNames = this.settingsNames;
         const tableName = this.findSetting(this.settingsNames.Marianne.tableName, this.stored)?.value ?? prompt('Provide the name of the Excel table') ?? '';
         const tableRows = await this.graph.fetchExcelTable(tableName, true);
         if (!tableRows) return m.throwAndAlert('Could not retrieve the Excel table')
@@ -1639,8 +1643,8 @@ export class Marianne implements IGraphAPI {
             const inputs =
                 columns.map(col => {
                     let type = 'text';
-                    if (this$.datesColumns.includes(col)) type = 'date';
-                    const input = this$.appendInputsAndLabels(col.toString(), tableTitles[col], type, this$.form!);
+                    if (datesColumns.includes(col)) type = 'date';
+                    const input = appendInputsAndLabels(col.toString(), tableTitles[col], type, form!);
                     return [input, col] as InputCol
                 });
 
@@ -1663,8 +1667,8 @@ export class Marianne implements IGraphAPI {
 
 
         async function prepareData(inputs: InputCol[]) {
-            const templatePath = this$.findSetting(this$.settingsNames.Marianne.wordTemplate, this$.stored)?.value ?? prompt('Provide the name of the path for the word document used as a template for the report') ?? '';
-            const saveTo = this$.findSetting(this$.settingsNames.Marianne.saveTo, this$.stored)?.value ?? prompt('Provide the name of the destination path for saving the report') ?? '';
+            const templatePath = findSetting(settingsNames.Marianne.wordTemplate, stored)?.value ?? prompt('Provide the name of the path for the word document used as a template for the report') ?? '';
+            const saveTo = findSetting(settingsNames.Marianne.saveTo, stored)?.value ?? prompt('Provide the name of the destination path for saving the report') ?? '';
 
             (async function filterTableRowsLogic() {
                 //Use the filter table by inputs value in the LawFirm class
@@ -2155,7 +2159,7 @@ class Reports {
         function userForm() {
         }
 
-        function report(this$: Reports) {
+        function report() {
 
         }
     };

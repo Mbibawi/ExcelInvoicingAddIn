@@ -1,16 +1,16 @@
-import { LawFirm, Marianne, saveSettings} from "./pwaVersion.js";
+import { LawFirm, Marianne, saveSettings } from "./pwaVersion.js";
 
 export const splitter = "; OR ";//This is the splitter that will be used to separate multiple values in the input fields. We need to use a splitter that is not likely to be included in the values themselves.
 
-export interface IUserInterface<>{
+export interface IUserInterface<> {
     appendUIBtns(homeBtn?: boolean): HTMLButtonElement | undefined;
 }
 
 
-class LawFirmUI implements IUserInterface {
+export class LawFirmUI implements IUserInterface {
     private lf;
-    constructor(lawfirm: new () => LawFirm) {
-        this.lf = new lawfirm();
+    constructor(lawfirm: LawFirm) {
+        this.lf = lawfirm;
     }
 
     appendUIBtns(homeBtn: boolean = false) {
@@ -27,10 +27,10 @@ class LawFirmUI implements IUserInterface {
     }
 }
 
-class MarianneUI implements IUserInterface {
+export class MarianneUI implements IUserInterface {
     private mr;
-    constructor(marianne: new () => Marianne) {
-        this.mr = new marianne();
+    constructor(marianne: Marianne) {
+        this.mr = marianne;
     }
     appendUIBtns(homeBtn?: boolean): HTMLButtonElement | undefined {
         //overriding the function
@@ -38,10 +38,8 @@ class MarianneUI implements IUserInterface {
     }
 }
 
-export const lfUI = new LawFirmUI(LawFirm);
-export const mrUI = new MarianneUI(Marianne);
 
-export function showUI(ui:IUserInterface, homeBtn:boolean = false) {
+export function showUI(ui: IUserInterface, homeBtn: boolean = false) {
     ui.appendUIBtns(homeBtn);
 };
 
