@@ -46,7 +46,7 @@ export class LawFirm {
      * @param {boolean} display - If provided, the function will show the visible rows in the UI after the new row has been added.
      * @param {any[]} row - If provided, the function will add the row directly to the Excel Table without needing to retrieve the data from the inputs.
      */
-    async addNewEntry(add = false, row) {
+    async addNewEntry(row) {
         m.spinner(true); //We show the spinner
         const form = this.form ?? byID() ?? undefined;
         const UI = this.UI, inputOnChange = this.inputOnChange;
@@ -58,8 +58,8 @@ export class LawFirm {
         if (!TableRows?.length)
             return alert("Failed to retrieve the Excel table");
         const tableTitles = TableRows[0];
-        if (add)
-            return addEntry(TableRows, tableTitles);
+        if (row)
+            return await addEntry(TableRows, tableTitles, row);
         await showAddNewForm();
         async function showAddNewForm() {
             try {
@@ -98,11 +98,10 @@ export class LawFirm {
                         ].forEach((group) => newDiv(NaN, divs.filter((div) => group.includes(Number(div.dataset.block)))));
                     })();
                     (function addBtn() {
-                        row = []; //!We must empty the row[] because if the button had already been clicked before, row[] is not empty, which means that addEntry() will not parse the values from the inputs, but will instead use the values already in row[]
                         const btnIssue = document.createElement("button");
                         btnIssue.innerText = "Add Entry";
                         btnIssue.classList.add("button");
-                        btnIssue.onclick = () => addEntry(TableRows, tableTitles);
+                        btnIssue.onclick = () => addEntry(TableRows, tableTitles); //!We omit the row argument in order for addEntry() to parse the values from the inputs
                         form.appendChild(btnIssue);
                     })();
                     (function homeBtn() {
@@ -192,7 +191,7 @@ export class LawFirm {
                 }
             }
         }
-        async function addEntry(tableRows, tableTitles) {
+        async function addEntry(tableRows, tableTitles, row) {
             if (!row?.length)
                 row = parseInputs() ?? undefined;
             try {
@@ -337,7 +336,7 @@ export class LawFirm {
         const form = this.form;
         const { workbookPath, tableName, templatePath, saveTo } = this.getConsts(this.settingsNames.invoices);
         const UI = this.UI, inputOnChange = this.inputOnChange, stored = this.stored;
-        const addNewEntry = async (row) => await this.addNewEntry(true, row); //!We had to redefined it with arrow function  because addNewEntry() uses "this", if called from any sub function of issueInvoice(), this will be changed or undefined.
+        const addNewEntry = async (row) => await this.addNewEntry(row); //!We had to redefined it with arrow function  because addNewEntry() uses "this", if called from any sub function of issueInvoice(), this will be changed or undefined.
         await showInvoiceForm();
         async function showInvoiceForm() {
             m.spinner(true); //We show the spinner
