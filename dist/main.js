@@ -26,7 +26,7 @@ import { LawFirm, Marianne, settingsNames, saveSettings } from "./pwaVersion.js"
             },
             {
                 name: settingsNames.invoices.saveTo,
-                value: `${root}Comptabilité/Factures/Clients}`,
+                value: `${root}Comptabilité/Factures/Clients`,
                 label: 'Please provide the OneDrive defalut folder path where the generated invoices will be saved'
             },
             {
