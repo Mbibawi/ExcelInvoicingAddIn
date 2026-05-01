@@ -74,7 +74,7 @@ import { LawFirm, Marianne, settingsNames, saveSettings } from "./pwaVersion.js"
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", async () => {
             try {
-                const registration = await navigator.serviceWorker.register("/ExcelInvoicingAddIn/dist/sw.js");
+                const registration = await navigator.serviceWorker.register("/ExcelInvoicingAddIn/sw.js");
                 console.log("Service Worker registered successfully:", registration);
             }
             catch (error) {

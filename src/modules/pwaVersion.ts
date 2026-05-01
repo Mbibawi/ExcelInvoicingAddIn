@@ -986,7 +986,7 @@ export class LawFirm implements ILawFirm {
           );
           if (!newRow) return;
           const [amount, vat] = feesDiscount; //!The discount must be added as a positive number. This is like a payment made by the client
-          const descr =
+          const descr = 
             prompt(
               "Provide a description for the discount",
               `Remise sur les honoraires de la facture n° ${invoiceNumber}`,
