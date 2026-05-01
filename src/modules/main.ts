@@ -189,11 +189,13 @@ export class GraphAPI {
 
   async getAccessToken() {
     const clientId = "9cb553c1-8473-4b2a-91d4-fef8b7cd7bff";
+    const tenantID = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
     const redirectUri = "https://mbibawi.github.io/ExcelInvoicingAddIn/"; //!must be the same domain as the app
     const msalConfig: Object = {
       auth: {
         clientId: clientId,
-        authority: "https://login.microsoftonline.com/common",
+        //authority: "https://login.microsoftonline.com/common",
+        authority: `https://login.microsoftonline.com/${tenantID}`,
         redirectUri: redirectUri,
       },
       cache: {
