@@ -194,8 +194,8 @@ export class GraphAPI {
     const msalConfig: Object = {
       auth: {
         clientId: clientId,
-        //authority: "https://login.microsoftonline.com/common",
-        authority: `https://login.microsoftonline.com/${tenantID}`,
+        authority: "https://login.microsoftonline.com/common",
+        //authority: `https://login.microsoftonline.com/${tenantID}`,
         redirectUri: redirectUri,
       },
       cache: {
