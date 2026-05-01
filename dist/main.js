@@ -1167,8 +1167,8 @@ class MSAL {
             }
         }
         catch (error) {
-            if (error instanceof InteractionRequiredAuthError) // Silent failed, fall back to popup
-                return await this.loginWithPopup();
+            //if (error instanceof this.msalInstance.InteractionRequiredAuthError)// Silent failed, fall back to popup
+            return await this.loginWithPopup();
             console.error("Token silent acquisition error:", error);
         }
     }

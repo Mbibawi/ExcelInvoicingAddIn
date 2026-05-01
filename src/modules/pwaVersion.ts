@@ -1735,7 +1735,7 @@ export class LawFirm implements ILawFirm {
           `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}`,
         );
 
-        return data.webUrl;
+        return data?.webUrl;
       }
 
       async function fetchAllFilesByBatches() {
@@ -1775,12 +1775,12 @@ export class LawFirm implements ILawFirm {
           const url = `https://graph.microsoft.com/v1.0/me/drive/items/${id}/children?${top}&${select}`;
 
           const data = await JSONFromGETRequest(url);
-          return data.value as (fileItem | folderItem)[]; // Returns an array of files & folders
+          return data?.value as (fileItem | folderItem)[]; // Returns an array of files & folders
 
           async function getFolderIdByPath(path: string): Promise<string> {
             const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${path}`;
             const data = await JSONFromGETRequest(endpoint);
-            return data.id; // Folder ID
+            return data?.id; // Folder ID
           }
         }
 

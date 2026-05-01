@@ -1323,7 +1323,7 @@ export class LawFirm {
             }
             async function getDownloadLink(fileId) {
                 const data = await JSONFromGETRequest(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}`);
-                return data.webUrl;
+                return data?.webUrl;
             }
             async function fetchAllFilesByBatches() {
                 const path = byID("folder")?.value;
@@ -1354,11 +1354,11 @@ export class LawFirm {
                     const id = await getFolderIdByPath(path);
                     const url = `https://graph.microsoft.com/v1.0/me/drive/items/${id}/children?${top}&${select}`;
                     const data = await JSONFromGETRequest(url);
-                    return data.value; // Returns an array of files & folders
+                    return data?.value; // Returns an array of files & folders
                     async function getFolderIdByPath(path) {
                         const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${path}`;
                         const data = await JSONFromGETRequest(endpoint);
-                        return data.id; // Folder ID
+                        return data?.id; // Folder ID
                     }
                 }
                 async function fetchSubfolderContents(folderIds) {
