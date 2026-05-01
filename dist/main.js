@@ -180,7 +180,6 @@ export class GraphAPI {
             auth: {
                 clientId: clientId,
                 authority: "https://login.microsoftonline.com/common",
-                //authority: `https://login.microsoftonline.com/${tenantID}`,
                 redirectUri: redirectUri,
             },
             cache: {
@@ -188,7 +187,7 @@ export class GraphAPI {
                 storeAuthStateInCookie: true
             }
         };
-        return await new MSAL(clientId, redirectUri, msalConfig).getTokenWithMSAL();
+        return await new MSAL(msalConfig).getTokenWithMSAL();
     }
     /**
    * Creates a new Graph API File session and returns its id
@@ -1127,9 +1126,9 @@ class MSAL {
     clientId = '';
     redirectUri = '';
     loginRequest = { scopes: [''] };
-    constructor(clientId, redirectUri, msalConfig, scopes = ["Files.ReadWrite"]) {
-        this.clientId = clientId;
-        this.redirectUri = redirectUri;
+    constructor(msalConfig, scopes = ["Files.ReadWrite"]) {
+        this.clientId = msalConfig.auth.clientId;
+        this.redirectUri = msalConfig.auth.redirectUri;
         this.loginRequest.scopes = scopes;
         //@ts-expect-error
         this.msalInstance = new msal.PublicClientApplication(msalConfig);

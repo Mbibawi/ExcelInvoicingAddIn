@@ -191,11 +191,10 @@ export class GraphAPI {
     const clientId = "9cb553c1-8473-4b2a-91d4-fef8b7cd7bff";
     const tenantID = "f45eef0e-ec91-44ae-b371-b160b4bbaa0c";
     const redirectUri = "https://mbibawi.github.io/ExcelInvoicingAddIn/"; //!must be the same domain as the app
-    const msalConfig: Object = {
+    const msalConfig: msalConfig = {
       auth: {
         clientId: clientId,
         authority: "https://login.microsoftonline.com/common",
-        //authority: `https://login.microsoftonline.com/${tenantID}`,
         redirectUri: redirectUri,
       },
       cache: {
@@ -203,7 +202,7 @@ export class GraphAPI {
         storeAuthStateInCookie: true
       }
     };
-    return await new MSAL(clientId, redirectUri, msalConfig).getTokenWithMSAL()
+    return await new MSAL(msalConfig).getTokenWithMSAL()
   }
 
   /**
@@ -1205,9 +1204,9 @@ class MSAL {
   private redirectUri: string = '';
   private loginRequest = { scopes: [''] };
 
-  constructor(clientId: string, redirectUri: string, msalConfig: Object, scopes: string[] = ["Files.ReadWrite"]) {
-    this.clientId = clientId;
-    this.redirectUri = redirectUri;
+  constructor(msalConfig: msalConfig, scopes: string[] = ["Files.ReadWrite"]) {
+    this.clientId = msalConfig.auth.clientId;
+    this.redirectUri = msalConfig.auth.redirectUri;
     this.loginRequest.scopes = scopes;
     //@ts-expect-error
     this.msalInstance = new msal.PublicClientApplication(msalConfig);

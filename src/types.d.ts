@@ -1,3 +1,14 @@
+type msalConfig = {
+    auth: {
+        clientId: string;
+        authority: string;
+        redirectUri: string;
+    };
+    cache: {
+        cacheLocation: string;
+        storeAuthStateInCookie: boolean;
+    };
+}
 type header = {
     "Authorization": string;
     "Content-Type": string;
@@ -95,6 +106,4 @@ declare class JSZip {
     files: { [key: string]: any };
 }
 
-declare class InteractionRequiredAuthError {
-
-}
+declare class InteractionRequiredAuthError { }
