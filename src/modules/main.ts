@@ -189,7 +189,7 @@ export class GraphAPI {
 
   async getAccessToken() {
     const clientId = "9cb553c1-8473-4b2a-91d4-fef8b7cd7bff";
-    const redirectUri = "https://mbibawi.github.io/ExcelInvoicingAddIn"; //!must be the same domain as the app
+    const redirectUri = "https://mbibawi.github.io/ExcelInvoicingAddIn/"; //!must be the same domain as the app
     const msalConfig: Object = {
       auth: {
         clientId: clientId,
@@ -1242,7 +1242,10 @@ class MSAL {
 
         return tokenResponse.accessToken;
       }
-    } catch (error) {
+    } catch (error) {   
+      if (error instanceof InteractionRequiredAuthError)// Silent failed, fall back to popup
+        return await this.loginWithPopup();
+
       console.error("Token silent acquisition error:", error);
     }
   };

@@ -94,3 +94,7 @@ declare class JSZip {
     generateAsync(options: { type: string }): Promise<any>;
     files: { [key: string]: any };
 }
+
+declare class InteractionRequiredAuthError {
+
+}
