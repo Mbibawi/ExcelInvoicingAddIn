@@ -188,7 +188,7 @@ export class GraphAPI {
   }
 
   async getAccessToken() {
-    const clientId = "157dd297-447d-4592-b2d3-76b643b97132";
+    const clientId = "9cb553c1-8473-4b2a-91d4-fef8b7cd7bff";
     const redirectUri = "https://mbibawi.github.io/ExcelInvoicingAddIn"; //!must be the same domain as the app
     const msalConfig: Object = {
       auth: {

@@ -1,4 +1,4 @@
-import * as m from "./index.js";
+import * as m from "./main.js";
 import {
   showUI,
   LawFirmUI,
@@ -950,8 +950,8 @@ export class LawFirm implements ILawFirm {
 
         ["EN", "FR"].forEach(
           (lang) =>
-            ((labels.totalDeduction[lang as keyof lable] as string) +=
-              ` (${percentage}%)`),
+          ((labels.totalDeduction[lang as keyof lable] as string) +=
+            ` (${percentage}%)`),
         );
 
         (function pushTotalsRows() {
@@ -1010,7 +1010,7 @@ export class LawFirm implements ILawFirm {
           [amount, vat]: values,
           ignore: boolean = false,
         ) {
-          if (ignore || !amount || isNaN(amount)) return;
+          if (ignore || isNaN(amount)) return;
           const lable = (rowLable?.[lang as keyof lable] as string) || "";
           if (lable) totalsLabels.push(lable);
           const value =
@@ -1133,9 +1133,9 @@ export class LawFirm implements ILawFirm {
         disclaimer: {
           title:
             "LabelDisclamer" +
-              ["French", "English"].find(
-                (el) => !el.toUpperCase().startsWith(arg.lang),
-              ) || "English",
+            ["French", "English"].find(
+              (el) => !el.toUpperCase().startsWith(arg.lang),
+            ) || "English",
           value: "DELETECONTENTECONTROL", //!by setting text = "DELETECONTENTECONTROL", the contentControl will be deleted
         },
         clientName: {
@@ -1392,13 +1392,13 @@ export class LawFirm implements ILawFirm {
           );
           filled.forEach(
             ([input, col]) =>
-              (input.onchange = () =>
-                ([row, rowIndex] = inputOnChange(
-                  col,
-                  inputs,
-                  tableRows,
-                  false,
-                ) || [undefined, NaN])),
+            (input.onchange = () =>
+            ([row, rowIndex] = inputOnChange(
+              col,
+              inputs,
+              tableRows,
+              false,
+            ) || [undefined, NaN])),
           );
 
           const index = findInput(Ctrls.index);
@@ -1909,7 +1909,7 @@ export class LawFirm implements ILawFirm {
           request.onerror = function (event) {
             reject(
               "Failed to open database: " +
-                (event.target as IDBOpenDBRequest)?.error,
+              (event.target as IDBOpenDBRequest)?.error,
             );
           };
         });
@@ -1936,7 +1936,7 @@ export class LawFirm implements ILawFirm {
               deleteRequest.onerror = function () {
                 reject(
                   "Failed to delete the specified record: " +
-                    (event.target as IDBRequest)?.error,
+                  (event.target as IDBRequest)?.error,
                 );
               };
             } else if (existingEntry) {
@@ -1957,7 +1957,7 @@ export class LawFirm implements ILawFirm {
               addRequest.onerror = function (event) {
                 reject(
                   "Failed to add new entry: " +
-                    (event.target as IDBRequest)?.error,
+                  (event.target as IDBRequest)?.error,
                 );
               };
             }
@@ -1966,7 +1966,7 @@ export class LawFirm implements ILawFirm {
           getRequest.onerror = function (event) {
             reject(
               "Failed to retrieve entry: " +
-                (event.target as IDBRequest)?.error,
+              (event.target as IDBRequest)?.error,
             );
           };
         });
@@ -2239,7 +2239,7 @@ export class Marianne implements IGraphAPI {
     const ctrls = this.Ctrls.production;
   }
 
-  async addNewEntry(): Promise<void> {}
+  async addNewEntry(): Promise<void> { }
 
   getContentControlsValues(ctrls: RT[]): [string, string][] {
     return [["", ""]];
@@ -2259,7 +2259,7 @@ export class Marianne implements IGraphAPI {
     };
   }
 
-  async updateTableRow(...args: any[]): Promise<void> {}
+  async updateTableRow(...args: any[]): Promise<void> { }
 
   private async issueReport(
     templatePath: string,
@@ -2294,7 +2294,7 @@ export class Marianne implements IGraphAPI {
     form.appendChild(div);
     appendLable();
     return appendInput();
-    function appendLable() {}
+    function appendLable() { }
     function appendInput() {
       const input = document.createElement("input");
       input.id = id;
@@ -2480,7 +2480,7 @@ class Reports {
       template = this.templates.returned,
       tableName = "???????";
 
-    function userForm() {}
+    function userForm() { }
 
     async function report() {
       const returned = excelData.filter(
@@ -2536,9 +2536,9 @@ class Reports {
       const casesArray: string[][] = [];
 
       const meetingDate: HTMLInputElement = createInput(
-          "meetingDate",
-          "Meeting Date",
-        ),
+        "meetingDate",
+        "Meeting Date",
+      ),
         meetingHour: HTMLInputElement = createInput(
           "meetingHour",
           "Meeting Hour",
@@ -2727,54 +2727,54 @@ class Reports {
   async noticesReport() {
     const excelData = await this.fetchExelData();
     if (!excelData) return;
-    function userForm() {}
+    function userForm() { }
 
-    function report() {}
+    function report() { }
   }
 
   async pendingCasesReport() {
     const excelData = await this.fetchExelData();
     if (!excelData) return;
     const casesTypes: { [index: string]: { name: string; tableName: string } } =
-      {
-        //!the types must be in this order !!!
-        CivilAppealed: {
-          name: "مدني مستأنف",
-          tableName: "CivilLawCases",
-        },
-        Administrative: {
-          name: "قضاء إداري",
-          tableName: "CivilLawCases",
-        },
-        Civil: {
-          name: "مدني",
-          tableName: "CivilLawCases",
-        },
-        LabourAppealed: {
-          name: "عمال مستأنف",
-          tableName: "LabourLawCases",
-        },
-        Labour: {
-          name: "عمال",
-          tableName: "LabourLawCases",
-        },
-        Tax: {
-          name: "ضرائب",
-          tableName: "TaxLawCases",
-        },
-        Persons: {
-          name: "أحوال شخصية",
-          tableName: "PersonsLawCases",
-        },
-        Criminal: {
-          name: "جنح ونيابات",
-          tableName: "CriminalLawCases",
-        },
-        PublicCasess: {
-          name: "أموال عامة",
-          tableName: "PublicFundsLawCases",
-        },
-      };
+    {
+      //!the types must be in this order !!!
+      CivilAppealed: {
+        name: "مدني مستأنف",
+        tableName: "CivilLawCases",
+      },
+      Administrative: {
+        name: "قضاء إداري",
+        tableName: "CivilLawCases",
+      },
+      Civil: {
+        name: "مدني",
+        tableName: "CivilLawCases",
+      },
+      LabourAppealed: {
+        name: "عمال مستأنف",
+        tableName: "LabourLawCases",
+      },
+      Labour: {
+        name: "عمال",
+        tableName: "LabourLawCases",
+      },
+      Tax: {
+        name: "ضرائب",
+        tableName: "TaxLawCases",
+      },
+      Persons: {
+        name: "أحوال شخصية",
+        tableName: "PersonsLawCases",
+      },
+      Criminal: {
+        name: "جنح ونيابات",
+        tableName: "CriminalLawCases",
+      },
+      PublicCasess: {
+        name: "أموال عامة",
+        tableName: "PublicFundsLawCases",
+      },
+    };
     const cols = this.cols,
       status = this.status,
       getFirst = this.findCaseFirstRow,
@@ -2783,7 +2783,7 @@ class Reports {
       today = this.today,
       template = this.templates.monthly; //!Needs to be checked
 
-    function userForm() {}
+    function userForm() { }
 
     async function report() {
       //!The Word template has several tables types that we will use depending on the case type:
@@ -2857,7 +2857,7 @@ class Reports {
     return [];
   }
 
-  private showUserForm() {}
+  private showUserForm() { }
   private rowID(row: any[]) {
     return this.idCols.map((col) => row[col]).join("&");
   }

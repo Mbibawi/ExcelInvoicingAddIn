@@ -1,4 +1,4 @@
-import * as m from "./index.js";
+import * as m from "./main.js";
 import { showUI, LawFirmUI, MarianneUI, byID, populateSelectElement, splitter, } from "./ui.js";
 export const settingsNames = {
     invoices: {
@@ -725,7 +725,7 @@ export class LawFirm {
                     await addNewEntry(newRow);
                 }
                 function pushRow(rowLable, [amount, vat], ignore = false) {
-                    if (ignore || !amount || isNaN(amount))
+                    if (ignore || isNaN(amount))
                         return;
                     const lable = rowLable?.[lang] || "";
                     if (lable)
