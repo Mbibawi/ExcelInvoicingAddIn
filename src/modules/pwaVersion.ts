@@ -274,12 +274,18 @@ export class LawFirm implements ILawFirm {
         m.spinner(false); //We hide the spinner
         alert(error);
       }
+      const inputs = Array.from(
+        document.getElementsByTagName("input"),
+      ) as HTMLInputElement[]; //all inputs
+
+      const byIndex = (index: number) => m.getInputByIndex(inputs, index);
 
       function parseInputs() {
         const colNature = 2,
           colDate = 3,
           colStart = 5,
           colEnd = 6,
+          colTime = 7,
           colRate = 8,
           colAmount = 9,
           colVAT = 10;
@@ -288,17 +294,13 @@ export class LawFirm implements ILawFirm {
             `${missing} missing. You must at least provide the client, matter, nature, date and the amount. If you provided a time start, you must provide the end time and the hourly rate. Please review your iputs`,
           );
 
-        const inputs = Array.from(
-          document.getElementsByTagName("input"),
-        ) as HTMLInputElement[]; //all inputs
-
-        const nature = m.getInputByIndex(inputs, colNature)?.value;
+        const nature = byIndex(colNature)?.value;
         if (!nature) return stop("The matter is");
-        const date = m.getInputByIndex(inputs, colDate)
+        const date = byIndex(colDate)
           ?.valueAsDate as Date | null;
         if (!date) return stop("The invoice date is");
-        const amount = m.getInputByIndex(inputs, colAmount) as HTMLInputElement;
-        const rate = m.getInputByIndex(inputs, colRate)?.valueAsNumber || 0;
+        const amount = byIndex(colAmount) as HTMLInputElement;
+        const rate = byIndex(colRate)?.valueAsNumber || 0;
 
         const debit = [
           "Honoraire",
@@ -315,20 +317,18 @@ export class LawFirm implements ILawFirm {
         return row;
 
         function getInputValue(index: number) {
-          const input = m.getInputByIndex(inputs, index) as HTMLInputElement;
+          const input = byIndex(index) as HTMLInputElement;
           if ([colDate, colDate + 1].includes(index))
             return m.getISODate(date); //Those are the 2 date columns
           else if ([colStart, colEnd].includes(index))
             return m.getTime([input]); //time start and time end columns
-          else if (index === 7) {
+          else if (index === colTime) {
             //!This is a hidden input
-            const timeInputs = [colStart, colEnd].map((i) =>
-              m.getInputByIndex(inputs, i),
-            );
-            const totalTime = m.getTime(timeInputs); //Total time column
-            if (totalTime && rate && !amount.valueAsNumber)
-              amount.valueAsNumber = totalTime * 24 * rate; // making the amount equal the rate * totalTime
-            return totalTime;
+            if (amount.valueAsNumber) return amount.valueAsNumber; //If the amount is provided, we return it
+            const timeInputs = [colStart, colEnd].map((i) => byIndex(i)!);
+            const totalTime = m.getTime(timeInputs) || 0; //Total time column
+            amount.valueAsNumber = totalTime * rate || 0
+            return totalTime; // making the amount equal the rate * totalTime
           } else if (debit && index === colAmount)
             return -input.valueAsNumber || 0; //This is the amount if negative
           else if ([colRate, colAmount, colVAT].includes(index))
@@ -340,7 +340,7 @@ export class LawFirm implements ILawFirm {
           if (
             row.filter(
               (value, i) => (i < colDate + 1 || i === colAmount) && !value,
-            ).length > 0
+            ).length
           )
             return true; //if client name, matter, nature, date or amount are missing
 
@@ -895,7 +895,7 @@ export class LawFirm implements ILawFirm {
       const colDate = 3,
         colAmount = 9,
         colVAT = 10,
-        colHours = 7,
+        colTime = 7,
         colRate = 8,
         colNature = 2,
         colDescr = 14; //Indexes of the Excel table columns from which we extract the date
@@ -903,7 +903,7 @@ export class LawFirm implements ILawFirm {
       const totalsLabels: string[] = [];
       const wordRows: string[][] = tableRows.map((row) => {
         const date = dateFromExcel(Number(row[colDate]));
-        const time = getTimeSpent(Number(row[colHours]));
+        const time = getTimeSpent(Number(row[colTime]));
 
         let description = `${String(row[colNature])} : ${String(row[colDescr])}`; //Column Nature + Column Description;
 
@@ -941,7 +941,7 @@ export class LawFirm implements ILawFirm {
         ) as values;
         const totalPayments = total(labels.totalPayments);
         const totalExpenses = total(labels.totalExpenses);
-        const totalTimeSpent: values = [sumColumn(colHours), NaN]; //by omitting to pass the "natures" argument to sumColumn, we do not filter the "Total Time" column by any crieteria. We will get the sum of all the column. since the VAT = NaN, the VAT cell will end up empty.
+        const totalTimeSpent: values = [sumColumn(colTime), NaN]; //by omitting to pass the "natures" argument to sumColumn, we do not filter the "Total Time" column by any crieteria. We will get the sum of all the column. since the VAT = NaN, the VAT cell will end up empty. We multiply the sum by 24 because Excel stores time as fraction of a day. By multiplying by 24 we get the sum of the time in hours.
         const totalDue = netFees.map(
           (amount, index) =>
             amount + totalExpenses[index] - totalPayments[index],
@@ -1071,10 +1071,10 @@ export class LawFirm implements ILawFirm {
        */
       function getTimeSpent(time: number): string {
         if (!time || time <= 0) return "";
-        time = time * (60 * 60 * 24); //84600 is the number in seconds per day. Excel stores the time as fraction number of days like "1.5" which is = 36 hours 0 minutes 0 seconds;
-        const minutes = Math.floor(time / 60);
-        const hours = Math.floor(minutes / 60);
-        return [hours, minutes % 60, 0]
+        const hours = time * 24; //Excel stores the time as fraction number of days like "1.5" which is = 36 hours 0 minutes 0 seconds. We will extract the time as hours (e.g. 2.75, 4.5, etc.);
+        return hours.toString();
+        const minutes = (hours - Math.floor(hours)) * 60;
+        return [Math.floor(hours), minutes]
           .map((el) => el.toString().padStart(2, "0"))
           .join(":");
       }

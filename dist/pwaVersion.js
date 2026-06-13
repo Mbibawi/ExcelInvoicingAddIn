@@ -204,19 +204,20 @@ export class LawFirm {
                 m.spinner(false); //We hide the spinner
                 alert(error);
             }
+            const inputs = Array.from(document.getElementsByTagName("input")); //all inputs
+            const byIndex = (index) => m.getInputByIndex(inputs, index);
             function parseInputs() {
-                const colNature = 2, colDate = 3, colStart = 5, colEnd = 6, colRate = 8, colAmount = 9, colVAT = 10;
+                const colNature = 2, colDate = 3, colStart = 5, colEnd = 6, colTime = 7, colRate = 8, colAmount = 9, colVAT = 10;
                 const stop = (missing) => alert(`${missing} missing. You must at least provide the client, matter, nature, date and the amount. If you provided a time start, you must provide the end time and the hourly rate. Please review your iputs`);
-                const inputs = Array.from(document.getElementsByTagName("input")); //all inputs
-                const nature = m.getInputByIndex(inputs, colNature)?.value;
+                const nature = byIndex(colNature)?.value;
                 if (!nature)
                     return stop("The matter is");
-                const date = m.getInputByIndex(inputs, colDate)
+                const date = byIndex(colDate)
                     ?.valueAsDate;
                 if (!date)
                     return stop("The invoice date is");
-                const amount = m.getInputByIndex(inputs, colAmount);
-                const rate = m.getInputByIndex(inputs, colRate)?.valueAsNumber || 0;
+                const amount = byIndex(colAmount);
+                const rate = byIndex(colRate)?.valueAsNumber || 0;
                 const debit = [
                     "Honoraire",
                     "Débours/Dépens",
@@ -229,18 +230,19 @@ export class LawFirm {
                     return stop("Some of the required fields are");
                 return row;
                 function getInputValue(index) {
-                    const input = m.getInputByIndex(inputs, index);
+                    const input = byIndex(index);
                     if ([colDate, colDate + 1].includes(index))
                         return m.getISODate(date); //Those are the 2 date columns
                     else if ([colStart, colEnd].includes(index))
                         return m.getTime([input]); //time start and time end columns
-                    else if (index === 7) {
+                    else if (index === colTime) {
                         //!This is a hidden input
-                        const timeInputs = [colStart, colEnd].map((i) => m.getInputByIndex(inputs, i));
-                        const totalTime = m.getTime(timeInputs); //Total time column
-                        if (totalTime && rate && !amount.valueAsNumber)
-                            amount.valueAsNumber = totalTime * 24 * rate; // making the amount equal the rate * totalTime
-                        return totalTime;
+                        if (amount.valueAsNumber)
+                            return amount.valueAsNumber; //If the amount is provided, we return it
+                        const timeInputs = [colStart, colEnd].map((i) => byIndex(i));
+                        const totalTime = m.getTime(timeInputs) || 0; //Total time column
+                        amount.valueAsNumber = totalTime * rate || 0;
+                        return totalTime; // making the amount equal the rate * totalTime
                     }
                     else if (debit && index === colAmount)
                         return -input.valueAsNumber || 0; //This is the amount if negative
@@ -250,7 +252,7 @@ export class LawFirm {
                         return input.value;
                 }
                 function missing() {
-                    if (row.filter((value, i) => (i < colDate + 1 || i === colAmount) && !value).length > 0)
+                    if (row.filter((value, i) => (i < colDate + 1 || i === colAmount) && !value).length)
                         return true; //if client name, matter, nature, date or amount are missing
                     if (row[colStart] === row[colEnd])
                         return false; //If the total time = 0 we do not need to alert if the hourly rate is missing
@@ -658,11 +660,11 @@ export class LawFirm {
                     EN: "Adress",
                 },
             };
-            const colDate = 3, colAmount = 9, colVAT = 10, colHours = 7, colRate = 8, colNature = 2, colDescr = 14; //Indexes of the Excel table columns from which we extract the date
+            const colDate = 3, colAmount = 9, colVAT = 10, colTime = 7, colRate = 8, colNature = 2, colDescr = 14; //Indexes of the Excel table columns from which we extract the date
             const totalsLabels = [];
             const wordRows = tableRows.map((row) => {
                 const date = dateFromExcel(Number(row[colDate]));
-                const time = getTimeSpent(Number(row[colHours]));
+                const time = getTimeSpent(Number(row[colTime]));
                 let description = `${String(row[colNature])} : ${String(row[colDescr])}`; //Column Nature + Column Description;
                 //If the billable hours are > 0, we add to the description: time spent and hourly rate
                 if (time)
@@ -687,7 +689,7 @@ export class LawFirm {
                 const netFees = totalFees.map((amount, index) => amount - feesDeductions[index]);
                 const totalPayments = total(labels.totalPayments);
                 const totalExpenses = total(labels.totalExpenses);
-                const totalTimeSpent = [sumColumn(colHours), NaN]; //by omitting to pass the "natures" argument to sumColumn, we do not filter the "Total Time" column by any crieteria. We will get the sum of all the column. since the VAT = NaN, the VAT cell will end up empty.
+                const totalTimeSpent = [sumColumn(colTime), NaN]; //by omitting to pass the "natures" argument to sumColumn, we do not filter the "Total Time" column by any crieteria. We will get the sum of all the column. since the VAT = NaN, the VAT cell will end up empty. We multiply the sum by 24 because Excel stores time as fraction of a day. By multiplying by 24 we get the sum of the time in hours.
                 const totalDue = netFees.map((amount, index) => amount + totalExpenses[index] - totalPayments[index]);
                 const percentage = (amount(feesDeductions) / amount(totalFees)) * 100;
                 ["EN", "FR"].forEach((lang) => (labels.totalDeduction[lang] +=
@@ -779,10 +781,10 @@ export class LawFirm {
             function getTimeSpent(time) {
                 if (!time || time <= 0)
                     return "";
-                time = time * (60 * 60 * 24); //84600 is the number in seconds per day. Excel stores the time as fraction number of days like "1.5" which is = 36 hours 0 minutes 0 seconds;
-                const minutes = Math.floor(time / 60);
-                const hours = Math.floor(minutes / 60);
-                return [hours, minutes % 60, 0]
+                const hours = time * 24; //Excel stores the time as fraction number of days like "1.5" which is = 36 hours 0 minutes 0 seconds. We will extract the time as hours (e.g. 2.75, 4.5, etc.);
+                return hours.toString();
+                const minutes = (hours - Math.floor(hours)) * 60;
+                return [Math.floor(hours), minutes]
                     .map((el) => el.toString().padStart(2, "0"))
                     .join(":");
             }
