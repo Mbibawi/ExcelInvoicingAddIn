@@ -265,6 +265,12 @@ export class LawFirm implements ILawFirm {
       tableTitles: string[],
       row?: any[],
     ) {
+      const inputs = Array.from(
+        document.getElementsByTagName("input"),
+      ) as HTMLInputElement[]; //all inputs
+
+      const byIndex = (index: number) => m.getInputByIndex(inputs, index);
+
       if (!row?.length) row = parseInputs() ?? undefined;
       try {
         const visibleCells = await addRow(row);
@@ -274,11 +280,6 @@ export class LawFirm implements ILawFirm {
         m.spinner(false); //We hide the spinner
         alert(error);
       }
-      const inputs = Array.from(
-        document.getElementsByTagName("input"),
-      ) as HTMLInputElement[]; //all inputs
-
-      const byIndex = (index: number) => m.getInputByIndex(inputs, index);
 
       function parseInputs() {
         const colNature = 2,

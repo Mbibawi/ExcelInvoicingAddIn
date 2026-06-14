@@ -192,6 +192,8 @@ export class LawFirm {
             }
         }
         async function addEntry(tableRows, tableTitles, row) {
+            const inputs = Array.from(document.getElementsByTagName("input")); //all inputs
+            const byIndex = (index) => m.getInputByIndex(inputs, index);
             if (!row?.length)
                 row = parseInputs() ?? undefined;
             try {
@@ -204,8 +206,6 @@ export class LawFirm {
                 m.spinner(false); //We hide the spinner
                 alert(error);
             }
-            const inputs = Array.from(document.getElementsByTagName("input")); //all inputs
-            const byIndex = (index) => m.getInputByIndex(inputs, index);
             function parseInputs() {
                 const colNature = 2, colDate = 3, colStart = 5, colEnd = 6, colTime = 7, colRate = 8, colAmount = 9, colVAT = 10;
                 const stop = (missing) => alert(`${missing} missing. You must at least provide the client, matter, nature, date and the amount. If you provided a time start, you must provide the end time and the hourly rate. Please review your iputs`);
