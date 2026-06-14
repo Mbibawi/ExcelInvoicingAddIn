@@ -781,12 +781,12 @@ export class LawFirm {
             function getTimeSpent(time) {
                 if (!time || time <= 0)
                     return "";
-                const hours = time * 24; //Excel stores the time as fraction number of days like "1.5" which is = 36 hours 0 minutes 0 seconds. We will extract the time as hours (e.g. 2.75, 4.5, etc.);
+                const minutes = time * 24 * 60; //Excel stores the time as fraction number of days like "1.5" which is = 36 hours 0 minutes 0 seconds. We will extract the time as hours (e.g. 2.75, 4.5, etc.);
+                const hours = minutes / 60;
                 return hours.toString();
-                const minutes = (hours - Math.floor(hours)) * 60;
-                return [Math.floor(hours), minutes]
-                    .map((el) => el.toString().padStart(2, "0"))
-                    .join(":");
+                //return [Math.floor(hours), minutes % 60]
+                //.map((n) => n.toString().padStart(2, "0"))
+                //.join(" H ");
             }
         }
         function getContentControlsValues(arg, date) {
