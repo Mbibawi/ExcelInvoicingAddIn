@@ -1088,27 +1088,6 @@ export function getDateString(date) {
 }
 ;
 /**
- * Returns the value from a time input as a number matching the Excel time format (which is a fraction of the day)
- * @param {HTMLInputElement[]} inputs - If a single input is passed, it will return the Excel formatted time value from this input or 0. If 2 inputs are passed, it will return the total time by calculting the difference between the second input and the first input in the array
- * @returns {number} - The time as a number matching the Excel time format
- */
-export function getTime(inputs) {
-    const hour = (1000 * 60 * 60), day = hour * 24;
-    if (inputs.length < 2)
-        return inputs[0].valueAsNumber / day || 0;
-    const from = inputs[0]?.valueAsNumber; //this gives the time in milliseconds
-    const to = inputs[1]?.valueAsNumber;
-    if (!from || !to)
-        return 0;
-    const quarter = 15 * 60 * 1000; //quarter of an hour
-    let time = Math.abs(to - from);
-    time = Math.round(time / quarter) * quarter; //We are rounding the time by 1/4 hours
-    time = time / day; //We return the time as number of hours (with fractions for 1/4 hours: e.g. 2.5, 3.75, etc.)
-    // if (time < 0) time = (to + (24 * hour) - from) / (hour * 24)//It means we started on one day and finished the next day 
-    return time;
-}
-;
-/**
  * Helper function to convert Blob to Base64
  *  */
 function convertBlobToBase64(blob) {

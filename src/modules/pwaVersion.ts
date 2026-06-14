@@ -80,7 +80,7 @@ export class LawFirm implements ILawFirm {
     m.spinner(true); //We show the spinner
     const form = this.form ?? byID() ?? undefined;
 
-    const UI = this.UI,
+    const UI = this.UI, getTime = this.getTime,
       inputOnChange = this.inputOnChange;
 
     const { workbookPath, tableName } = this.getConsts(
@@ -322,14 +322,15 @@ export class LawFirm implements ILawFirm {
           if ([colDate, colDate + 1].includes(index))
             return m.getISODate(date); //Those are the 2 date columns
           else if ([colStart, colEnd].includes(index))
-            return m.getTime([input]); //time start and time end columns
+            return getTime([input]); //time start and time end columns
           else if (index === colTime) {
             //!This is a hidden input
-            if (amount.valueAsNumber) return amount.valueAsNumber; //If the amount is provided, we return it
-            const timeInputs = [colStart, colEnd].map((i) => byIndex(i)!);
-            const totalTime = m.getTime(timeInputs) || 0; //Total time column
-            amount.valueAsNumber = Math.round((totalTime * 24 * rate));
-            return totalTime; // making the amount equal the rate * totalTime
+            if (!amount.valueAsNumber) {
+              const timeInputs = [colStart, colEnd].map((i) => byIndex(i)!);
+              const totalTime = getTime(timeInputs) || 0; //Total time column
+              amount.valueAsNumber = Math.round((totalTime * 24 * rate));
+            }
+            return "=[@[End Time]]-[@[Starting Time]]"; //We edit the cell formula
           } else if (debit && index === colAmount)
             return -input.valueAsNumber || 0; //This is the amount if negative
           else if ([colRate, colAmount, colVAT].includes(index))
@@ -1072,6 +1073,7 @@ export class LawFirm implements ILawFirm {
        */
       function getTimeSpent(time: number): string {
         if (!time || time <= 0) return "";
+
         const minutes = time * 24 * 60; //Excel stores the time as fraction number of days like "1.5" which is = 36 hours 0 minutes 0 seconds. We will extract the time as hours (e.g. 2.75, 4.5, etc.);
         const hours = minutes / 60;
         return hours.toString();
@@ -2059,6 +2061,32 @@ export class LawFirm implements ILawFirm {
       else input.value = value?.toString() || "";
     }
   }
+
+  /**
+ * Returns the value from a time input as a number matching the Excel time format (which is a fraction of the day)
+ * @param {HTMLInputElement[]} inputs - If a single input is passed, it will return the Excel formatted time value from this input or 0. If 2 inputs are passed, it will return the total time by calculting the difference between the second input and the first input in the array
+ * @returns {number} - The time as a number matching the Excel time format
+ */
+  private getTime(inputs: HTMLInputElement[]) {
+    const hour = (1000 * 60 * 60), day = hour * 24;
+
+    if (inputs.length < 2)
+      return inputs[0]!.valueAsNumber / day || 0;
+
+    const from = inputs[0]?.valueAsNumber;//this gives the time in milliseconds
+    const to = inputs[1]?.valueAsNumber;
+
+    if (!from || !to) return 0;
+
+    const quarter = 15 * 60 * 1000; //quarter of an hour
+
+    let time = Math.abs(to - from);
+
+    time = Math.round(time / quarter) * quarter;//We are rounding the time by 1/4 hours
+    time = time / day; //We return the time as number of hours (with fractions for 1/4 hours: e.g. 2.5, 3.75, etc.)
+    // if (time < 0) time = (to + (24 * hour) - from) / (hour * 24)//It means we started on one day and finished the next day 
+    return time;
+  };
 }
 
 export class Marianne implements IGraphAPI {
