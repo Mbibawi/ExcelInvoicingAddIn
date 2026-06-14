@@ -241,7 +241,7 @@ export class LawFirm {
                             return amount.valueAsNumber; //If the amount is provided, we return it
                         const timeInputs = [colStart, colEnd].map((i) => byIndex(i));
                         const totalTime = m.getTime(timeInputs) || 0; //Total time column
-                        amount.valueAsNumber = totalTime * rate || 0;
+                        amount.valueAsNumber = Math.round((totalTime * 24 * rate));
                         return totalTime; // making the amount equal the rate * totalTime
                     }
                     else if (debit && index === colAmount)
