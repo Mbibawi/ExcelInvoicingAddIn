@@ -1,3 +1,6 @@
+///<reference path="../office.d.ts" />
+
+
 import { showUI, appendUIBtn, byID } from "./ui.js";
 import { LawFirm, Marianne, settingsNames, saveSettings } from "./pwaVersion.js";
 
@@ -1218,7 +1221,7 @@ class MSAL {
 
         return tokenResponse.accessToken;
       }
-    } catch (error) {   
+    } catch (error) {
       //if (error instanceof this.msalInstance.InteractionRequiredAuthError)// Silent failed, fall back to popup
       return await this.loginWithPopup();
       console.error("Token silent acquisition error:", error);
