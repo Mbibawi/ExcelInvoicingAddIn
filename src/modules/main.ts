@@ -1,4 +1,4 @@
-///<reference path="../office.d.ts" />
+///<reference path="../types.d.ts" />
 
 
 import { showUI, appendUIBtn, byID } from "./ui.js";

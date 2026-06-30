@@ -1,3 +1,5 @@
+///<reference path="./office.d.ts" />
+
 type msalConfig = {
     auth: {
         clientId: string;
@@ -21,17 +23,17 @@ type lable = {
 };
 type RT = {
     title: string;
-    value: string |number,
+    value: string | number,
     label?: string;
     col?: number;
     type?: string;
 };
 
 type ReportsCtrls = {
-    monthly:RT[],
-    annual:RT[],
-    returned:RT[],
-    production:RT[],
+    monthly: RT[],
+    annual: RT[],
+    returned: RT[],
+    production: RT[],
 }
 
 type LeaseCtrls = {

@@ -1,3 +1,4 @@
+///<reference path="../types.d.ts" />
 import * as m from "./main.js";
 import {
   showUI,
